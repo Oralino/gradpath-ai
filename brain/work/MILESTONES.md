@@ -12,7 +12,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 0 | Project setup | ✅ | Decide the plan, stack and rules before coding | Public repo, `brain/` docs, licence-checked sources |
 | 1 | RAG foundation | ✅ | Load sources, answer with citations, analyse a job description | Cited answers, "not covered" answers, 40+ tests |
 | 2 | Retrieval evaluation + tracing | ✅ | Measure search quality | Recall@5 0.97, MRR 0.98, threshold checked, LangSmith traces, CI |
-| 3 | Agentic workflow | 🔨 | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop |
+| 3 | Agentic workflow | ✅ (PR open) | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop; 4/4 workflow eval cases; `POST /api/career/prepare` |
 | 4 | Router + fallback | ⏳ | Pick the cheapest path that works | Routing accuracy, labelled partial answers |
 | 5 | Hybrid retrieval + reranking | ⏳ | Improve search for exact terms | Before/after metrics vs semantic-only |
 | 6 | Frontend | ⏳ | Make it usable | Next.js app designed from `DESIGN.md` |
@@ -129,7 +129,7 @@ and analyses a job description, or says when it doesn't know.
 
 ---
 
-## Milestone 3: Agentic workflow (LangGraph) 🔨
+## Milestone 3: Agentic workflow (LangGraph) ✅ (PR open)
 *Ticket: `tickets/T-003-agentic-workflow.md`*
 
 **Goal:** job description + profile -> requirements -> gap analysis -> prioritised roadmap ->
@@ -144,12 +144,14 @@ critic, with a bounded revision loop, as a LangGraph workflow behind `POST /api/
 | 5a. Job + retrieval nodes | ✅ | Real `analyze_job` (Haiku extraction reused, ids, quote checks) and `retrieve_knowledge` (one batched search); one retry for model nodes on bad output | Reuse what Milestone 1 already proved instead of rewriting it | 18 new tests (170 total): ids, quotes, untrusted posting, one search batch, retry once then fail, retry allow-list, retried nodes counted once; code review: retry bounded, allow-list fix |
 | 5b. Gaps, roadmap, questions, critic | ✅ | `analyze_gaps` (Sonnet), `plan_roadmap` + `revise` (Sonnet), `interview_questions` (Haiku), `evaluate` (code checks, then Haiku); corrections as self-reported facts; one injection helper for every prompt | The core of the product: evidence-checked gaps and a plan that only cites what was retrieved | 31 new tests (201 total), incl. full runs: complete, one revision, limit reached; code review: 7 fixes (spaced closing tags, empty or worse revision, empty roadmap, correction cap, cap order, missing sources) |
 | 6. API + CLI + real run | ✅ | `POST /api/career/prepare` (body = `WorkflowInput`, limit from settings, one run at a time, fixed error messages), `workflows.cli` (report or JSON), model text truncated at 1,000 characters | One call for the whole feature; a terminal runner for real runs | 17 new tests (217 total); code review: no leaks, 5 fixes. Real Pro-plan run: `complete` after 1 revision in 101 s; 18 requirements, 10 roadmap items (47 h of a 48 h budget), 10 questions (EVALUATION.md) |
-| 7. Workflow eval + open tasks + PR | 🔨 | 4 labelled workflow cases scored in code (`--rescore` for free re-scoring); concurrency caps on every model route; retry logs redacted; `--out` guard; ingestion hardening (T-005: polite redirects, content type, stale chunks, atomic rebuild) | Measure the workflow's behaviour and close the open review items before the PR | 238 tests; eval run and review in progress |
+| 7. Workflow eval + open tasks + PR | ✅ | 4 labelled workflow cases scored in code (`--rescore` for free re-scoring); concurrency caps on every model route; retry logs redacted; `--out` guard; ingestion hardening (T-005: polite redirects, content type, stale chunks, atomic rebuild) | Measure the workflow's behaviour and close the open review items before the PR | 4/4 cases pass (correction capped, injection had no effect, budget respected); retrieval unchanged; 251 tests; QA clean; PR open |
 
 ### Problems we hit and how we solved them
 
 | Problem | What we did | Why it's worth mentioning |
 |---|---|---|
+| Turning off automatic redirects (to re-check robots.txt per hop) made a redirecting robots.txt count as "allow everything" | Review caught it; robots.txt redirects are now followed by hand too | A security fix can open a new hole next to it; review the fix as well |
+| Every first roadmap in the evaluation needed a revision | Recorded with the numbers; measure which check fires before changing anything | Measure first, then tune |
 | In the real run Sonnet said the knowledge base had no PostgreSQL source, though three PostgreSQL chunks were retrieved, and the warning about it was dropped from the result | Minor issues now stay on a complete result; recorded as a measured failure for the workflow evaluation | Real runs find what fake-model tests can't; record them, don't hide them |
 | `< /evidence>` (a space before the slash) passed the tag-neutralising regex we'd used since Milestone 1 | Regex allows whitespace on both sides of the slash; tests for each spacing | Injection defences need adversarial tests, not just the obvious case |
 | One correction ("I know all of these") could mark every requirement demonstrated and empty the roadmap | Corrections alone count as partial evidence at most | A feature that helps users can also be gamed; cap what it can do |

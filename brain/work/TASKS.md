@@ -4,10 +4,7 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] [T-003 Milestone 3: agentic workflow (LangGraph)](tickets/T-003-agentic-workflow.md)
-      (in progress: step 7, workflow evaluation, release checks, PR).
-- [ ] [T-005 Ingestion polish from the Milestone 1 review](tickets/T-005-ingestion-polish.md)
-      (built; in review).
+- [ ] **(owner)** Review and merge the Milestone 3 PR (T-003, T-005; see `DONE.md`).
 
 ## Before Milestone 2
 - [ ] **(owner + Claude)** Fill corpus gaps: behavioral interviews (STAR), caching, message queues,
@@ -35,14 +32,16 @@ Milestone 2 (tracing):
 - [x] `ChatClaudeCode._generate` worker thread now runs in a copy of the caller's context (T-002).
       `run_manager` is still not passed in: it only matters for token streaming, which we don't use.
 - [ ] Grounding check beyond citation ids (faithfulness metric in `EVALUATION.md`).
-Ingestion polish (T-005, built 2026-11-18, in review):
+Workflow (from the T-003 evaluation):
+- [ ] The roadmap sometimes says "no source in the knowledge base" for a gap that has retrieved
+      evidence (PostgreSQL, twice). `no_resources` flags it as minor; consider blocking, or a prompt
+      rule to cite listed evidence.
+- [ ] Every first roadmap needed a revision (4/4): record which check fires before tuning.
+Ingestion polish (T-005, done 2026-11-18):
 - [x] Re-check robots.txt and the host gap after a redirect to another host.
 - [x] Check Content-Type before cleaning (a PDF would be cleaned as HTML).
 - [x] A document that now yields zero chunks keeps its stale processed JSONL.
 - [x] Make the index rebuild atomic (build a new collection, then swap via an alias).
-- [ ] T-005 re-check leftovers (minor): orphan sweep should match only `<name>_<14 digits><8 hex>`;
-      set `migrated` before deleting the old real collection; keep the old processed file when only
-      some `fetch_urls` loaded; a robots.txt 3xx with no Location should mean disallow.
 
 ## Later
 Interview practice with feedback, multi-JD comparison, resume alignment, progress tracking,

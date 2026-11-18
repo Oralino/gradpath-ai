@@ -2,8 +2,8 @@
 Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 - **Type:** change
-- **Status:** in progress
-- **Opened:** 2026-11-18 · **Closed:**
+- **Status:** done (PR open)
+- **Opened:** 2026-11-18 · **Closed:** 2026-11-18
 - **GitHub Issue:** none
 
 ## Summary
@@ -29,7 +29,22 @@ Done in parallel with T-003 step 7 by `engineer`; tests only, no re-ingest (no V
 
 ## Changes
 - Branch: `feat/t-003-agentic-workflow` (shared branch, separate commit)
-- Files touched:
-- Commits (hash, message):
+- Files touched: `backend/src/gradpath/ingestion/fetch.py`, `ingest.py`, `index.py`,
+  `backend/tests/test_ingestion.py`
+- Commits (oldest first):
+  - `02cde3c fix: follow redirects politely, check content type, drop stale chunks, rebuild index atomically (T-005)`
+  - `1ce7749 fix: follow robots.txt redirects, keep the index on every rebuild failure, keep processed files on fetch failure (T-005)`
+  - `92e6b04 fix: sweep only rebuild collections, close the migration window, keep files on partial fetch (T-005)`
 
 ## Verification
+- Built by `engineer`, reviewed by `code-reviewer` twice; 251 tests pass, ruff clean. Tests only:
+  no re-ingest, no Voyage tokens. The owner's local index switches to the alias layout at the
+  next `ingest` (one logged migration; embeddings come from the cache).
+- Review round 1 found: robots.txt redirects counted as allow-all once automatic redirects were
+  off; the migration could leave no index if the alias call failed; Ctrl-C during upsert left
+  orphan collections; a fetch failure deleted the last good processed file. All fixed (`1ce7749`).
+- Review round 2 (minor, fixed in `92e6b04`): the orphan sweep matched any `<name>_*` collection
+  (now only `<name>_<14-digit stamp><8 hex>`); `migrated` was set after the delete started; a
+  partial fetch replaced or deleted the last complete file (now kept); a robots 3xx without a
+  Location counted as allow-all (now disallow).
+- Known: more than 5 redirects is logged as "status 310" (an internal marker, not HTTP).

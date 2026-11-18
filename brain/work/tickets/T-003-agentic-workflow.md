@@ -2,8 +2,8 @@
 Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 - **Type:** feature
-- **Status:** in progress
-- **Opened:** 2026-11-18 · **Closed:**
+- **Status:** done (PR open)
+- **Opened:** 2026-11-18 · **Closed:** 2026-11-18
 - **GitHub Issue:** none
 
 ## Summary
@@ -54,8 +54,24 @@ defences for the profile and JD text; what reaches LangSmith.
 ## Changes
 - Branch: `feat/t-003-agentic-workflow`
 - PR:
-- Files touched:
-- Commits (hash, message):
+- Files touched: `backend/src/gradpath/workflows/` (new: schemas, state, prompting, nodes, gaps,
+  roadmap, critic, graph, cli), `api/career.py`, `api/limits.py` (new), `api/main.py`, `api/chat.py`,
+  `api/jobs.py`, `evaluation/workflow_eval.py` (new), `jobs/analyze.py`, `safety.py`, `config.py`,
+  `backend/tests/` (test_workflow_graph, _nodes, _planning, _eval, test_api_career),
+  `evaluation/` (profiles, job_descriptions, workflow_cases.jsonl, results), `.env.example`,
+  `CLAUDE.md`, `brain/`
+- Commits (oldest first):
+  - `bc28261 docs: open T-003 and record the Milestone 2 merge (T-003)`
+  - `7d06696 docs: record the approved Milestone 3 plan and draft fictional sample data (T-003)`
+  - `cf705c8 feat: add career workflow state, schemas and bounded LangGraph skeleton (T-003)`
+  - `06ffe6b feat: add job analysis and knowledge retrieval nodes with bounded model retries (T-003)`
+  - `538432b feat: add gap analysis, roadmap, interview questions and critic nodes (T-003)`
+  - `37151ea feat: add POST /api/career/prepare and a workflow CLI (T-003)`
+  - `1bc66bf fix: cite each source section once and keep minor issues; record the first real workflow run (T-003)`
+  - `e9bd51a feat: add workflow evaluation cases and runner; cap model routes and redact retry logs (T-003)`
+  - `9f23a19 fix: tighten workflow eval checks, save after each case, narrow the retry log filter (T-003)`
+  - `4d6d0b1 docs: record the workflow evaluation, the retrieval re-check and remaining T-005 items (T-003)`
+  - plus the closing docs commit
 
 ## Verification
 - Step 4 (skeleton): 36 tests in `tests/test_workflow_graph.py` (152 total), ruff clean. Covers
@@ -91,3 +107,14 @@ defences for the profile and JD text; what reaches LangSmith.
   `complete` after 1 revision, 101 s, 18 requirements, 10 roadmap items, 10 questions; output
   `evaluation/results/workflow-20261118-014953.json`, findings in `EVALUATION.md`. Fixed from it:
   one citation per source section, minor issues kept on a complete result (217 tests).
+- Step 7 (workflow eval + open tasks): 4 workflow cases all pass (8 checks each, 11/11 gap
+  expectations) on the Pro plan, `evaluation/results/workflow-eval-20261118-070716.json`; retrieval
+  re-check unchanged (Recall@5 0.968, MRR 0.984). Open tasks closed: concurrency caps on every
+  model route (`api/limits.py`), LangGraph retry log redacted, `--out` guard; ingestion polish as
+  T-005. code-reviewer on the eval: fixed citation check skipping unknown ids, first-match-only gap
+  check, case sensitivity, results lost on interrupt, filter acting on other records, non-sample
+  profiles in cases.
+- Release QA (qa-checker, 2026-11-18): uv sync --locked, ruff, format, 248 tests (251 after the
+  last T-005 fixes); no secrets, personal data, AI attribution or tracked ignored files; no debug
+  leftovers. Release checks not applicable yet: demo mode with no keys and visitor-key handling
+  (Milestone 7).
