@@ -2,6 +2,8 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-18
+- [T-004 Spaced closing tags slipped past tag neutralising](tickets/T-004-spaced-closing-tags.md):
+  `< /evidence>` now neutralised in every prompt path (found in the T-003 step 5b review).
 - [T-002 Milestone 2: retrieval evaluation + tracing](tickets/T-002-retrieval-evaluation.md):
   labelled question set (40), eval runner (Recall@5 0.968, MRR 0.984, threshold 0.45 confirmed),
   LangSmith tracing rules with redaction, GitHub Actions CI; 116 tests. Merged as `93f1b79`.
