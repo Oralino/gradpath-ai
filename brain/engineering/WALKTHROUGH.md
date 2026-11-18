@@ -210,6 +210,26 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Deferred, on purpose:** auth and rate limits before deploy, LangSmith wiring in Milestone 2,
   ingestion polish (all listed in `TASKS.md`). Knowing what not to fix yet is part of the answer.
 
+## Retrieval evaluation dataset (`evaluation/retrieval_questions.jsonl`)
+- **What it is for:** testing search on its own, before any model writes an answer. If the right
+  page isn't retrieved, no prompt can fix the answer (the Milestone 1 multi-column index miss).
+  Every later experiment (hybrid, reranking, chunk size) is compared on this set.
+- **Decision: label pages and section headings, not chunk ids.** Chunk ids change when chunking
+  changes, which would break the labels exactly when they're needed for the chunk-size
+  experiment. Sections are added for the two single-page sources with 100+ chunks; otherwise
+  "the System Design Primer" would count as relevant for any system design question.
+- **Decision: 10 of 40 questions are uncovered on purpose,** 7 of them near the corpus (Kubernetes,
+  OAuth, CORS...). Off-topic questions like "sourdough" are easy to reject; near-domain ones are what
+  test the 0.45 threshold.
+- **Rejected:** generating questions and labels with an LLM. That is cheaper to write, but the
+  labels would then be the model's opinion. Every label here was checked against the real chunks.
+- **Tags** let results be split by kind of query (exact terms and acronyms are where vector search
+  is expected to be weakest, which is the case for hybrid search).
+- **Likely questions:** *"Is 40 questions enough?"* It's enough to see big differences (a 10-point
+  recall change) and to keep each run within Voyage's free tier. It's too small to trust a
+  1–2 point change, so the results say so. *"Why not graded relevance?"* Binary labels are faster
+  to check and explain; nDCG with grades can come later if rankings need finer comparison.
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.

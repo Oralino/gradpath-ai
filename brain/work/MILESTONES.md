@@ -102,6 +102,21 @@ and analyses a job description, or says when it doesn't know.
 
 ---
 
+## Milestone 2: Retrieval evaluation + tracing 🔨
+*Ticket: `tickets/T-002-retrieval-evaluation.md`*
+
+**Goal:** measure how well search finds the right sources, so later experiments have a baseline.
+
+| Step | Status | What we built | Why | Result |
+|---|---|---|---|---|
+| 1. Ticket + housekeeping | ✅ | T-002, branch, Milestone 1 marked merged | Clean start | Pushed |
+| 2. Labelled question set | ✅ draft | 40 questions (30 covered, 10 uncovered), labelled by page + section heading, tagged by query type | You can't improve what you don't measure | All 34 labels checked against the real chunks; awaiting owner review |
+| 3. Eval runner + baseline | ⏳ | Own code over `search_many`: Recall@K, Precision@K, MRR, latency, abstention | One Voyage request per run fits the free tier | |
+| 4. LangSmith tracing | ⏳ | Explicit on/off setting, rules for what may be traced | See each step of a request; high-risk area | |
+| 5. GitHub Actions CI | ⏳ | Lint + tests on every push, no keys | Free, visible quality signal on the public repo | |
+
+---
+
 ## Milestones 2–8: what's next
 
 | # | Milestone | What it will do | Why it matters |

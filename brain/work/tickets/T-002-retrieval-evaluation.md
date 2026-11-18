@@ -25,7 +25,14 @@ Steps:
 5. Optional: GitHub Actions CI (lint + tests, no keys).
 
 ## Decision
-TBD (owner approval of the plan pending).
+- Owner approved the plan on 2026-11-18: 40 questions (30 covered, 10 uncovered) and GitHub
+  Actions CI included.
+- Labels name pages (`source_url`) plus an optional section heading, not chunk ids, so they
+  survive chunk-size experiments; sections are needed for the two 100+ chunk single-page sources.
+  Format and metric definitions: `../../engineering/EVALUATION.md`.
+- Uncovered questions are mostly near-domain (Kubernetes, OAuth, JWT, CI/CD, CORS, React, salary
+  negotiation) to stress the threshold; 3 are off-domain.
+- Rejected: LLM-generated labels (they would grade the model with its own opinion).
 
 ## Changes
 - Branch: `feat/t-002-retrieval-evaluation`
