@@ -2,8 +2,8 @@
 Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 - **Type:** feature
-- **Status:** in progress
-- **Opened:** 2026-11-17 · **Closed:**
+- **Status:** done (PR open)
+- **Opened:** 2026-11-17 · **Closed:** 2026-11-18
 - **GitHub Issue:** none
 
 ## Summary
@@ -46,7 +46,7 @@ Steps:
 
 ## Changes
 - Branch: `feat/t-002-retrieval-evaluation`
-- PR:
+- PR: https://github.com/Oralino/gradpath-ai/pull/2
 - Files touched:
 - Commits (hash, message):
 
