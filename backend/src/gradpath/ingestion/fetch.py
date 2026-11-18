@@ -1,11 +1,13 @@
 """Polite page download with an on-disk cache. Fetched content is untrusted, only stored."""
 
 import hashlib
+import ipaddress
 import json
 import logging
+import re
 import time
 import urllib.robotparser
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -32,6 +34,63 @@ TEXT_TYPES = {
     "text/x-markdown",
     "text/plain",
 }
+
+
+def manifest_hosts(entries: Iterable[SourceEntry]) -> frozenset[str]:
+    """Hostnames of the given manifest entries (source and fetch URLs): the only hosts ingestion
+    may contact, redirects included (T-007). Built by ingest.run from the approved entries."""
+    hosts = set()
+    for e in entries:
+        for url in [e.source_url, *e.fetch_urls]:
+            host = (urlparse(url).hostname or "").lower().rstrip(".")
+            if host:
+                hosts.add(host)
+    return frozenset(hosts)
+
+
+# Hosts written as numbers (2130706433, 0x7f.1, 0177.0.0.1, 127.1): the resolver may accept them
+# as IPv4 addresses although `ipaddress` does not, so they are refused outright.
+NUMERIC_HOST = re.compile(r"^(0x[0-9a-f]*|\d+)(\.(0x[0-9a-f]*|\d+))*$")
+
+
+def url_refusal(url: str, allowed_hosts: frozenset[str] | None) -> str | None:
+    """Why ingestion may not request `url`, or None if it may (T-007: SSRF and poisoning).
+
+    Called by Politeness for the first URL, every redirect hop and every robots.txt hop: https
+    on the default port, no credentials, no private, loopback or reserved IP literal, no
+    localhost, and (when `allowed_hosts` is given, as ingest.run always does) a manifest host.
+    """
+    # urlparse silently drops tabs and newlines and treats `\` differently from httpx: refuse
+    # them, so the checked URL and the requested URL are the same.
+    if any(ch.isspace() or ord(ch) < 32 or ch == "\\" for ch in url):
+        return "whitespace, control character or backslash in the URL"
+    try:
+        parts = urlparse(url)
+        port = parts.port
+    except ValueError:
+        return "malformed URL"
+    if parts.scheme != "https":
+        return f"scheme {parts.scheme or 'missing'} (https only)"
+    host = (parts.hostname or "").lower().rstrip(".")
+    if not host:
+        return "no host"
+    if parts.username is not None or parts.password is not None:
+        return "credentials in the URL"
+    if port not in (None, 443):
+        return f"port {port}"
+    if host == "localhost" or host.endswith(".localhost"):
+        return "localhost"
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        address = None
+    if address is not None and not address.is_global:
+        return "private or reserved address"
+    if address is None and NUMERIC_HOST.match(host):
+        return "numeric host"
+    if allowed_hosts is not None and host not in allowed_hosts:
+        return f"host {host} is not in the manifest"
+    return None
 
 
 class FetchedPage(BaseModel):
@@ -66,13 +125,19 @@ class Politeness:
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
         min_interval: float = MIN_HOST_INTERVAL_S,
+        allowed_hosts: frozenset[str] | None = None,
     ):
         self._sleep = sleep
+        self.allowed_hosts = allowed_hosts
         self._clock = clock
         self._min_interval = min_interval
         self._last: dict[str, float] = {}
         # parser, or True (allow all) / False (disallow all) when robots.txt has no rules to parse
         self._robots: dict[str, urllib.robotparser.RobotFileParser | bool] = {}
+
+    def refusal(self, url: str) -> str | None:
+        """`url_refusal` with this run's manifest hosts."""
+        return url_refusal(url, self.allowed_hosts)
 
     def wait(self, host: str) -> None:
         """Sleep until at least `min_interval` has passed since the last request to `host`."""
@@ -96,6 +161,10 @@ class Politeness:
                 return None  # a redirect with nowhere to go: treated as disallow
 
             url = urljoin(url, location)
+            why = self.refusal(url)
+            if why:
+                log.warning("robots.txt redirect refused (%s)", why)
+                return None  # treated as disallow
             self.wait(urlparse(url).netloc)
         return None
 
@@ -105,6 +174,8 @@ class Politeness:
         200 -> parse the rules; 4xx (incl. 404) -> allow all; 5xx, an unresolved redirect chain or
         a network error -> disallow all (the site may be hiding rules), so ingest.py skips the URL.
         """
+        if self.refusal(url):
+            return False  # never contact a refused URL, not even for its robots.txt
         parts = urlparse(url)
         host = parts.netloc
         if host not in self._robots:
@@ -124,7 +195,7 @@ class Politeness:
                         log.warning(
                             "robots.txt for %s returned %s; skipping host", host, resp.status_code
                         )
-            except httpx.HTTPError as exc:
+            except (httpx.HTTPError, httpx.InvalidURL) as exc:
                 log.warning("robots.txt fetch failed for %s: %s; skipping host", host, exc)
                 rules = False
             self._robots[host] = rules
@@ -154,6 +225,10 @@ def _download(client: httpx.Client, url: str, politeness: Politeness) -> tuple[i
             location = resp.headers.get("location")
             if resp.status_code in REDIRECT_STATUSES and location:
                 next_url = urljoin(url, location)
+                why = politeness.refusal(next_url)
+                if why:
+                    log.warning("skip %s: redirect to %s refused (%s)", url, next_url, why)
+                    return resp.status_code, None
                 if not politeness.allowed(next_url, client):
                     log.warning("skip %s: redirect to %s disallowed by robots.txt", url, next_url)
                     return resp.status_code, None
@@ -213,13 +288,17 @@ def fetch_source(
                 )
             )
             continue
+        why = politeness.refusal(url)
+        if why:
+            log.warning("skip %s: %s", url, why)
+            continue
         if not politeness.allowed(url, client):
             log.warning("skip %s: disallowed by robots.txt", url)
             continue
         politeness.wait(urlparse(url).netloc)
         try:
             status, body = _download(client, url, politeness)
-        except httpx.HTTPError as exc:
+        except (httpx.HTTPError, httpx.InvalidURL) as exc:
             log.warning("skip %s: %s", url, exc)
             continue
         if body is None:

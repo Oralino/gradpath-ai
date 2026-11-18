@@ -20,7 +20,14 @@ from gradpath.ingestion.embed import (
     build_embeddings,
     build_query_embeddings,
 )
-from gradpath.ingestion.fetch import USER_AGENT, Politeness, fetch_source, load_manual
+from gradpath.ingestion.fetch import (
+    USER_AGENT,
+    Politeness,
+    fetch_source,
+    load_manual,
+    manifest_hosts,
+    url_refusal,
+)
 from gradpath.ingestion.index import rebuild_index
 from gradpath.ingestion.ingest import process_entry
 from gradpath.ingestion.manifest import SourceEntry, load_manifest, select_ingestible
@@ -773,3 +780,131 @@ def test_partial_fetch_keeps_last_complete_processed_file(tmp_path: Path):
     e = entry(fetch_urls=["https://example.org/a", "https://example.org/b"])
     pages, chunks = process_entry(e, tmp_path, Settings(_env_file=None), client, polite(), False)
     assert pages == 1 and chunks and stale.read_text(encoding="utf-8") == "{}\n"
+
+
+# ---------- T-007: which URLs ingestion may contact ----------
+
+HOSTS = frozenset({"example.org", "docs.example.org"})
+
+
+@pytest.mark.parametrize(
+    ("url", "why"),
+    [
+        ("http://example.org/a", "scheme"),
+        ("ftp://example.org/a", "scheme"),
+        ("file:///etc/passwd", "scheme"),
+        ("https://user:pw@example.org/a", "credentials"),
+        ("https://example.org:8443/a", "port"),
+        ("https://localhost/a", "localhost"),
+        ("https://api.localhost/a", "localhost"),
+        ("https://127.0.0.1/a", "private"),
+        ("https://10.0.0.5/a", "private"),
+        ("https://192.168.1.1/a", "private"),
+        ("https://169.254.169.254/latest/meta-data", "private"),
+        ("https://[::1]/a", "private"),
+        ("https://[fd00::1]/a", "private"),
+        ("https://0.0.0.0/a", "private"),
+        ("https://evil.example.com/a", "not in the manifest"),
+        ("https://example.org.evil.com/a", "not in the manifest"),
+        ("https://example.org:99999/a", "malformed"),
+    ],
+)
+def test_url_refusal_reasons(url, why):
+    assert why in (url_refusal(url, HOSTS) or "")
+
+
+@pytest.mark.parametrize(
+    "url", ["https://example.org/a", "https://DOCS.example.org/x?y=1", "https://example.org:443/"]
+)
+def test_url_refusal_allows_manifest_https(url):
+    assert url_refusal(url, HOSTS) is None
+
+
+def test_manifest_hosts_collects_source_and_fetch_hosts():
+    e = entry(source_url="https://Site.org/home", fetch_urls=["https://docs.site.org/p"])
+    assert manifest_hosts([e]) == {"site.org", "docs.site.org"}
+
+
+def guarded() -> Politeness:
+    return Politeness(sleep=lambda s: None, allowed_hosts=frozenset({"example.org"}))
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "https://other.org/x",  # off the manifest
+        "http://example.org/b",  # downgrade to http
+        "https://169.254.169.254/latest/meta-data",  # cloud metadata
+        "https://127.0.0.1/admin",  # loopback
+    ],
+)
+def test_fetch_refuses_redirect_targets(tmp_path: Path, target):
+    host_path = target.split("://", 1)[1].split("?")[0]
+    client, seen = make_redirect_site({"example.org/a": (302, target), host_path: OK_HTML})
+    assert fetch_source(entry(), tmp_path, client, politeness=guarded()) == []
+    assert all(u.startswith("https://example.org/") for u in seen)  # target never contacted
+
+
+def test_fetch_still_follows_same_host_redirect_when_guarded(tmp_path: Path):
+    client, seen = make_redirect_site({"example.org/a": (301, "/b"), "example.org/b": OK_HTML})
+    assert len(fetch_source(entry(), tmp_path, client, politeness=guarded())) == 1
+
+
+def test_fetch_refuses_a_non_manifest_first_url(tmp_path: Path):
+    client, seen = make_redirect_site({"other.org/x": OK_HTML})
+    e = entry(fetch_urls=["https://other.org/x"])
+    assert fetch_source(e, tmp_path, client, politeness=guarded()) == []
+    assert seen == []  # not even robots.txt
+
+
+def test_robots_redirect_to_private_address_disallows(tmp_path: Path):
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        if request.url.path == "/robots.txt":
+            return httpx.Response(302, headers={"location": "https://127.0.0.1/robots.txt"})
+        return OK_HTML
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    assert fetch_source(entry(), tmp_path, client, politeness=guarded()) == []
+    assert not any("127.0.0.1" in u for u in seen)
+
+
+@pytest.mark.parametrize(
+    ("url", "why"),
+    [
+        ("https://2130706433/a", "numeric host"),
+        ("https://0x7f.1/a", "numeric host"),
+        ("https://0177.0.0.1/a", "numeric host"),
+        ("https://127.1/a", "numeric host"),
+        ("https://[::ffff:127.0.0.1]/a", "private"),
+        ("//evil.com/x", "scheme"),
+        ("https://evil.com\\@example.org/a", "backslash"),
+        ("https://exa\nmple.org/a", "control"),
+        ("https://example.org/a b", "whitespace"),
+    ],
+)
+def test_url_refusal_blocks_parser_tricks(url, why):
+    assert why in (url_refusal(url, HOSTS) or "")
+    assert url_refusal(url, None) is not None  # refused even without a host list
+
+
+def test_url_refusal_without_host_list_still_blocks_addresses():
+    assert url_refusal("https://other.org/a", None) is None  # no list: any public host
+    assert url_refusal("https://10.1.2.3/a", None) is not None
+
+
+def test_manifest_hosts_ignore_case_and_trailing_dot():
+    e = entry(source_url="https://Example.org./a", fetch_urls=[])
+    hosts = manifest_hosts([e])
+    assert hosts == {"example.org"}
+    assert url_refusal("https://EXAMPLE.org./b", hosts) is None
+
+
+def test_scheme_relative_redirect_to_other_host_is_refused(tmp_path: Path):
+    client, seen = make_redirect_site(
+        {"example.org/a": (302, "//other.org/x"), "other.org/x": OK_HTML}
+    )
+    assert fetch_source(entry(), tmp_path, client, politeness=guarded()) == []
+    assert all(u.startswith("https://example.org/") for u in seen)
