@@ -171,7 +171,8 @@ finish, return a labelled partial result instead of an error; measure routing ac
 | Step | Status | What we built | Why | Result |
 |---|---|---|---|---|
 | 1. Ticket + housekeeping | ✅ | T-006, branch, Milestone 3 marked merged | Clean start | Pushed |
-| 2. Explain routing + fallback, plan | 🔨 | | The owner approves the design before code | |
+| 2. Explain routing + fallback, plan | ✅ | Rules + Haiku router, safe default RAG, `POST /api/assist`, fallback with a 300 s budget, unsupported/needs-input replies | The owner approves the design before code | Approved 2026-11-18 |
+| 3. Labelled routing set | 🔨 | `evaluation/routing_cases.jsonl`: 30 requests labelled with route and action (run, needs input, unsupported) | Measure routing before building it | Draft, waiting for the owner |
 
 ---
 

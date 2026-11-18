@@ -6,7 +6,7 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 ## Current
 - [ ] [T-006 Milestone 4: router + fallback](tickets/T-006-router-fallback.md) (in progress).
 
-## Before Milestone 2
+## Corpus (before Milestone 5)
 - [ ] **(owner + Claude)** Fill corpus gaps: behavioral interviews (STAR), caching, message queues,
       Docker/Kubernetes, CI/CD, LLM/RAG tooling (LangChain, vector databases).
 - [ ] More new-grad backend job descriptions in `private/job_descriptions/` (one so far).
