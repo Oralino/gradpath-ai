@@ -307,6 +307,159 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   `pyproject.toml`, so CI tests exactly the versions you run locally. *"Does CI run the
   retrieval eval?"* No: that needs the Voyage key and the local index; it's a manual release check.
 
+## Career workflow graph (`workflows/`: `state.py`, `schemas.py`, `graph.py`, `nodes.py`)
+- **What it is for:** the main feature (job description + profile -> gaps -> roadmap) needs
+  several dependent steps, each with its own model and its own checks. LangGraph runs them as a
+  graph over one typed state, `CareerPrepState`.
+- **LangGraph in five words:** *state* (one shared typed record), *nodes* (plain functions that
+  return only the keys they change), *edges* (fixed order), *conditional edges* (a function picks
+  the next node), *reducers* (how two parallel writes to one key are combined).
+- **Shape:** `analyze_job -> retrieve_knowledge` runs alongside `analyze_profile`; both join at
+  `analyze_gaps`; `plan_roadmap` and `interview_questions` run side by side and join at
+  `evaluate`; then `revise` (bounded) or `finalize`. A join is `add_edge([a, b], c)`: `c` waits
+  for both, even when one branch takes a step longer (tested).
+- **Decision: services in the runtime context, not the state.** The retrieval service and models
+  go in `WorkflowContext` (`invoke(..., context=...)`); the state holds only data, so it can be
+  logged, traced and checked in tests. Rejected: globals (hard to test) and putting clients in
+  the state (not serialisable, and they'd show up in traces).
+- **Decision: every state value is a Pydantic model,** so a bad model reply fails at the node that
+  produced it. The profile is untrusted input: unknown fields refused, every string and list
+  bounded.
+- **The revision loop is bounded three ways:** `route_after_evaluation` only revises while rounds
+  are left; graph code (one wrapper around every node) adds one to the counter after `revise`
+  and refuses any node update that touches the input, the limit, the counter or the log, so no
+  node can reset the counter or raise the limit (tested for each key); and `recursion_limit` is set
+  from the same number as an independent stop (tested by breaking the route on purpose). The
+  limit (`WORKFLOW_MAX_REVISIONS`, default 1, max 3) comes from settings, must be a real int,
+  and never comes from the request.
+- **Decision: code decides whether the critique passed,** not the critic's own flag: `Critique.ok`
+  is "passed and no blocking issue". A model that says "passed" while listing a blocking issue
+  gets a revision.
+- **Input limits in one place:** `WorkflowInput` validates the job description (50–20,000
+  characters), up to 10 corrections of 500 characters, and the profile (each field bounded, plus
+  12,000 characters in total, because the per-field maximums added up to ~30K tokens: too much
+  for free tiers).
+- **Gotcha we hit:** the first step formula (6 + 2 per revision) was one short; measuring showed
+  LangGraph counts the input step too, so it is 7 + 2 per revision (+2 spare). A test now runs the
+  worst case at the exact limit and checks one step fewer fails, so the formula can't drift.
+- **Honest result labels:** `complete` (critique ok), `complete_with_limitations` (limit reached,
+  open issues listed), `partial` (a stage reported an error, or the critic never ran; open issues
+  are still listed). Never present a limited result as complete.
+- **`analyze_job` and `retrieve_knowledge` nodes (step 5a):** both reuse Milestone 1 code rather
+  than copying it. `analyze_job` calls the same Haiku extraction as `POST /api/jobs/analyze`
+  (posting wrapped as untrusted data, quotes checked in code), then numbers the requirements
+  `r-1`, `r-2`... so later nodes can cite them. `retrieve_knowledge` sends every studyable
+  requirement in one `search_many` call (one Voyage request; degree and clearance items are not
+  searched) and keeps "insufficient" results, so the roadmap knows what the knowledge base
+  doesn't cover instead of guessing.
+- **Decision: one retry for model nodes, only for the right errors.** LangGraph's default retry
+  skips `ValueError` and `RuntimeError`, which is exactly what a malformed model reply (Pydantic
+  `ValidationError`) and a Claude Code failure are. So the model nodes get their own policy: 2
+  attempts, retrying only bad output and Claude Code errors. Our own guard errors (a node writing a
+  protected key) are bugs, so they are never retried. Non-model nodes get no retry. A second
+  failure stops the run for now; the labelled fallback is Milestone 4.
+- **Gotcha the review caught: an allow-list, not "default plus extras".** LangGraph's default
+  retries almost every error it doesn't exclude, including an API 401 from a bad visitor key, and
+  the Anthropic SDK already retries network errors twice, so one hiccup could cost 6 requests per
+  node. Now the workflow retries only its allow-list, and network retries are left to the SDK.
+- **Gap analysis (`gaps.py`, Sonnet):** rates each studyable requirement as demonstrated /
+  partially evidenced / not yet evidenced, citing profile fact ids. Code keeps only ids that
+  exist; a "demonstrated" or "partial" claim with no valid fact becomes "not yet evidenced" with
+  low confidence; a requirement the model skipped is filled in as "not assessed"; degree and
+  clearance items are `not_applicable` without asking the model. Source ids are attached by code
+  from the search, so the model never sees (or needs) the knowledge-base text here: cheaper.
+- **Corrections = facts, not instructions:** "I've used PostgreSQL indexes" becomes fact `c-1`
+  (kind `correction`) that gap analysis may cite as self-reported evidence. That's the MVP's
+  "correct assumptions and regenerate": edit the corrections, run again. A requirement backed
+  only by corrections counts as "partially evidenced" at most, so one "I know all of these"
+  can't empty the roadmap (found in review).
+- **Roadmap (`roadmap.py`, Sonnet):** only gaps that need work, required first, with the
+  knowledge-base text retrieved for them and the hour budget (weekly hours x weeks). Code
+  (`check_items`) keeps resources only from chunks retrieved for that item's own requirements,
+  drops unknown requirement ids, renumbers items 1..n and keeps only dependencies on earlier
+  items. A requirement the knowledge base doesn't cover gets an item with no resources, never an
+  invented link. `revise` reuses the same function and checks, with the current plan and the
+  critic's issues added as tagged data. A revision must not make things worse: if it comes back
+  with nothing valid, or with more blocking code-check issues than the plan it replaces, the
+  previous plan is kept (the round still counts, so the loop stays bounded).
+- **Critic (`critic.py`): code first, then Haiku.** Code catches what it can check exactly:
+  an empty roadmap while gaps need work, a required gap with no item, total effort over 1.25x
+  the budget (blocking); duplicate topics, an item with no source although sources exist
+  (minor). Only when nothing is blocking does Haiku check what code can't (does each item follow
+  from its gap and do its sources fit?); its findings must name a real item. Pass/fail is decided
+  in code from the issues.
+- **Interview questions (`gaps.py`, Haiku):** for the least-evidenced required gaps first; code
+  keeps at most 2 per requirement and 10 in total, each tied to a real requirement id.
+- **One injection defence for every prompt (`prompting.py`):** all user, posting, knowledge-base
+  and earlier-model text goes through `block()`, which wraps it in a tag, neutralises every tag
+  the workflow uses, and escapes attributes. Tests put a fake closing tag in a profile fact and a
+  critique message and check it can't close its block. The review found `< /evidence>` (a
+  space before the slash) slipped past the shared regex used since Milestone 1; fixed for every
+  path.
+- **Likely questions:** *"Why not one big prompt?"* Each step's output is validated before the
+  next uses it, each step uses the cheapest model that works, a failure is retried or reported
+  for that step only, and the loop has a hard stop. *"What stops an infinite self-critique
+  loop?"* The three bounds above. *"How do you stop the model inventing sources?"* It can only cite ids we gave
+  it, and code drops any id that wasn't retrieved for that requirement. *"Why is `analyze_profile`
+  not an LLM call?"* The profile is a
+  structured form, so numbering its facts (`p-1`, `p-2`...) is plain code, and gap analysis must
+  cite those ids, which code can check. *"How did you test the loop limit?"* With a critic that
+  always fails at limits 0–3, a node that tries to reset the counter, and a route function broken
+  on purpose so only the recursion limit can stop it.
+
+## `POST /api/career/prepare` and `workflows.cli`
+- **What it is:** the workflow behind one HTTP call (and a terminal runner that prints a readable
+  report or JSON). The request body is the same `WorkflowInput` the workflow validates, so the
+  API, the CLI and the tests share one set of limits; the revision limit is read from settings
+  and a request that tries to set it is refused (unknown field, 422).
+- **Decision: synchronous for now.** About 5 model calls, a few minutes on Claude Code. Rejected
+  for this milestone: a job id with status polling (needs storage; comes with the frontend).
+- **Errors never echo internals:** a malformed model reply twice -> 502 with a fixed message (the
+  reply, which can contain posting text, is logged server-side only); the step limit -> 500 with
+  a fixed message; anything else -> FastAPI's plain 500.
+- **Model-written text is truncated, not rejected,** at 1,000 characters per field: a long but
+  valid reply shouldn't cost a retry. The frontend must render it as text, never HTML.
+- **One run at a time:** a semaphore lets one workflow run per process; a second request gets
+  503 at once instead of queueing behind a multi-minute run (it would also tie up a worker
+  thread, start more Claude Code processes and share Voyage's 3-per-minute limit). Per-IP
+  limits and auth come before deploy.
+- **Logs don't quote model replies:** a Pydantic error's message contains the model's reply
+  (which can echo posting or profile text), so our handler logs only its type and error count.
+- **Likely question:** *"Why can't the user choose how many revisions?"* Each round is a paid model
+  call; letting a request set it would let one request spend the budget.
+
+## Workflow evaluation (`evaluation/workflow_eval.py`, `evaluation/workflow_cases.jsonl`)
+- **What it measures:** for each case, the whole workflow runs on the real models and code
+  scores the result: not partial, loop ended within the limit, expected gap statuses (e.g.
+  Docker "not yet evidenced" for the sample profile), required gaps all in the roadmap, every
+  citation retrieved for its own requirement, the budget respected or flagged, and the share of
+  "demonstrated" capped. It also counts items with no source although sources existed (the
+  false "no source" claim from the first real run).
+- **Four cases, on purpose:** baseline, a correction (must lift a gap only to partial), a sparse
+  profile with a 20-hour budget (missing information), and a prompt injection in a project
+  description. Each case is ~5-7 calls on the plan, so the set stays small.
+- **Decision: checks in code, not an LLM judge.** Every check is exact and free to re-run:
+  `--rescore` re-scores a saved run after the checks change, with no model call. Rejected for
+  now: an LLM-as-judge faithfulness score (costly, and it grades a model with a model).
+- **Likely question:** *"Isn't 4 cases too few?"* For accuracy numbers, yes; these are behaviour
+  checks (does the loop end, do defences hold), where one counter-example is a real bug.
+
+## Concurrency caps (`api/limits.py`)
+- Each model route holds one slot while it runs: chat 2, job analysis 1, career workflow 1. A
+  request with no free slot gets 503 at once instead of queueing behind minutes of model calls
+  and sharing Voyage's 3-per-minute limit. Per-IP limits and auth come before deploy.
+
+## Ingestion hardening (T-005)
+- **Redirects followed by hand,** at most 5 hops, each hop checked against robots.txt and the
+  per-host wait; the HTTP client's automatic redirects would have skipped both for a new host.
+- **Content-Type allow-list** (HTML, XHTML, Markdown, text): a PDF is skipped, not cleaned as HTML.
+- **Zero chunks deletes the stale processed file,** so a page that lost its content doesn't keep
+  old chunks in the index.
+- **Atomic rebuild with an alias:** build `gradpath_kb_<timestamp>`, switch the alias
+  `gradpath_kb` to it in one call, then delete the old collection. Search never sees a half-built
+  or missing index; a failure before the switch removes the new collection and keeps the old one.
+  The first rebuild migrates the old real collection (a short, logged, one-time window).
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.

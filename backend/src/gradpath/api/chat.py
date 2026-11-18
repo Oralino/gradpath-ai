@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, Field
 
+from gradpath.api import limits
 from gradpath.api.deps import get_answer_model, get_retrieval
 from gradpath.rag import ChatAnswer, answer_question
 from gradpath.retrieval import RetrievalService
@@ -26,6 +27,7 @@ def chat(
     """Answer from the knowledge base with citations, or say it isn't covered.
 
     A plain `def` route: FastAPI runs it in a worker thread, so the blocking Voyage/Qdrant calls
-    and the model call don't stall the server's event loop.
+    and the model call don't stall the server's event loop. At most 2 at a time (`limits`).
     """
-    return answer_question(body.question.strip(), retrieval, llm)
+    with limits.slot(limits.CHAT):
+        return answer_question(body.question.strip(), retrieval, llm)

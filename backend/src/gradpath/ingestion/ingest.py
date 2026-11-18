@@ -15,6 +15,8 @@ from gradpath.ingestion.fetch import Politeness, fetch_source, load_manual, make
 from gradpath.ingestion.index import get_qdrant_client, rebuild_index
 from gradpath.ingestion.manifest import SourceEntry, load_manifest, select_ingestible
 
+log = logging.getLogger(__name__)
+
 
 def process_entry(
     entry: SourceEntry,
@@ -26,12 +28,14 @@ def process_entry(
 ) -> tuple[int, list[Document]]:
     """Fetch (or load manual files), clean and chunk one document; writes its processed JSONL.
 
-    Returns (page_count, chunks). A document with no pages writes nothing.
+    Returns (page_count, chunks). Pages without chunks remove a stale processed file; no pages at
+    all (fetch failure) keep the last good one.
     """
     if entry.manual:
         pages = load_manual(entry, kb / "manual")
     else:
         pages = fetch_source(entry, kb / "raw", client, refresh, politeness)
+    processed = kb / "processed" / f"{entry.document_id}.jsonl"
     chunks: list[Document] = []
     for page in pages:
         raw = page.path.read_text(encoding="utf-8", errors="replace")
@@ -46,8 +50,23 @@ def process_entry(
             settings.chunk_overlap,
         )
         chunks += page_chunks
-    if chunks:
-        write_processed(kb / "processed" / f"{entry.document_id}.jsonl", chunks)
+    partial = not entry.manual and len(pages) < len(entry.fetch_urls)
+    if partial and processed.exists():
+        # Some pages failed this time: keep the last complete file rather than shrink or
+        # delete it.
+        log.warning(
+            "%s: only %d of %d pages fetched; keeping existing %s",
+            entry.document_id, len(pages), len(entry.fetch_urls), processed.name,
+        )  # fmt: skip
+    elif chunks:
+        write_processed(processed, chunks)
+    elif pages:
+        # every page loaded but none had content: a stale file would otherwise be indexed
+        if processed.exists():
+            log.warning("%s: no chunks; deleting stale %s", entry.document_id, processed.name)
+        processed.unlink(missing_ok=True)
+    elif processed.exists():
+        log.warning("%s: no pages fetched; keeping existing %s", entry.document_id, processed.name)
     return len(pages), chunks
 
 

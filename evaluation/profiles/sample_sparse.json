@@ -1,0 +1,8 @@
+{
+  "profile_id": "sample-sparse-v1",
+  "note": "Fictional sparse profile for the workflow evaluation: little information, small budget.",
+  "skills": ["Python"],
+  "coursework": ["Introduction to Programming"],
+  "weekly_hours": 5,
+  "timeline_weeks": 4
+}

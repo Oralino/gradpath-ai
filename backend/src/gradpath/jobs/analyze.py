@@ -41,6 +41,8 @@ Category = Literal[
 
 # Requirements that are about who may apply, not what to study (degree, clearance, work
 # authorization, years of experience): no knowledge-base search, coverage "not_applicable".
+Seniority = Literal["intern", "new_grad", "junior", "mid", "senior", "unknown"]
+
 NOT_STUDYABLE: set[str] = {"education_eligibility"}
 MAX_REQUIREMENTS = 40
 
@@ -73,7 +75,7 @@ class ExtractedRequirement(BaseModel):
 
 class JobExtraction(BaseModel):
     title: str
-    seniority: Literal["intern", "new_grad", "junior", "mid", "senior", "unknown"]
+    seniority: Seniority
     responsibilities: list[str]
     requirements: list[ExtractedRequirement]
 
@@ -101,6 +103,16 @@ def extract_requirements(job_description: str, llm: BaseChatModel) -> JobExtract
         HumanMessage(f"<job_description>\n{jd}\n</job_description>"),
     ]
     return with_structure(llm, JobExtraction).invoke(messages)
+
+
+def clean_requirements(extraction: JobExtraction) -> list[ExtractedRequirement]:
+    """Drop empty skills (Voyage rejects empty inputs) and cap the list, so one long or
+    adversarial posting can't trigger an unbounded search and prompt. Used by `analyze_job` and
+    the workflow's `analyze_job` node."""
+    reqs = [r for r in extraction.requirements if r.skill.strip()][:MAX_REQUIREMENTS]
+    if len(extraction.requirements) > len(reqs):
+        log.warning("kept %d of %d extracted requirements", len(reqs), len(extraction.requirements))
+    return reqs
 
 
 # ---------- step 3: cited study notes (Sonnet) ----------
@@ -199,11 +211,7 @@ def analyze_job(
     (degree, clearance).
     """
     extraction = extract_requirements(job_description, fast_llm)
-    # Drop empty skills (Voyage rejects empty inputs) and cap the list so one long or adversarial
-    # posting can't trigger an unbounded search and notes prompt.
-    reqs = [r for r in extraction.requirements if r.skill.strip()][:MAX_REQUIREMENTS]
-    if len(extraction.requirements) > len(reqs):
-        log.warning("kept %d of %d extracted requirements", len(reqs), len(extraction.requirements))
+    reqs = clean_requirements(extraction)
 
     searchable = [i for i, r in enumerate(reqs) if r.category not in NOT_STUDYABLE]
     found = retrieval.search_many([reqs[i].skill for i in searchable], k=k, max_per_document=2)

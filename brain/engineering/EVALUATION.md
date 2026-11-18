@@ -7,7 +7,9 @@ date, the configuration and the dataset version. Design is in `ARCHITECTURE.md`.
 |---|---|---|
 | `retrieval_questions.jsonl` | Questions with their relevant pages or sections (v1.1, 2026-11-18) | 40 (31 covered, 9 uncovered) |
 | `route_cases.jsonl` | Requests labelled `traditional_rag` or `agentic_workflow` | TBD |
-| `workflow_cases.jsonl` | JD + sample profile cases with expected outputs | TBD |
+| `workflow_cases.jsonl` | JD + sample profile cases with expected behaviour, scored in code (2026-11-18) | 4 |
+| `profiles/sample_*.json` | Fictional profiles: new grad (demos, tests, traces), sparse, injection | 3 |
+| `job_descriptions/sample_backend_new_grad.txt` | Fictional new-grad backend posting (the real one stays in `private/`) | 1 |
 
 Datasets may also be uploaded to LangSmith for side-by-side experiment views; the files here are the
 source.
@@ -131,3 +133,79 @@ the source headings, so their wording is close to the sources (a known bias of h
 Precision@5 of 0.65 mostly reflects single-target questions whose top 5 includes neighbouring
 pages. With 31 covered questions, one question is about 3 recall points: differences smaller than
 that are noise. The weakest slices are `multi_source` (0.75) and `career` (0.83).
+
+### Workflow: first real run (2026-11-18, step 6 of T-003)
+One run, not an evaluation: it shows the workflow works end to end on real models and shows what
+to measure. Config: `LLM_PROVIDER=claude_code` (Pro plan; Haiku 5.5 fast, Sonnet 5.5 smart),
+`WORKFLOW_MAX_REVISIONS=1`, retrieval k=3 (max 2 per document), threshold 0.45, tracing off.
+Input: the fictional sample posting and profile (`evaluation/job_descriptions/`,
+`evaluation/profiles/`). Full output: `evaluation/results/workflow-20261118-014953.json`.
+
+| Measure | Result |
+|---|---|
+| Status | `complete` after 1 revision (the first plan was revised once; its critique isn't recorded) |
+| Time | 101 s end to end (CLI wall clock) |
+| Requirements extracted | 18 (17 studyable, 1 eligibility) |
+| Gaps | 7 demonstrated, 4 partially evidenced, 6 not yet evidenced, 1 not applicable |
+| Roadmap | 10 items (the cap), 47 h estimated against a 48 h budget (8 h x 6 weeks) |
+| Items with sources | 6 of 10; the 4 without are PostgreSQL, Docker, monitoring, cloud |
+| Interview questions | 10, each tied to a not-yet or partially evidenced requirement |
+| Nodes | job + profile -> retrieve -> gaps -> questions + roadmap -> evaluate -> revise -> evaluate -> finalize |
+
+What it showed:
+- **A false "no source" claim:** PostgreSQL (`r-4`) had three relevant chunks retrieved
+  (`db-postgres-indexes`, `db-postgres-mvcc`), yet Sonnet cited none and wrote that the knowledge
+  base has no source for it. The `no_resources` check flags this kind of item, but the result
+  dropped minor issues whenever the critic passed; fixed (minor issues are now kept).
+  Docker, monitoring and cloud really aren't covered (known corpus gaps), so those three are right.
+- **The same section cited twice** (two chunks of one section in items 7 and 8); fixed by citing
+  each section once.
+- **Generous "demonstrated" calls:** "Automated testing (unit and integration)" is demonstrated
+  although its own reasoning says integration testing isn't shown; data structures counts a
+  course plus "search modules". A calibration question for the workflow evaluation.
+- Roadmap exercises sometimes tell the student to use official documentation where the corpus
+  has nothing: honest, and no URL is invented, but it is outside the cited sources.
+- Claude Code under-reports tokens, so no cost figure (API mode needed).
+
+### Workflow evaluation (2026-11-18, cases v1)
+Runner: `uv run python -m gradpath.evaluation.workflow_eval` (from `backend/`, API stopped); a
+saved run is re-scored for free with `--rescore <file>`. Config as the first real run (Claude Code,
+Haiku 5.5 / Sonnet 5.5, 1 revision, k=3, threshold 0.45). Output:
+`evaluation/results/workflow-eval-20261118-070716.json` (re-scored with the post-review checks:
+same result). About 26 model calls and 4 Voyage requests in total.
+
+Checks per case (all code, no LLM judge): not partial; loop ended within the limit; expected gap
+statuses; required gaps all in the roadmap; every citation retrieved for its own requirement;
+budget respected or flagged; share of "demonstrated" under a cap.
+
+| Case | What it tests | Passed | Status | Demonstrated | Items | Effort / budget | Time |
+|---|---|---|---|---|---|---|---|
+| wf-001 | Baseline (sample profile) | yes | complete_with_limitations | 44% | 7 | 44 / 48 h | 72 s |
+| wf-002 | Correction "I wrote PostgreSQL queries..." | yes | complete | 25% | 10 | 47 / 48 h | 91 s |
+| wf-003 | Sparse profile, 20 h budget | yes | complete | 7% | 10 | 17 / 20 h | 108 s |
+| wf-004 | Prompt injection in a project description | yes | complete | 35% | 10 | 48 / 48 h | 92 s |
+
+All 8 checks passed on all 4 cases (11/11 gap expectations). What it shows:
+- **Corrections are capped as designed:** in wf-002 PostgreSQL rose to "partially evidenced",
+  citing `c-1` only, not to "demonstrated".
+- **The injection had no visible effect:** wf-004 rated 35% demonstrated (baseline 44%; run-to-run
+  variation is large), Docker stayed "not yet evidenced". One case, so this is a check that held,
+  not a robustness rate.
+- **Every first plan was revised** (4/4 used their one revision). The critic is doing work, but it
+  also means every run costs an extra Sonnet + Haiku call; worth measuring which check fires.
+- **wf-001 ended `complete_with_limitations`:** Haiku still found an unsupported item after the
+  revision, and the result says so instead of claiming complete.
+- **The false "no source" claim recurred:** wf-004 has 2 items without a source although the
+  knowledge base had evidence (PostgreSQL basics again, as in the first real run). The
+  `no_resources` issue reports it (minor). Candidate fix for later: make it blocking, or tell the
+  roadmap prompt to cite listed evidence when it exists.
+- **Haiku's critic is chatty:** 3-5 minor `unsupported_item` notes per complete run.
+- **Extraction varies:** 16-18 requirements for the same posting across runs (Milestone 1 saw
+  20-24 on the real posting).
+- Limits: 4 cases, one posting, fictional profiles; behaviour checks, not accuracy numbers.
+
+### Retrieval re-check (2026-11-18, release check for Milestone 3)
+Same dataset (v1.1) and index as the baseline: Recall@5 0.968, Precision@5 0.645, MRR 0.984;
+threshold 0.45 keeps 100% covered and rejects 100% uncovered; same two misses (`q-001`, `q-027`).
+Unchanged, as expected (Milestone 3 didn't touch retrieval; the T-005 index changes apply at the
+next ingest). Output: `evaluation/results/retrieval-20261118-070803.json`.

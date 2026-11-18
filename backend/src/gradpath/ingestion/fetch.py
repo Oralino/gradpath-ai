@@ -8,7 +8,7 @@ import urllib.robotparser
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from pydantic import BaseModel
@@ -23,6 +23,15 @@ MAX_BYTES = 5 * 1024 * 1024
 MIN_HOST_INTERVAL_S = 1.0
 LOG_NAME = "fetch_log.json"
 MANUAL_SUFFIXES = {".html", ".htm", ".md", ".mdx", ".txt"}
+MAX_REDIRECTS = 5
+REDIRECT_STATUSES = {301, 302, 303, 307, 308}
+TEXT_TYPES = {
+    "text/html",
+    "application/xhtml+xml",
+    "text/markdown",
+    "text/x-markdown",
+    "text/plain",
+}
 
 
 class FetchedPage(BaseModel):
@@ -36,9 +45,12 @@ class FetchedPage(BaseModel):
 
 
 def make_client() -> httpx.Client:
-    """Client with our User-Agent, redirects and timeout (ingest.py; tests inject their own)."""
+    """Client with our User-Agent and timeout (ingest.py; tests inject their own).
+
+    Redirects are off on purpose: `_download` follows them itself so every hop passes robots.txt.
+    """
     return httpx.Client(
-        headers={"User-Agent": USER_AGENT}, follow_redirects=True, timeout=TIMEOUT_S
+        headers={"User-Agent": USER_AGENT}, follow_redirects=False, timeout=TIMEOUT_S
     )
 
 
@@ -71,11 +83,27 @@ class Politeness:
                 self._sleep(gap)
         self._last[host] = self._clock()
 
+    def _get_robots(self, url: str, client: httpx.Client) -> httpx.Response | None:
+        """GET robots.txt following up to MAX_REDIRECTS redirects by hand (the client does not);
+        None if the chain does not end in a non-redirect response. Called by `allowed`.
+        """
+        for _ in range(MAX_REDIRECTS + 1):
+            resp = client.get(url)
+            location = resp.headers.get("location")
+            if resp.status_code not in REDIRECT_STATUSES:
+                return resp
+            if not location:
+                return None  # a redirect with nowhere to go: treated as disallow
+
+            url = urljoin(url, location)
+            self.wait(urlparse(url).netloc)
+        return None
+
     def allowed(self, url: str, client: httpx.Client) -> bool:
         """Check robots.txt for the URL's host (cached per host for the run), per RFC 9309.
 
-        200 -> parse the rules; 4xx (incl. 404) -> allow all; 5xx or a network error -> disallow
-        all (the site may be hiding rules), so ingest.py skips the URL with a warning.
+        200 -> parse the rules; 4xx (incl. 404) -> allow all; 5xx, an unresolved redirect chain or
+        a network error -> disallow all (the site may be hiding rules), so ingest.py skips the URL.
         """
         parts = urlparse(url)
         host = parts.netloc
@@ -83,8 +111,11 @@ class Politeness:
             rules: urllib.robotparser.RobotFileParser | bool
             try:
                 self.wait(host)
-                resp = client.get(f"{parts.scheme}://{host}/robots.txt")
-                if resp.status_code == 200:
+                resp = self._get_robots(f"{parts.scheme}://{host}/robots.txt", client)
+                if resp is None:
+                    log.warning("robots.txt for %s redirects without resolving; skipping", host)
+                    rules = False
+                elif resp.status_code == 200:
                     rules = urllib.robotparser.RobotFileParser()
                     rules.parse(resp.text.splitlines())
                 else:
@@ -112,18 +143,40 @@ def _cache_valid(record: dict, path: Path) -> bool:
     return path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() == record.get("sha256")
 
 
-def _download(client: httpx.Client, url: str) -> tuple[int, bytes | None]:
-    """GET with a size cap; returns (status, body) where body is None if not 200 or too large."""
-    with client.stream("GET", url) as resp:
-        if resp.status_code != 200:
-            return resp.status_code, None
-        body = bytearray()
-        for chunk in resp.iter_bytes():
-            body.extend(chunk)
-            if len(body) > MAX_BYTES:
-                log.warning("skip %s: larger than %d bytes", url, MAX_BYTES)
+def _download(client: httpx.Client, url: str, politeness: Politeness) -> tuple[int, bytes | None]:
+    """GET with a size cap; returns (status, body); body is None when the page is skipped.
+
+    Called by fetch_source. Follows up to MAX_REDIRECTS redirects by hand so each hop is checked
+    against robots.txt and spaced per host; the content type is checked before the body is read.
+    """
+    for _ in range(MAX_REDIRECTS + 1):
+        with client.stream("GET", url) as resp:
+            location = resp.headers.get("location")
+            if resp.status_code in REDIRECT_STATUSES and location:
+                next_url = urljoin(url, location)
+                if not politeness.allowed(next_url, client):
+                    log.warning("skip %s: redirect to %s disallowed by robots.txt", url, next_url)
+                    return resp.status_code, None
+                politeness.wait(urlparse(next_url).netloc)
+                url = next_url
+                continue
+            if resp.status_code != 200:
                 return resp.status_code, None
-        return resp.status_code, bytes(body)
+            ctype = resp.headers.get("content-type")
+            if ctype is not None:
+                media = ctype.split(";")[0].strip().lower()
+                if media not in TEXT_TYPES:
+                    log.warning("skip %s: content type %s", url, ctype)
+                    return resp.status_code, None
+            body = bytearray()
+            for chunk in resp.iter_bytes():
+                body.extend(chunk)
+                if len(body) > MAX_BYTES:
+                    log.warning("skip %s: larger than %d bytes", url, MAX_BYTES)
+                    return resp.status_code, None
+            return resp.status_code, bytes(body)
+    log.warning("skip %s: more than %d redirects", url, MAX_REDIRECTS)
+    return 310, None
 
 
 def fetch_source(
@@ -165,7 +218,7 @@ def fetch_source(
             continue
         politeness.wait(urlparse(url).netloc)
         try:
-            status, body = _download(client, url)
+            status, body = _download(client, url, politeness)
         except httpx.HTTPError as exc:
             log.warning("skip %s: %s", url, exc)
             continue

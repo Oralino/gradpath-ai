@@ -12,7 +12,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 0 | Project setup | ✅ | Decide the plan, stack and rules before coding | Public repo, `brain/` docs, licence-checked sources |
 | 1 | RAG foundation | ✅ | Load sources, answer with citations, analyse a job description | Cited answers, "not covered" answers, 40+ tests |
 | 2 | Retrieval evaluation + tracing | ✅ | Measure search quality | Recall@5 0.97, MRR 0.98, threshold checked, LangSmith traces, CI |
-| 3 | Agentic workflow | ⏳ | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop |
+| 3 | Agentic workflow | ✅ (PR open) | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop; 4/4 workflow eval cases; `POST /api/career/prepare` |
 | 4 | Router + fallback | ⏳ | Pick the cheapest path that works | Routing accuracy, labelled partial answers |
 | 5 | Hybrid retrieval + reranking | ⏳ | Improve search for exact terms | Before/after metrics vs semantic-only |
 | 6 | Frontend | ⏳ | Make it usable | Next.js app designed from `DESIGN.md` |
@@ -129,12 +129,43 @@ and analyses a job description, or says when it doesn't know.
 
 ---
 
-## Milestones 2–8: what's next
+## Milestone 3: Agentic workflow (LangGraph) ✅ (PR open)
+*Ticket: `tickets/T-003-agentic-workflow.md`*
+
+**Goal:** job description + profile -> requirements -> gap analysis -> prioritised roadmap ->
+critic, with a bounded revision loop, as a LangGraph workflow behind `POST /api/career/prepare`.
+
+| Step | Status | What we built | Why | Result |
+|---|---|---|---|---|
+| 1. Ticket + housekeeping | ✅ | T-003, branch, Milestone 2 marked merged | Clean start | Pushed |
+| 2. Explain LangGraph + plan | ✅ | Node plan, `CareerPrepState`, bounded revision loop, open questions settled | The owner approves the design before code | Approved 2026-11-18: 1 revision round, structured profile, simple corrections now |
+| 3. Sample profile + job description | ✅ | A fictional new-grad profile and a fictional backend posting, committed | Demos, tests and traces must never use real personal data | Owner approved 2026-11-18 |
+| 4. State + graph skeleton | ✅ | `CareerPrepState`, Pydantic schemas, the graph with placeholder nodes, real `analyze_profile` and `finalize`; revision limit in settings; input limits | Get the shape and the loop limits right before any model call | 36 new tests (152 total): joins, loop stops at 0–3, protected keys, recursion backstop; code review: no loop bug, 9 hardening fixes |
+| 5a. Job + retrieval nodes | ✅ | Real `analyze_job` (Haiku extraction reused, ids, quote checks) and `retrieve_knowledge` (one batched search); one retry for model nodes on bad output | Reuse what Milestone 1 already proved instead of rewriting it | 18 new tests (170 total): ids, quotes, untrusted posting, one search batch, retry once then fail, retry allow-list, retried nodes counted once; code review: retry bounded, allow-list fix |
+| 5b. Gaps, roadmap, questions, critic | ✅ | `analyze_gaps` (Sonnet), `plan_roadmap` + `revise` (Sonnet), `interview_questions` (Haiku), `evaluate` (code checks, then Haiku); corrections as self-reported facts; one injection helper for every prompt | The core of the product: evidence-checked gaps and a plan that only cites what was retrieved | 31 new tests (201 total), incl. full runs: complete, one revision, limit reached; code review: 7 fixes (spaced closing tags, empty or worse revision, empty roadmap, correction cap, cap order, missing sources) |
+| 6. API + CLI + real run | ✅ | `POST /api/career/prepare` (body = `WorkflowInput`, limit from settings, one run at a time, fixed error messages), `workflows.cli` (report or JSON), model text truncated at 1,000 characters | One call for the whole feature; a terminal runner for real runs | 17 new tests (217 total); code review: no leaks, 5 fixes. Real Pro-plan run: `complete` after 1 revision in 101 s; 18 requirements, 10 roadmap items (47 h of a 48 h budget), 10 questions (EVALUATION.md) |
+| 7. Workflow eval + open tasks + PR | ✅ | 4 labelled workflow cases scored in code (`--rescore` for free re-scoring); concurrency caps on every model route; retry logs redacted; `--out` guard; ingestion hardening (T-005: polite redirects, content type, stale chunks, atomic rebuild) | Measure the workflow's behaviour and close the open review items before the PR | 4/4 cases pass (correction capped, injection had no effect, budget respected); retrieval unchanged; 251 tests; QA clean; PR open |
+
+### Problems we hit and how we solved them
+
+| Problem | What we did | Why it's worth mentioning |
+|---|---|---|
+| Turning off automatic redirects (to re-check robots.txt per hop) made a redirecting robots.txt count as "allow everything" | Review caught it; robots.txt redirects are now followed by hand too | A security fix can open a new hole next to it; review the fix as well |
+| Every first roadmap in the evaluation needed a revision | Recorded with the numbers; measure which check fires before changing anything | Measure first, then tune |
+| In the real run Sonnet said the knowledge base had no PostgreSQL source, though three PostgreSQL chunks were retrieved, and the warning about it was dropped from the result | Minor issues now stay on a complete result; recorded as a measured failure for the workflow evaluation | Real runs find what fake-model tests can't; record them, don't hide them |
+| `< /evidence>` (a space before the slash) passed the tag-neutralising regex we'd used since Milestone 1 | Regex allows whitespace on both sides of the slash; tests for each spacing | Injection defences need adversarial tests, not just the obvious case |
+| One correction ("I know all of these") could mark every requirement demonstrated and empty the roadmap | Corrections alone count as partial evidence at most | A feature that helps users can also be gamed; cap what it can do |
+| The review showed any node could reset the revision counter or raise the limit, because only `revise` was wrapped | One wrapper around every node refuses writes to input, limit, counter and log | A limit is only a limit if nothing else can change it |
+| A critic could say "passed" while listing a blocking problem | Code decides: passed **and** no blocking issue | Don't let the model grade its own pass/fail flag |
+| LangGraph's default retry skips `ValueError`, so a malformed model reply (a Pydantic error) would never be retried | Our own retry rule for model nodes: an allow-list (bad output, Claude Code errors), 2 attempts; network retries left to the SDK so they don't multiply | Reading what a framework default actually does before relying on it |
+| The loop's safety limit (`recursion_limit`) formula was one step short | Measured the real minimum per revision count: LangGraph counts the input step too; a test pins the exact number | Measuring a framework's behaviour instead of assuming it |
+
+---
+
+## Milestones 4–8: what's next
 
 | # | Milestone | What it will do | Why it matters |
 |---|---|---|---|
-| 2 | Retrieval evaluation + tracing | Label 30–50 questions with their correct sources; measure Recall@K, Precision@K, MRR; turn on LangSmith | Measured quality makes the project credible and gives a baseline for every experiment |
-| 3 | Agentic workflow (LangGraph) | Analyse job and profile in parallel -> retrieve -> gap analysis -> roadmap -> critic, with a bounded revision loop; `POST /api/career/prepare` | The main feature needs several dependent steps, which one prompt can't do reliably |
 | 4 | Router + fallback | Choose RAG or the workflow per request and record why; labelled partial answers on failure; measure routing accuracy | Use the cheapest path that works; never present a partial answer as complete |
 | 5 | Hybrid retrieval + reranking | Add keyword search and reranking; keep them only if the evaluation shows they help | Exact terms ("MVCC", "404") are where semantic search is weakest |
 | 6 | Frontend | `DESIGN.md` first, then Next.js: inputs, requirements, gaps, roadmap with citations, status and errors | Makes the system usable and demoable |
