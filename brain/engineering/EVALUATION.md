@@ -12,6 +12,10 @@ date, the configuration and the dataset version. Design is in `ARCHITECTURE.md`.
 Datasets may also be uploaded to LangSmith for side-by-side experiment views; the files here are the
 source.
 
+## Cases noted for the labelled set
+- "What is a database index and when should I use one?" -> should also retrieve
+  `db-postgres-indexes` page `indexes-multicolumn` (missed from the top 5 on 2026-11-17).
+
 ## Metrics
 - **Retrieval:** Recall@K, Precision@K, MRR, latency.
 - **Answers:** faithfulness to evidence, relevance, citation accuracy, unsupported-claim rate, correct

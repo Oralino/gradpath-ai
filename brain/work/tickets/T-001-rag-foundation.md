@@ -58,3 +58,10 @@ Steps:
 - Step 4: `retrieval/service.py`, 7 tests; probe on the real index put the right source first for
   5/5 covered questions (0.59–0.68) vs 0.27–0.39 for uncovered ones; threshold 0.45
   (`EVALUATION.md`). Heading anchors stripped from section names (re-ingest). Suite: 43 passed.
+- Step 5: `rag/` + `api/` (`POST /api/chat`, `GET /api/health`); 54 tests passed. Real index,
+  uncovered question ("sourdough") abstained without a model call (best 0.302). Real run in the
+  owner's terminal (Sonnet 5.5 via Pro plan, 2026-11-17): "What is a database index and when should
+  I use one?" -> `answered`, 5 valid citations (PostgreSQL 11.1 Introduction x3, SQLite 1.3 and
+  1.5), and it stated what the evidence did not cover (index costs, index types, multi-column
+  indexes) instead of using outside knowledge. Recall gap noted: `db-postgres-indexes` page
+  `indexes-multicolumn` exists but was not in the top 5; add as a Milestone 2 eval case.

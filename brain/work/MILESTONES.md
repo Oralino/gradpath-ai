@@ -64,7 +64,7 @@ and analyses a job description, or says when it doesn't know.
 | 2. Provider layer | ✅ | `ChatClaudeCode` (custom LangChain model on the Pro plan), `ChatAnthropic`, fake model, `get_chat_model()`, `with_structure()` | No extra cost locally; provider is a config switch; tests are free | Real Pro-plan call returned text and a validated `SQL / Required` result |
 | 3. Ingestion pipeline | ✅ | Polite download + cache, cleaning, heading-aware chunking, Voyage embeddings (rate limiter + cache), safe Qdrant rebuild | Search is only as good as its corpus; free-tier limits shaped the design | 18 sources -> 52 pages -> 956 chunks |
 | 4. Retrieval service | ✅ | `RetrievalService.search()` returns scored, citable evidence above a threshold | One search path for every feature; "I don't know" built in | 7 tests; real probe found the right source 5/5; threshold set to 0.45 |
-| 5. RAG + `POST /api/chat` | ✅ | FastAPI app; answers only from retrieved evidence; citations verified in code; retrieved text marked as untrusted; abstains without calling the model when nothing is relevant | The fast path for focused questions, and grounded answering | 11 tests (54 total); real index abstains on off-topic questions |
+| 5. RAG + `POST /api/chat` | ✅ | FastAPI app; answers only from retrieved evidence; citations verified in code; retrieved text marked as untrusted; abstains without calling the model when nothing is relevant | The fast path for focused questions, and grounded answering | 11 tests (54 total); real Pro-plan answer with 5 valid citations that also named what the sources didn't cover; abstains on off-topic questions |
 | 6. `POST /api/jobs/analyze` | ⏳ | Extract requirements, search per requirement, cited summary | The spec's first milestone; start of the job-to-roadmap flow | |
 | 7. Tests, review, commit | ⏳ | Full test run, code review (high-risk parts), commit and PR | Quality gate before merging | |
 
@@ -79,6 +79,7 @@ and analyses a job description, or says when it doesn't know.
 | A failed 20-minute embedding run could wipe the index | Embed everything first, then rebuild; the cache saves every 32 chunks | Failure-safe data pipelines |
 | Claude Code reports input tokens without cached tokens | Cost measurements will use API mode | Knowing where your metrics come from |
 | Picking a relevance threshold without guessing | Probed real covered vs uncovered questions: covered scored 0.59–0.68, uncovered 0.27–0.39, so 0.45 sits in the gap | Data-driven tuning, re-checked later with a labelled set |
+| The real answer said multi-column indexes weren't covered, but the corpus has a page on them | Logged as a retrieval-recall case for Milestone 2 instead of patching the prompt | Measure before fixing: it's a search problem, not an answering one |
 | Heading anchors (`¶`, `#`) leaked into citation section names | Strip permalink anchors in the cleaner; re-ingest reused cached embeddings for unchanged chunks | Small polish that the cache made cheap |
 
 ### Step 3 in numbers: the first corpus
