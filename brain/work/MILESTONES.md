@@ -173,6 +173,7 @@ finish, return a labelled partial result instead of an error; measure routing ac
 | 1. Ticket + housekeeping | ✅ | T-006, branch, Milestone 3 marked merged | Clean start | Pushed |
 | 2. Explain routing + fallback, plan | ✅ | Rules + Haiku router, safe default RAG, `POST /api/assist`, fallback with a 300 s budget, unsupported/needs-input replies | The owner approves the design before code | Approved 2026-11-18 |
 | 3. Labelled routing set | ✅ | `evaluation/routing_cases.jsonl`: 30 requests labelled with route and action (run, needs input, unsupported) | Measure routing before building it | Owner approved 2026-11-18: 15 RAG, 7 workflow, 5 needs input, 3 unsupported; 7 borderline, 3 injection |
+| 4. Router | ✅ code | `router/`: rules for certain cases, Haiku names the kind, a fixed table picks route and action, safe default RAG; message HTML-escaped; threat model `SECURITY.md` from the owner's security guides | The cheapest path that works, and a route text can't steer | 46 new tests (297 total); rules decide 11 of 30 labels, all correctly; code review: 5 fixes (mixed questions, comparisons, invisible-character tags, whitespace, log status) |
 
 ---
 

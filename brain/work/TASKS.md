@@ -6,6 +6,13 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 ## Current
 - [ ] [T-006 Milestone 4: router + fallback](tickets/T-006-router-fallback.md) (in progress).
 
+Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
+- [ ] T-007 (proposed): ingestion redirects: https only, same or manifest host only, no private IPs
+      (SSRF and knowledge-base poisoning).
+- [ ] T-008 (proposed): `safety.neutralise_tags` misses zero-width and fullwidth tag variants.
+- [ ] Add `uvx pip-audit` to the release checks (dependency vulnerabilities).
+- [ ] **(owner)** Two-factor authentication on GitHub, Anthropic, Voyage and LangSmith.
+
 ## Corpus (before Milestone 5)
 - [ ] **(owner + Claude)** Fill corpus gaps: behavioral interviews (STAR), caching, message queues,
       Docker/Kubernetes, CI/CD, LLM/RAG tooling (LangChain, vector databases).

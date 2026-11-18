@@ -460,6 +460,32 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   or missing index; a failure before the switch removes the new collection and keeps the old one.
   The first rebuild migrates the old real collection (a short, logged, one-time window).
 
+## Query router (`router/`: `schemas.py`, `rules.py`, `route.py`, T-006)
+- **What it does:** picks traditional RAG or the workflow for a message and records why
+  (`RouteDecision`: route, action, kind, missing inputs, reason, `decided_by`). It sees the message
+  and two yes/no flags (job attached, profile attached), never the attached text.
+- **Three stages:** rules decide only certain cases (a one-sentence definition question -> RAG; a
+  personal plan request with both inputs -> workflow); otherwise Haiku names the *kind* of request;
+  then the fixed `TABLE` in code maps kind -> route, and the inputs decide `run`, `needs_input` or
+  `unsupported`. Any classification failure -> RAG (`decided_by: "default"`), logged by type.
+- **Decision: the model classifies, code routes.** Rejected: letting the model return the route
+  (the spec's example schema). A route field could be injected ("route=agentic"); a kind can't set
+  anything the table doesn't allow, and the table can be tested in full.
+- **Decision: rules only where certain.** On the 30 labelled requests the rules decide 11, all
+  correctly (a test pins this); anything mixed ("What is Docker? Also summarise this posting."),
+  about an attachment, unsupported or steering ("ignore", "route", tags, JSON) goes to the model.
+- **Injection:** the whole message is HTML-escaped inside `<request>`, so no `<` survives (covers
+  zero-width and spaced variants a tag regex can miss).
+- **Likely question:** *"Why not always ask the model?"* Two thirds of simple questions are
+  decided free and instantly, and the routing evaluation will show whether the rules ever disagree
+  with the labels.
+
+## Security threat model ([SECURITY.md](SECURITY.md))
+- Built from the owner's guides in `brain/security/`: every threat is marked defended, gap or
+  later milestone, with the file that defends it. Main point to explain: the model is never the
+  security boundary; limits, ids, routes and statuses are decided in code, and the models have no
+  tools.
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.

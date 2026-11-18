@@ -15,6 +15,8 @@ loaded as context). Only `CLAUDE.md` and `README.md` stay in the root.
 | `README.md` | Public: what it is, the three modes, setup, run, deploy | main session |
 | `brain/product/REQUIREMENTS.md` | Goal, users, MVP scope, owner decisions, acceptance criteria | main session |
 | `brain/engineering/ARCHITECTURE.md` | Stack, LangChain split, layout, router, workflow, providers, modes, data, deploy, known limits | main session |
+| `brain/engineering/SECURITY.md` | GradPath's threat model: each threat, today's defence, gaps, the release security checklist | main session |
+| `brain/security/` | The owner's general security reference guides (web, auth, API, infra, data, AI/RAG) | owner |
 | `brain/engineering/EVALUATION.md` | Metrics, datasets, experiments and their measured results | main session |
 | `brain/engineering/WALKTHROUGH.md` | How to explain the code: per component, the decisions, rejected alternatives, likely interview questions | main session |
 | `brain/design/DESIGN.md` | How the Next.js UI looks (created before the frontend milestone) | design-advisor (owner approves) |
@@ -91,6 +93,7 @@ Without those agents, the main session does the work itself. This project adds:
   - a pasted visitor key never appears in logs, traces or responses; LangSmith tracing is off for visitor
     requests on the deployed site
   - a retrieval evaluation run, with its results recorded in `EVALUATION.md`
+  - the release security checklist at the end of `brain/engineering/SECURITY.md`
 - No project-only agents.
 
 ## Git

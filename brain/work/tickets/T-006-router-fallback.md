@@ -37,7 +37,14 @@ High-risk area: the workflow's fallback limits (code-reviewer + qa-checker whate
 ## Changes
 - Branch: `feat/t-006-router-fallback`
 - PR:
-- Files touched:
+- Files touched: `backend/src/gradpath/router/` (new), `backend/tests/test_router.py`,
+  `evaluation/routing_cases.jsonl`, `brain/engineering/SECURITY.md` (new), `CLAUDE.md`, `brain/`
 - Commits (hash, message):
 
 ## Verification
+- Step 4 (router): 46 tests, fake model only. code-reviewer: no way found for text to set the
+  route; fixed: definition rule took mixed questions ("What is Docker? Also summarise this
+  posting."), comparison words reached the plan rule, zero-width/fullwidth tag variants (router now
+  HTML-escapes the whole message), whitespace-only messages, failures logged without status; tests
+  now assert log contents and cover forged tags and KeyboardInterrupt.
+- Security: threat model in `brain/engineering/SECURITY.md` (2026-11-18) from the owner's guides.
