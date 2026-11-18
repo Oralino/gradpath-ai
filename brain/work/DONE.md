@@ -6,4 +6,5 @@ Finished work and releases, newest first; closed tickets are linked here. Open w
   The original spec moved to `../archive/SPEC.md`.
 - Public GitHub repo `Oralino/gradpath-ai`; local pre-commit hook blocks `.env` files.
 - Voyage AI and LangSmith (Personal Access Token) keys set in the owner's local `.env`.
-- 18 knowledge-base sources proposed in `knowledge_base/source_manifest.csv`.
+- 18 knowledge-base sources in `knowledge_base/source_manifest.csv`, approved by the owner; the Google
+  SRE book is link-only (its CC BY-NC-ND licence forbids derivatives, so it is not chunked).

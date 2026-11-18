@@ -8,8 +8,6 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 
 ## Before Milestone 1
 - [ ] Make Claude Code callable from Python on this PC (CLI or Agent SDK), for `ChatClaudeCode`.
-- [ ] **(owner)** Approve or reject the 18 proposed sources in `knowledge_base/source_manifest.csv`;
-      decide on the Google SRE book (CC BY-NC-ND: chunk it or link only).
 - [ ] Confirm the licences marked `license_verified=no` before downloading each source.
 - [ ] **(owner + Claude)** Fill gaps: behavioral interviews (STAR), caching, message queues.
 - [ ] More new-grad backend job descriptions in `private/job_descriptions/` (one so far).
