@@ -16,7 +16,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from gradpath.config import REPO_ROOT, get_settings
 from gradpath.workflows import CareerPrepResult, UserProfile, WorkflowContext, run_workflow
@@ -34,6 +34,11 @@ class GapExpectation(BaseModel):
     status_in: list[str] = Field(min_length=1)
     cites_correction: bool = False
 
+    @field_validator("skill_any")
+    @classmethod
+    def _lower(cls, v: list[str]) -> list[str]:
+        return [s.lower() for s in v]
+
 
 class Expectations(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -41,6 +46,11 @@ class Expectations(BaseModel):
     gaps: list[GapExpectation] = Field(default_factory=list)
     roadmap_covers: list[str] = Field(default_factory=list)
     max_demonstrated_share: float = 1.0
+
+    @field_validator("roadmap_covers")
+    @classmethod
+    def _lower(cls, v: list[str]) -> list[str]:
+        return [s.lower() for s in v]
 
 
 class WorkflowCase(BaseModel):
@@ -54,8 +64,24 @@ class WorkflowCase(BaseModel):
     notes: str = ""
 
     def load_profile(self) -> UserProfile:
-        text = (REPO_ROOT / self.profile).read_text(encoding="utf-8")
-        return UserProfile.model_validate(json.loads(text))
+        """The case's profile; must be a fictional sample (results are committed)."""
+        profile = UserProfile.model_validate(
+            json.loads(_repo_file(self.profile).read_text("utf-8"))
+        )
+        if not (profile.profile_id or "").startswith("sample-"):
+            raise ValueError(f"{self.id}: workflow eval cases must use a sample- profile")
+        return profile
+
+    def load_job_description(self) -> str:
+        return _repo_file(self.job_description).read_text(encoding="utf-8")
+
+
+def _repo_file(relative: str) -> Path:
+    """Resolve a path from the cases file; it must stay inside the repo."""
+    path = (REPO_ROOT / relative).resolve()
+    if not path.is_relative_to(REPO_ROOT.resolve()):
+        raise ValueError(f"path outside the repo: {relative}")
+    return path
 
 
 def load_cases(path: Path = DEFAULT_CASES) -> list[WorkflowCase]:
@@ -84,9 +110,13 @@ def score(case: WorkflowCase, result: CareerPrepResult, profile: UserProfile, ma
     }
     for i, exp in enumerate(case.expect.gaps, 1):
         matched = [g for g in gaps if any(s in g.skill.lower() for s in exp.skill_any)]
-        ok = bool(matched) and matched[0].status in exp.status_in
-        if ok and exp.cites_correction:
-            ok = any(f.startswith("c-") for f in matched[0].profile_evidence_ids)
+        ok = any(
+            g.status in exp.status_in
+            and (
+                not exp.cites_correction or any(f.startswith("c-") for f in g.profile_evidence_ids)
+            )
+            for g in matched
+        )
         checks[f"gap_{i}:{exp.skill_any[0]}"] = ok
     for kw in case.expect.roadmap_covers:
         checks[f"covers:{kw}"] = any(
@@ -104,11 +134,14 @@ def score(case: WorkflowCase, result: CareerPrepResult, profile: UserProfile, ma
         for g in gaps
         if g.importance == "required" and g.status in TO_ADDRESS
     )
+    # An item that cites sources must name only known requirements, and every source must have
+    # been retrieved for one of them.
     checks["citations_retrieved"] = all(
-        c.chunk_id in {cid for r in item.requirement_ids for cid in by_id[r].knowledge_chunk_ids}
+        all(r in by_id for r in item.requirement_ids)
+        and {c.chunk_id for c in item.resources}
+        <= {cid for r in item.requirement_ids for cid in by_id[r].knowledge_chunk_ids}
         for item in result.roadmap
-        for c in item.resources
-        if all(r in by_id for r in item.requirement_ids)
+        if item.resources
     )
     total = sum(i.effort_hours_estimate for i in result.roadmap)
     budget = (
@@ -144,21 +177,22 @@ def score(case: WorkflowCase, result: CareerPrepResult, profile: UserProfile, ma
 
 def run_case(case: WorkflowCase, ctx: WorkflowContext, max_rev: int) -> dict:
     """Run one case with real services. A failed run is recorded by exception type only (its
-    message can quote a model reply)."""
-    profile = case.load_profile()
-    jd = (REPO_ROOT / case.job_description).read_text(encoding="utf-8")
+    message can quote a model reply). Reading inputs and scoring are inside the try too, so
+    one bad case can't stop the run."""
     start = time.monotonic()
     try:
+        profile = case.load_profile()
+        jd = case.load_job_description()
         result = run_workflow(
             jd, profile, context=ctx, max_revisions=max_rev, corrections=case.corrections
         )
+        scored = score(case, result, profile, max_rev)
     except Exception as exc:  # noqa: BLE001 - an eval records failures instead of stopping
         return {"id": case.id, "error": type(exc).__name__, "seconds": time.monotonic() - start}
-    seconds = round(time.monotonic() - start, 1)
     return {
         "id": case.id,
-        "seconds": seconds,
-        "score": score(case, result, profile, max_rev),
+        "seconds": round(time.monotonic() - start, 1),
+        "score": scored,
         "result": json.loads(result.model_dump_json()),
     }
 
@@ -222,14 +256,9 @@ def main() -> None:
     ctx = WorkflowContext(
         retrieval=retrieval, fast_llm=get_chat_model("fast"), smart_llm=get_chat_model("smart")
     )
-    records = []
-    try:
-        for case in selected:
-            print(f"running {case.id} ...", flush=True)
-            records.append(run_case(case, ctx, settings.workflow_max_revisions))
-    finally:
-        retrieval.store.client.close()
-        flush()
+    records: list[dict] = []
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    path = RESULTS_DIR / f"workflow-eval-{datetime.now(UTC):%Y%m%d-%H%M%S}.json"
     out = {
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "provider": settings.llm_provider,
@@ -239,9 +268,15 @@ def main() -> None:
         "cases_file": DEFAULT_CASES.name,
         "cases": records,
     }
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    path = RESULTS_DIR / f"workflow-eval-{datetime.now(UTC):%Y%m%d-%H%M%S}.json"
-    path.write_text(json.dumps(out, indent=2), encoding="utf-8")
+    try:
+        for case in selected:
+            print(f"running {case.id} ...", flush=True)
+            records.append(run_case(case, ctx, settings.workflow_max_revisions))
+            # Saved after every case: an interrupt never loses the paid runs before it.
+            path.write_text(json.dumps(out, indent=2), encoding="utf-8")
+    finally:
+        retrieval.store.client.close()
+        flush()
     print(summarise(records))
     print(f"\nsaved: {path}")
 

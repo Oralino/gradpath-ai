@@ -428,6 +428,38 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Likely question:** *"Why can't the user choose how many revisions?"* Each round is a paid model
   call; letting a request set it would let one request spend the budget.
 
+## Workflow evaluation (`evaluation/workflow_eval.py`, `evaluation/workflow_cases.jsonl`)
+- **What it measures:** for each case, the whole workflow runs on the real models and code
+  scores the result: not partial, loop ended within the limit, expected gap statuses (e.g.
+  Docker "not yet evidenced" for the sample profile), required gaps all in the roadmap, every
+  citation retrieved for its own requirement, the budget respected or flagged, and the share of
+  "demonstrated" capped. It also counts items with no source although sources existed (the
+  false "no source" claim from the first real run).
+- **Four cases, on purpose:** baseline, a correction (must lift a gap only to partial), a sparse
+  profile with a 20-hour budget (missing information), and a prompt injection in a project
+  description. Each case is ~5-7 calls on the plan, so the set stays small.
+- **Decision: checks in code, not an LLM judge.** Every check is exact and free to re-run:
+  `--rescore` re-scores a saved run after the checks change, with no model call. Rejected for
+  now: an LLM-as-judge faithfulness score (costly, and it grades a model with a model).
+- **Likely question:** *"Isn't 4 cases too few?"* For accuracy numbers, yes; these are behaviour
+  checks (does the loop end, do defences hold), where one counter-example is a real bug.
+
+## Concurrency caps (`api/limits.py`)
+- Each model route holds one slot while it runs: chat 2, job analysis 1, career workflow 1. A
+  request with no free slot gets 503 at once instead of queueing behind minutes of model calls
+  and sharing Voyage's 3-per-minute limit. Per-IP limits and auth come before deploy.
+
+## Ingestion hardening (T-005)
+- **Redirects followed by hand,** at most 5 hops, each hop checked against robots.txt and the
+  per-host wait; the HTTP client's automatic redirects would have skipped both for a new host.
+- **Content-Type allow-list** (HTML, XHTML, Markdown, text): a PDF is skipped, not cleaned as HTML.
+- **Zero chunks deletes the stale processed file,** so a page that lost its content doesn't keep
+  old chunks in the index.
+- **Atomic rebuild with an alias:** build `gradpath_kb_<timestamp>`, switch the alias
+  `gradpath_kb` to it in one call, then delete the old collection. Search never sees a half-built
+  or missing index; a failure before the switch removes the new collection and keeps the old one.
+  The first rebuild migrates the old real collection (a short, logged, one-time window).
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.

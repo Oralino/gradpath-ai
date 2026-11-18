@@ -5,7 +5,9 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 
 ## Current
 - [ ] [T-003 Milestone 3: agentic workflow (LangGraph)](tickets/T-003-agentic-workflow.md)
-      (in progress: plan approved; sample data awaiting approval).
+      (in progress: step 7, workflow evaluation, release checks, PR).
+- [ ] [T-005 Ingestion polish from the Milestone 1 review](tickets/T-005-ingestion-polish.md)
+      (built; in review).
 
 ## Before Milestone 2
 - [ ] **(owner + Claude)** Fill corpus gaps: behavioral interviews (STAR), caching, message queues,
@@ -17,16 +19,15 @@ The milestone plan and its story (what, why, what it does) live in [MILESTONES.m
 
 ## Deferred from the Milestone 1 code review (2026-11-17)
 Before any deploy (Milestones 7–8):
-- [ ] Auth or passcode, per-IP rate limits and a concurrency cap on `/api/chat` and
-      `/api/jobs/analyze` (each call can start a Claude Code process and spend plan quota).
+- [ ] Auth or passcode and per-IP rate limits on the model routes (each call can start a Claude
+      Code process and spend plan quota). Concurrency caps done: `api/limits.py` (T-003).
 - [ ] Enforce `APP_MODE` (demo vs live); the app must start and serve demo mode with no keys set
       (today the lifespan needs `VOYAGE_API_KEY`).
 - [ ] `POST /api/career/prepare` (like the other routes) uses the server's model credentials
       whatever `APP_MODE` says; live mode must pass the visitor's key instead (T-003 review).
-- [ ] LangGraph's own "Retrying task" log line includes the exception text; for a Pydantic error
-      that quotes the model's reply. Lower that logger's level or filter it before deploy (T-003).
-- [ ] `workflows.cli --out` can write profile-derived text anywhere, including tracked folders
-      such as `demo_runs/`; demo recordings must use the sample profile only (T-003).
+- [x] LangGraph's "Retrying task" log line no longer carries exception text (filter in
+      `workflows/graph.py`, T-003).
+- [x] `workflows.cli --out` saves a real profile's results only under `private/` (T-003).
 - [ ] When live-mode key handling lands: the visitor-key tracing guard in `get_chat_model` checks
       once, when the model is built; re-check it covers how routes build models (T-002 review).
 Milestone 2 (tracing):
@@ -34,11 +35,11 @@ Milestone 2 (tracing):
 - [x] `ChatClaudeCode._generate` worker thread now runs in a copy of the caller's context (T-002).
       `run_manager` is still not passed in: it only matters for token streaming, which we don't use.
 - [ ] Grounding check beyond citation ids (faithfulness metric in `EVALUATION.md`).
-Ingestion polish:
-- [ ] Re-check robots.txt and the host gap after a redirect to another host.
-- [ ] Check Content-Type before cleaning (a PDF would be cleaned as HTML).
-- [ ] A document that now yields zero chunks keeps its stale processed JSONL.
-- [ ] Make the index rebuild atomic (build a new collection, then swap via an alias).
+Ingestion polish (T-005, built 2026-11-18, in review):
+- [x] Re-check robots.txt and the host gap after a redirect to another host.
+- [x] Check Content-Type before cleaning (a PDF would be cleaned as HTML).
+- [x] A document that now yields zero chunks keeps its stale processed JSONL.
+- [x] Make the index rebuild atomic (build a new collection, then swap via an alias).
 
 ## Later
 Interview practice with feedback, multi-JD comparison, resume alignment, progress tracking,

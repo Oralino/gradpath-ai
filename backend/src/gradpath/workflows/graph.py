@@ -79,7 +79,10 @@ class _NoExceptionText(logging.Filter):
     the exception type and drop its text and traceback."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        if record.exc_info and record.exc_info[1] is not None:
+        # Only the retry line; other records on this logger (e.g. observer failures) are left
+        # as they are.
+        is_retry = isinstance(record.msg, str) and record.msg.startswith("Retrying task")
+        if is_retry and record.exc_info and record.exc_info[1] is not None:
             name = type(record.exc_info[1]).__name__
             msg = record.getMessage()
             cut = msg.find(f" after {name}")

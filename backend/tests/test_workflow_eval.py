@@ -174,3 +174,73 @@ def test_summary_table_lists_failed_checks_and_errors():
     text = summarise(records)
     assert "| wf-a | yes | - |" in text and "error: ValidationError" in text
     assert "| not_partial | 1/1 |" in text
+
+
+def test_citations_on_an_item_with_an_unknown_requirement_fail():
+    r = good()
+    r.roadmap = [item(1, ["r-1", "r-99"], "Containers", cites=["d:1"])]
+    assert not score(CASE, r, PROFILE, max_rev=1)["checks"]["citations_retrieved"]
+
+
+def test_any_matching_gap_can_satisfy_an_expectation_and_case_is_ignored():
+    case = CASE.model_copy(
+        update={
+            "expect": Expectations(
+                gaps=[GapExpectation(skill_any=["SQL"], status_in=["partially_evidenced"])],
+                roadmap_covers=["POSTGRES"],
+            )
+        }
+    )
+    r = good()
+    r.gaps.insert(0, gap("r-9", "NoSQL stores", "not_yet_evidenced"))  # matched first, wrong
+    r.gaps[2].skill = "PostgreSQL"
+    checks = score(case, r, PROFILE, max_rev=1)["checks"]
+    assert checks["gap_1:sql"] and checks["covers:postgres"]
+
+
+def test_cases_must_use_sample_profiles_inside_the_repo(tmp_path):
+    case = WorkflowCase.model_validate_json(
+        DEFAULT_CASES.read_text(encoding="utf-8").splitlines()[0]
+    )
+    with pytest.raises(ValueError, match="outside the repo"):
+        case.model_copy(update={"profile": "../../somewhere/real.json"}).load_profile()
+    real = tmp_path / "real.json"
+    real.write_text('{"skills": ["Python"]}', encoding="utf-8")
+    from gradpath.config import REPO_ROOT
+
+    inside = REPO_ROOT / "backend" / "data" / "_test_real_profile.json"
+    inside.parent.mkdir(parents=True, exist_ok=True)
+    inside.write_text('{"skills": ["Python"]}', encoding="utf-8")
+    try:
+        with pytest.raises(ValueError, match="sample- profile"):
+            case.model_copy(
+                update={"profile": "backend/data/_test_real_profile.json"}
+            ).load_profile()
+    finally:
+        inside.unlink()
+
+
+def test_retry_filter_leaves_other_records_alone():
+    import logging
+
+    from gradpath.workflows.graph import _NoExceptionText
+
+    try:
+        raise ValueError("secret detail")
+    except ValueError:
+        import sys
+
+        info = sys.exc_info()
+    other = logging.LogRecord("x", logging.ERROR, "f", 1, "Timed attempt observer failed", (), info)
+    assert _NoExceptionText().filter(other) and other.exc_info is info
+    retry = logging.LogRecord(
+        "x",
+        logging.INFO,
+        "f",
+        1,
+        "Retrying task t after 1.00 seconds (attempt 1) after ValueError secret detail",
+        (),
+        info,
+    )
+    _NoExceptionText().filter(retry)
+    assert "secret" not in retry.getMessage() and retry.exc_info is None
