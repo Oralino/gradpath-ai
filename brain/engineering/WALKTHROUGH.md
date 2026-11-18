@@ -168,8 +168,9 @@ routing quality are measured, not assumed.
   verifies each quote is really in the posting -> one batched search for every studyable
   requirement -> Sonnet writes a 2-4 sentence study note per covered requirement, citing only that
   requirement's evidence -> code drops notes with no valid citation.
-- **Coverage labels:** `covered` (relevant evidence and a cited study note), `weak_evidence`
-  (something cleared the threshold but the notes model found it unhelpful), `not_covered` (the
+- **Coverage labels:** `covered` (relevant evidence and a cited study note rated `direct`),
+  `weak_evidence` (something cleared the threshold but the note is missing, uncited, or rated
+  `partial`: the sources are only related or incomplete; the honest note is still shown), `not_covered` (the
   knowledge base has nothing: say so, don't invent), `not_applicable` (eligibility: degree, clearance,
   authorization, years of experience are not things to study).
 - **Why two models:** extraction is simple and frequent (Haiku: fast, cheap); writing study notes

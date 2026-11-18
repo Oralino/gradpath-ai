@@ -76,3 +76,8 @@ Steps:
   note (AWS/Azure, Vector databases had only weak matches), Markdown heading ids `{#...}` stripped,
   repeated document title dropped from citation sections. Re-ingest: 949 cache hits, 7 misses.
   Suite: 66 passed.
+- Step 6, second real run: the three fixes confirmed (clean heading, deduped title, `~` label);
+  24 requirements this time (extraction varies run to run; measure in Milestone 2). Notes for
+  AWS/Azure, Docker, Vector databases and Agile said their evidence was limited yet were labelled
+  covered, so notes now carry `evidence_strength` (direct/partial) and partial -> weak_evidence.
+  Suite: 67 passed.

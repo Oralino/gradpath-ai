@@ -48,9 +48,20 @@ NOTES = {
             "index": 0,
             "note": "Learn how indexes speed up SQL lookups.",
             "cited_chunk_ids": ["pg:0:1"],
+            "evidence_strength": "direct",
         },
-        {"index": 1, "note": "Invented source.", "cited_chunk_ids": ["made-up:0:0"]},
-        {"index": 2, "note": "Not covered, should be ignored.", "cited_chunk_ids": ["pg:0:0"]},
+        {
+            "index": 1,
+            "note": "Invented source.",
+            "cited_chunk_ids": ["made-up:0:0"],
+            "evidence_strength": "direct",
+        },
+        {
+            "index": 2,
+            "note": "Not covered, should be ignored.",
+            "cited_chunk_ids": ["pg:0:0"],
+            "evidence_strength": "direct",
+        },
     ],
 }
 
@@ -182,3 +193,25 @@ def test_citation_section_drops_repeated_title():
     )
     assert display_section("Pro Git", "3.2 Branching > Merging") == "3.2 Branching > Merging"
     assert display_section("Primer", "") == ""
+
+
+def test_partial_evidence_note_is_kept_but_not_called_covered(kb_service):
+    notes = {
+        "overview": "x",
+        "notes": [
+            {
+                "index": 0,
+                "note": "Related material only; use other sources too.",
+                "cited_chunk_ids": ["pg:0:1"],
+                "evidence_strength": "partial",
+            }
+        ],
+    }
+    extraction = {**EXTRACTION, "requirements": [EXTRACTION["requirements"][0]]}
+    out = analyze_job(
+        JD, kb_service, FakeChatModel(responses=[extraction]), FakeChatModel(responses=[notes])
+    )
+    item = out.requirements[0]
+    assert item.coverage == "weak_evidence"
+    assert item.study_note.startswith("Related material")  # the honest note is still shown
+    assert out.stats["covered"] == 0 and out.stats["weak_evidence"] == 1
