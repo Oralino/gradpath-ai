@@ -80,8 +80,9 @@ First milestone (from the spec):
 
 MVP:
 - [ ] The JD + profile workflow produces all six outputs above, validated against their schemas.
-- [ ] The router picks a path, records the reason, and falls back with a clear "partial result" label.
-- [ ] Revision loops and retries are bounded.
+- [x] The router picks a path, records the reason, and falls back with a clear "partial result" label
+      (T-006).
+- [x] Revision loops and retries are bounded (T-003, T-006 time budget).
 - [ ] Retrieval (Recall@K, Precision@K, MRR) and routing accuracy are measured and recorded in
       `EVALUATION.md`, including the semantic vs hybrid comparison.
 - [ ] The deployed site works in demo mode with no keys; live mode works with a pasted key that is

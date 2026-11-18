@@ -460,6 +460,80 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   or missing index; a failure before the switch removes the new collection and keeps the old one.
   The first rebuild migrates the old real collection (a short, logged, one-time window).
 
+## Query router (`router/`: `schemas.py`, `rules.py`, `route.py`, T-006)
+- **What it does:** picks traditional RAG or the workflow for a message and records why
+  (`RouteDecision`: route, action, kind, missing inputs, reason, `decided_by`). It sees the message
+  and two yes/no flags (job attached, profile attached), never the attached text.
+- **Three stages:** rules decide only certain cases (a one-sentence definition question -> RAG; a
+  personal plan request with both inputs -> workflow); otherwise Haiku names the *kind* of request;
+  then the fixed `TABLE` in code maps kind -> route, and the inputs decide `run`, `needs_input` or
+  `unsupported`. Any classification failure -> RAG (`decided_by: "default"`), logged by type.
+- **Decision: the model classifies, code routes.** Rejected: letting the model return the route
+  (the spec's example schema). A route field could be injected ("route=agentic"); a kind can't set
+  anything the table doesn't allow, and the table can be tested in full.
+- **Decision: rules only where certain.** On the 30 labelled requests the rules decide 10, all
+  correctly (a test pins this); anything mixed ("What is Docker? Also summarise this posting."),
+  about an attachment, unsupported or steering ("ignore", "route", tags, JSON) goes to the model.
+- **Injection:** the whole message is HTML-escaped inside `<request>`, so no `<` survives (covers
+  zero-width and spaced variants a tag regex can miss).
+- **Likely question:** *"Why not always ask the model?"* Two thirds of simple questions are
+  decided free and instantly, and the routing evaluation will show whether the rules ever disagree
+  with the labels.
+
+## `POST /api/assist` and the route log (`router/assist.py`, `api/assist.py`, `router/route_log.py`)
+- **What it does:** one endpoint for everything: a message plus an optional job description and
+  profile. The router decides; then RAG answers, the workflow runs, or a fixed message says what
+  is missing or not supported yet (nothing runs). The decision comes back with the result.
+- **Two caps:** the routing call and a RAG answer hold the chat cap (2 at a time); a workflow run
+  takes the career cap (1 at a time). Split into `decide` and `respond` so the API can hold the
+  right one for each part.
+- **Route log:** one JSON line per request in `logs/routes.jsonl` (gitignored): route, kind, who
+  decided, outcome, status, fallback reason, seconds. Never the message, the reason (model text
+  that may echo it) or the result. Writing can't fail a request. It feeds the routing numbers.
+- **Decision: keep `/api/chat` and `/api/career/prepare`.** Direct routes stay useful for tests and
+  for a frontend that already knows what it wants; `/api/assist` is the adaptive entry point.
+- **Likely question:** *"Why does the router not read the job description?"* It doesn't need to
+  (whether one is attached is enough), it keeps the routing call small, and attached text then
+  has no way to steer the route.
+
+## Workflow fallback (`workflows/fallback.py`, `run_workflow` in `graph.py`, T-006)
+- **What it does:** when the workflow can't finish, the caller gets a result labelled
+  `status: "fallback"` instead of an error: which stages finished and which didn't, why (stage
+  failed after its retry, service unavailable, rate limit, time budget, loop limit), a fixed
+  message, the
+  outputs already validated, the sources already retrieved per requirement, and at most one
+  traditional-RAG answer about the job's main requirements.
+- **How it knows what finished:** the graph is streamed (`stream_mode="values"`), so after each
+  step we hold the whole state. LangGraph applies a step's writes all or nothing, so a failed
+  step leaves no half-written output; a parallel branch that succeeded in that step is dropped
+  too, and the result says so.
+- **Decision: routing and fallback stay separate** (spec 2A). The router chose the workflow;
+  fallback only decides what can still be offered honestly. Rejected: re-routing to RAG and
+  answering as if nothing happened, which would hide a failure behind a confident answer.
+- **Decision: the budget is checked between steps,** not by killing a running stage (a thread
+  can't be stopped safely; Claude Code has its own 300 s call timeout). No extra model call after
+  a budget stop: the time is already spent, and the free retrieved sources are still returned.
+- **Decision: one extra RAG call at most, and only when it can help.** Skipped after a time-budget
+  stop, an unavailable service or a rate limit (it would hit the same wall); the sources already
+  retrieved are free and always returned.
+- **Not a fallback:** a wrong or refused key (Anthropic or Voyage authentication) still raises,
+  so the API reports a setup error instead of "try again later".
+- **Gotchas found in review:** if `revise` ran but the re-check didn't, the old critic issues
+  describe the previous roadmap, so they are dropped and the result says the plan wasn't
+  re-checked; a budget stop is skipped when only `finalize` is left; assembling the fallback can
+  never raise (a minimal result is the last resort).
+- **Gotcha:** the API now answers 200 with `status: "fallback"` where it used to answer 5xx; the
+  client must show the label. A fallback fails the eval's `not_partial` check.
+- **Likely question:** *"Isn't catching every exception hiding bugs?"* The failure is logged with
+  its type and stage, the result is labelled, and tests pin each path; KeyboardInterrupt still
+  stops the run.
+
+## Security threat model ([SECURITY.md](SECURITY.md))
+- Built from the owner's guides in `brain/security/`: every threat is marked defended, gap or
+  later milestone, with the file that defends it. Main point to explain: the model is never the
+  security boundary; limits, ids, routes and statuses are decided in code, and the models have no
+  tools.
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.

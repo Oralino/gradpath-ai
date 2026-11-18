@@ -1,0 +1,222 @@
+{
+  "run_at": "2026-11-18T21:17:33+00:00",
+  "mode": "rules_only",
+  "provider": null,
+  "model_fast": null,
+  "cases_file": "routing_cases.jsonl",
+  "cases": [
+    {
+      "id": "rt-001",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-002",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-003",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-004",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-005",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-006",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-007",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-008",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-009",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-010",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-011",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-012",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-013",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-014",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-015",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-016",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-017",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-018",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-019",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-020",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-021",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-022",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-023",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-024",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-025",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-026",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-027",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-028",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-029",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-030",
+      "decided_by": "undecided",
+      "seconds": 0.0
+    }
+  ],
+  "metrics": {
+    "cases": 30,
+    "decided": 10,
+    "undecided": 20,
+    "accuracy": 1.0,
+    "route_accuracy": 1.0,
+    "workflow_precision": 1.0,
+    "workflow_recall": 1.0,
+    "over_routed": 0.0,
+    "under_routed": 0.0,
+    "by_decider": {
+      "rules": {
+        "cases": 10,
+        "correct": 10
+      },
+      "model": {
+        "cases": 0,
+        "correct": 0
+      },
+      "default": {
+        "cases": 0,
+        "correct": 0
+      }
+    },
+    "by_tag": {
+      "borderline": "3/3",
+      "complex": "5/5",
+      "exact_term": "2/2",
+      "simple": "5/5"
+    },
+    "model_seconds_mean": null,
+    "wrong": []
+  }
+}

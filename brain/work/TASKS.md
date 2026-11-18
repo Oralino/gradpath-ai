@@ -4,9 +4,15 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] **(owner)** Review and merge the Milestone 3 PR (T-003, T-005; see `DONE.md`).
+- [ ] **(owner)** Review and merge the Milestone 4 PR (T-006, T-007, T-008; see `DONE.md`).
 
-## Before Milestone 2
+Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
+- [x] [T-007](tickets/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.
+- [x] [T-008](tickets/T-008-tag-neutraliser-unicode.md): tag neutraliser handles invisible and look-alike characters.
+- [ ] Add `uvx pip-audit` to the release checks (dependency vulnerabilities).
+- [ ] **(owner)** Two-factor authentication on GitHub, Anthropic, Voyage and LangSmith.
+
+## Corpus (before Milestone 5)
 - [ ] **(owner + Claude)** Fill corpus gaps: behavioral interviews (STAR), caching, message queues,
       Docker/Kubernetes, CI/CD, LLM/RAG tooling (LangChain, vector databases).
 - [ ] More new-grad backend job descriptions in `private/job_descriptions/` (one so far).
@@ -18,6 +24,8 @@ The milestone plan and its story (what, why, what it does) live in [MILESTONES.m
 Before any deploy (Milestones 7–8):
 - [ ] Auth or passcode and per-IP rate limits on the model routes (each call can start a Claude
       Code process and spend plan quota). Concurrency caps done: `api/limits.py` (T-003).
+      Known gap (T-006): `/api/assist` spends its routing call before the career cap can answer
+      503 while a workflow is running; per-IP limits close it.
 - [ ] Enforce `APP_MODE` (demo vs live); the app must start and serve demo mode with no keys set
       (today the lifespan needs `VOYAGE_API_KEY`).
 - [ ] `POST /api/career/prepare` (like the other routes) uses the server's model credentials

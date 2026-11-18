@@ -11,7 +11,13 @@ from gradpath.config import REPO_ROOT, Settings, get_settings
 from gradpath.ingestion.chunk import chunk_page, read_processed, write_processed
 from gradpath.ingestion.clean import clean_page
 from gradpath.ingestion.embed import build_embeddings, estimate_tokens
-from gradpath.ingestion.fetch import Politeness, fetch_source, load_manual, make_client
+from gradpath.ingestion.fetch import (
+    Politeness,
+    fetch_source,
+    load_manual,
+    make_client,
+    manifest_hosts,
+)
 from gradpath.ingestion.index import get_qdrant_client, rebuild_index
 from gradpath.ingestion.manifest import SourceEntry, load_manifest, select_ingestible
 
@@ -78,7 +84,8 @@ def run(args: argparse.Namespace, settings: Settings, kb: Path) -> None:
     unknown = set(args.only or []) - {e.document_id for e in targets}
     if unknown:
         raise SystemExit(f"Unknown or non-approved document ids: {sorted(unknown)}")
-    client, politeness = make_client(), Politeness()
+    # Only hosts of approved entries may be contacted, redirects included (T-007).
+    client, politeness = make_client(), Politeness(allowed_hosts=manifest_hosts(approved))
     print(f"{'document_id':45} {'pages':>5} {'chunks':>6} {'est_tokens':>10}")
     total_pages = total_chunks = total_tokens = 0
     try:

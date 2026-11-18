@@ -15,6 +15,8 @@ loaded as context). Only `CLAUDE.md` and `README.md` stay in the root.
 | `README.md` | Public: what it is, the three modes, setup, run, deploy | main session |
 | `brain/product/REQUIREMENTS.md` | Goal, users, MVP scope, owner decisions, acceptance criteria | main session |
 | `brain/engineering/ARCHITECTURE.md` | Stack, LangChain split, layout, router, workflow, providers, modes, data, deploy, known limits | main session |
+| `brain/engineering/SECURITY.md` | GradPath's threat model: each threat, today's defence, gaps, the release security checklist | main session |
+| `brain/security/` | The owner's general security reference guides (web, auth, API, infra, data, AI/RAG) | owner |
 | `brain/engineering/EVALUATION.md` | Metrics, datasets, experiments and their measured results | main session |
 | `brain/engineering/WALKTHROUGH.md` | How to explain the code: per component, the decisions, rejected alternatives, likely interview questions | main session |
 | `brain/design/DESIGN.md` | How the Next.js UI looks (created before the frontend milestone) | design-advisor (owner approves) |
@@ -42,6 +44,9 @@ uv run python -m gradpath.rag.ask "question"             # one RAG answer from t
 uv run python -m gradpath.jobs.cli <job_description_file> [--json]   # analyse a posting
 uv run python -m gradpath.workflows.cli <jd_file> <profile.json> [--correction TEXT] [--json] [--out FILE]   # full workflow
 uv run python -m gradpath.evaluation.retrieval_eval [--k 1,3,5,10]   # retrieval eval (1 Voyage call)
+uv run python -m gradpath.evaluation.routing_eval [--rules-only] [--rescore FILE]   # routing eval (Haiku per open case)
+uv run python -m gradpath.evaluation.routing_compare     # adaptive vs always-RAG vs always-workflow (4 requests)
+uv run python -m gradpath.router.cli "message" [--job FILE] [--profile FILE] [--route-only] [--json]   # route + run
 uv run uvicorn gradpath.api.main:app --reload            # API on :8000 (docs at /docs)
 ```
 - Local Qdrant allows one process at a time: stop the API before running ingest, probe, ask or eval.
@@ -91,6 +96,7 @@ Without those agents, the main session does the work itself. This project adds:
   - a pasted visitor key never appears in logs, traces or responses; LangSmith tracing is off for visitor
     requests on the deployed site
   - a retrieval evaluation run, with its results recorded in `EVALUATION.md`
+  - the release security checklist at the end of `brain/engineering/SECURITY.md`
 - No project-only agents.
 
 ## Git

@@ -2,11 +2,18 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-18
+- [T-006 Milestone 4: router + fallback](tickets/T-006-router-fallback.md): rules + Haiku router
+  (30/30 labels), labelled workflow fallback with a time budget, `POST /api/assist` with a route
+  log, threat model `SECURITY.md`; adaptive served 4/4 in the comparison; 425 tests. PR open.
+- [T-008 Tag neutraliser misses invisible and fullwidth variants](tickets/T-008-tag-neutraliser-unicode.md):
+  untrusted text normalised (NFKC, format characters removed); look-alike openers neutralised.
+- [T-007 Ingestion redirects could reach any host](tickets/T-007-ingestion-url-allowlist.md):
+  https manifest hosts only; private, numeric and localhost hosts refused.
 - [T-003 Milestone 3: agentic workflow](tickets/T-003-agentic-workflow.md): LangGraph workflow
   (job + profile -> gaps -> roadmap + questions -> critic, bounded revision), `POST
-  /api/career/prepare`, workflow CLI and evaluation (4/4 cases), concurrency caps; 251 tests. PR open.
+  /api/career/prepare`, workflow CLI and evaluation (4/4 cases), concurrency caps; 251 tests. Merged as `e100ccb`.
 - [T-005 Ingestion polish](tickets/T-005-ingestion-polish.md): polite redirects, content-type
-  check, stale-chunk handling, atomic index rebuild via an alias.
+  check, stale-chunk handling, atomic index rebuild via an alias. Merged as `e100ccb`.
 - [T-004 Spaced closing tags slipped past tag neutralising](tickets/T-004-spaced-closing-tags.md):
   `< /evidence>` now neutralised in every prompt path (found in the T-003 step 5b review).
 - [T-002 Milestone 2: retrieval evaluation + tracing](tickets/T-002-retrieval-evaluation.md):

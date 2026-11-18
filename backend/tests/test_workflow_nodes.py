@@ -3,7 +3,6 @@ so no model, Voyage or network calls."""
 
 import pytest
 from conftest import placeholder_nodes
-from pydantic import ValidationError
 
 from gradpath.providers import ClaudeCodeError, FakeChatModel
 from gradpath.workflows import NodeSet, UserProfile, WorkflowContext, nodes, run_workflow
@@ -125,17 +124,19 @@ def test_invalid_model_reply_is_retried_once(kb_service):
 
 def test_second_invalid_reply_fails_the_run(kb_service):
     fast = FakeChatModel(responses=["not json", "still not json"])
-    with pytest.raises(ValidationError):
-        run(WorkflowContext(retrieval=kb_service, fast_llm=fast))
+    result = run(WorkflowContext(retrieval=kb_service, fast_llm=fast))
     assert len(fast.calls) == MODEL_ATTEMPTS == 2
+    assert result.status == "fallback"
+    assert (result.fallback.reason, result.fallback.failed_stage) == ("stage_failed", "analyze_job")
 
 
 def test_missing_service_fails_clearly_without_retrying(kb_service):
     fast = FakeChatModel(responses=[EXTRACTION])
-    with pytest.raises(RuntimeError, match="retrieval is not set"):
-        run(WorkflowContext(fast_llm=fast))
-    with pytest.raises(RuntimeError, match="fast_llm is not set"):
-        run(WorkflowContext(retrieval=kb_service))
+    result = run(WorkflowContext(fast_llm=fast))
+    assert result.fallback.failed_stage == "retrieve_knowledge"
+    assert len(fast.calls) == 1  # job analysis ran once; the missing service was not retried
+    result = run(WorkflowContext(retrieval=kb_service))
+    assert result.fallback.failed_stage == "analyze_job"
 
 
 @pytest.mark.parametrize(
@@ -173,8 +174,7 @@ def test_model_node_writing_a_protected_key_runs_once():
         return {"critique": FAIL, "max_revisions": 3}
 
     impl = placeholder_nodes(evaluate=evaluate)
-    with pytest.raises(ValueError, match="may not write"):
-        run_impl(impl)
+    assert run_impl(impl).fallback.failed_stage == "evaluate"
     assert calls == [1]
 
 
@@ -186,8 +186,7 @@ def test_non_retryable_error_in_a_model_node_runs_once():
         raise KeyError("missing")
 
     impl = placeholder_nodes(analyze_gaps=gaps)
-    with pytest.raises(KeyError):
-        run_impl(impl)
+    assert run_impl(impl).fallback.failed_stage == "analyze_gaps"
     assert calls == [1]
 
 

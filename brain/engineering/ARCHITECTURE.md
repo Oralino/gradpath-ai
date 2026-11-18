@@ -60,7 +60,10 @@ request -> router -> traditional_rag | agentic_workflow -> validation -> respons
                         \-- fallback (labelled partial result) on failure --/
 ```
 - **Router:** returns `{route, reason, requires_user_profile, requires_multi_step_workflow}`; `route`
-  is an enum; unparseable output falls back to a safe default (TBD which).
+  is an enum; unparseable output falls back to a safe default: `traditional_rag`. Built in T-006
+  (`router/`): rules for certain cases, then Haiku names a kind and a fixed table picks the route.
+- **Entry point:** `POST /api/assist` (`router/assist.py`): route, then RAG, the workflow, or a
+  fixed needs-input / unsupported reply; one route-log line per request (`logs/routes.jsonl`).
 - **Traditional RAG:** retrieve -> (rerank) -> answer from evidence only -> citations, or abstain.
   Callable from the API and as a tool inside the workflow.
 - **Agentic workflow (LangGraph):** `analyze_job` and `analyze_profile` in parallel ->
@@ -74,7 +77,9 @@ request -> router -> traditional_rag | agentic_workflow -> validation -> respons
   `add_edge([a, b], c)`, and `revise` re-plans only the roadmap.
 - **Fallback:** on repeated tool failure, step/time budget overrun, invalid output after retries:
   keep the request, say which stages finished, run traditional RAG if it can still help, label the
-  result partial, log the reason. No evidence means "the knowledge base doesn't cover this", never an
+  result partial, log the reason. Built in T-006: `run_workflow` streams the graph and ends in
+  `fallback.build_fallback` (status `fallback`, `FallbackInfo`); budget `WORKFLOW_TIME_BUDGET_S`
+  (default 300 s) checked between steps. No evidence means "the knowledge base doesn't cover this", never an
   unsupported answer.
 
 ## Providers and modes

@@ -105,15 +105,19 @@ def test_step_limit_gives_a_fixed_message(kb_service, monkeypatch):
     }
 
 
-def test_invalid_model_output_twice_gives_502_without_echoing_it(kb_service):
+def test_invalid_model_output_twice_gives_a_fallback_without_echoing_it(kb_service):
     leaked = "MODEL REPLY WITH POSTING TEXT"
     fast = FakeChatModel(responses=[leaked])
     resp = client(kb_service, fast, FakeChatModel()).post(
         "/api/career/prepare", json={"job_description": JD, "profile": PROFILE}
     )
-    assert resp.status_code == 502
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "fallback"
+    assert body["fallback"]["failed_stage"] == "analyze_job"
+    assert body["fallback"]["message"].startswith("Partial result:")
     assert leaked not in resp.text
-    assert len(fast.calls) == 2  # one retry, then the clean error
+    assert len(fast.calls) == 2  # one retry, then the labelled fallback
 
 
 def test_long_model_text_is_truncated_not_rejected():
@@ -151,10 +155,10 @@ def test_second_concurrent_run_gets_503(kb_service, monkeypatch):
 def test_slot_is_released_after_a_failed_run(kb_service):
     bad = client(kb_service, FakeChatModel(responses=["not json"]), FakeChatModel())
     assert (
-        bad.post(
-            "/api/career/prepare", json={"job_description": JD, "profile": PROFILE}
-        ).status_code
-        == 502
+        bad.post("/api/career/prepare", json={"job_description": JD, "profile": PROFILE}).json()[
+            "status"
+        ]
+        == "fallback"
     )
     ok = happy(kb_service).post(
         "/api/career/prepare", json={"job_description": JD, "profile": PROFILE}
@@ -162,7 +166,7 @@ def test_slot_is_released_after_a_failed_run(kb_service):
     assert ok.status_code == 200
 
 
-def test_claude_code_failure_gives_a_fixed_502(kb_service):
+def test_claude_code_failure_gives_a_labelled_fallback(kb_service):
     from gradpath.providers import ClaudeCodeError
 
     class Failing(FakeChatModel):
@@ -174,7 +178,8 @@ def test_claude_code_failure_gives_a_fixed_502(kb_service):
     resp = client(kb_service, fast, FakeChatModel()).post(
         "/api/career/prepare", json={"job_description": JD, "profile": PROFILE}
     )
-    assert resp.status_code == 502 and "sk-secret" not in resp.text
+    assert resp.status_code == 200 and "sk-secret" not in resp.text
+    assert resp.json()["fallback"]["reason"] == "dependency_unavailable"
     assert len(fast.calls) == 2  # retried once
 
 

@@ -31,13 +31,16 @@ def prepare(
     smart: Annotated[BaseChatModel, Depends(get_answer_model)],
 ) -> CareerPrepResult:
     """The body is the same `WorkflowInput` that `run_workflow` validates (size limits, unknown
-    fields refused). The revision limit comes from settings, never from the request."""
+    fields refused). The revision limit and time budget come from settings, never from the
+    request. A run that stops early returns 200 with status "fallback" (`workflows/fallback.py`)."""
     # One run at a time per process (`limits.CAREER`): each holds a worker thread for minutes.
+    settings = get_settings()
     with limits.slot(limits.CAREER, BUSY):
         return run_workflow(
             body.job_description,
             body.profile,
             context=WorkflowContext(retrieval=retrieval, fast_llm=fast, smart_llm=smart),
-            max_revisions=get_settings().workflow_max_revisions,
+            max_revisions=settings.workflow_max_revisions,
             corrections=body.corrections,
+            time_budget_s=settings.workflow_time_budget_s,
         )
