@@ -40,6 +40,9 @@ Ingestion polish (T-005, built 2026-11-18, in review):
 - [x] Check Content-Type before cleaning (a PDF would be cleaned as HTML).
 - [x] A document that now yields zero chunks keeps its stale processed JSONL.
 - [x] Make the index rebuild atomic (build a new collection, then swap via an alias).
+- [ ] T-005 re-check leftovers (minor): orphan sweep should match only `<name>_<14 digits><8 hex>`;
+      set `migrated` before deleting the old real collection; keep the old processed file when only
+      some `fetch_urls` loaded; a robots.txt 3xx with no Location should mean disallow.
 
 ## Later
 Interview practice with feedback, multi-JD comparison, resume alignment, progress tracking,
