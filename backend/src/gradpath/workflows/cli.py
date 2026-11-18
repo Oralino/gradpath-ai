@@ -13,7 +13,7 @@ import sys
 import time
 from pathlib import Path
 
-from gradpath.config import get_settings
+from gradpath.config import REPO_ROOT, get_settings
 from gradpath.providers import get_chat_model
 from gradpath.retrieval import get_retrieval_service
 from gradpath.tracing import configure_tracing, flush
@@ -61,6 +61,15 @@ def report(result: CareerPrepResult, seconds: float) -> str:
     return "\n".join(lines)
 
 
+def out_allowed(path: Path, profile: UserProfile) -> bool:
+    """`--out` may write a real profile's results only under `private/` (gitignored); anywhere
+    else (e.g. `evaluation/results/`, `demo_runs/`, which are committed) needs a sample profile,
+    whose id starts with "sample-"."""
+    if (profile.profile_id or "").startswith("sample-"):
+        return True
+    return path.resolve().is_relative_to((REPO_ROOT / "private").resolve())
+
+
 def main() -> None:
     """Parse arguments, run the workflow once with real services, print and optionally save."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -77,6 +86,10 @@ def main() -> None:
 
     jd = args.job_description.read_text(encoding="utf-8")
     profile = UserProfile.model_validate(json.loads(args.profile.read_text(encoding="utf-8")))
+    if args.out and not out_allowed(args.out, profile):
+        raise SystemExit(
+            "--out: only a sample profile (profile_id 'sample-...') may be saved outside private/"
+        )
     settings = get_settings()
     status = configure_tracing(settings)
     print(f"tracing: {'on' if status.enabled else 'off'} ({status.reason})", file=sys.stderr)

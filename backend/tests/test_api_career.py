@@ -12,6 +12,7 @@ from test_workflow_planning import (
 )
 
 from gradpath.api import career as career_module
+from gradpath.api import limits
 from gradpath.api.deps import get_answer_model, get_extraction_model, get_retrieval
 from gradpath.api.main import create_app
 from gradpath.config import Settings
@@ -135,14 +136,14 @@ def test_cli_report_shows_every_section(kb_service):
 
 def test_second_concurrent_run_gets_503(kb_service, monkeypatch):
     """While one run holds the slot, another request is refused at once (no model call)."""
-    assert career_module._RUNNING.acquire(blocking=False)
+    assert limits.CAREER.acquire(blocking=False)
     try:
         fast = FakeChatModel()
         resp = client(kb_service, fast, FakeChatModel()).post(
             "/api/career/prepare", json={"job_description": JD, "profile": PROFILE}
         )
     finally:
-        career_module._RUNNING.release()
+        limits.CAREER.release()
     assert resp.status_code == 503 and "already in progress" in resp.json()["detail"]
     assert fast.calls == []
 
@@ -175,3 +176,55 @@ def test_claude_code_failure_gives_a_fixed_502(kb_service):
     )
     assert resp.status_code == 502 and "sk-secret" not in resp.text
     assert len(fast.calls) == 2  # retried once
+
+
+@pytest.mark.parametrize(
+    "path,limit,body",
+    [
+        ("/api/chat", "CHAT", {"question": "What is an index?"}),
+        ("/api/jobs/analyze", "JOBS", {"job_description": JD}),
+    ],
+)
+def test_other_model_routes_are_capped(kb_service, path, limit, body):
+    sem = getattr(limits, limit)
+    held = []
+    while sem.acquire(blocking=False):  # take every slot
+        held.append(1)
+    try:
+        fast, smart = FakeChatModel(), FakeChatModel()
+        resp = client(kb_service, fast, smart).post(path, json=body)
+    finally:
+        for _ in held:
+            sem.release()
+    assert resp.status_code == 503 and fast.calls == [] and smart.calls == []
+
+
+def test_retry_log_keeps_the_type_but_not_the_reply(caplog, kb_service):
+    import logging
+
+    from gradpath.workflows.graph import RETRY_LOGGER
+
+    leaked = "MODEL REPLY WITH POSTING TEXT"
+    fast = FakeChatModel(responses=[leaked])
+    with caplog.at_level(logging.INFO, logger=RETRY_LOGGER):
+        client(kb_service, fast, FakeChatModel()).post(
+            "/api/career/prepare", json={"job_description": JD, "profile": PROFILE}
+        )
+    retries = [r for r in caplog.records if r.name == RETRY_LOGGER]
+    assert retries, "langgraph's retry logger name changed: update RETRY_LOGGER"
+    assert all(leaked not in r.getMessage() and r.exc_info is None for r in retries)
+    assert "ValidationError" in retries[0].getMessage()
+    assert all(leaked not in r.getMessage() for r in caplog.records)
+
+
+def test_cli_out_only_saves_real_profiles_under_private(tmp_path):
+    from gradpath.config import REPO_ROOT
+    from gradpath.workflows import UserProfile
+    from gradpath.workflows.cli import out_allowed
+
+    real = UserProfile(skills=["Python"])
+    sample = UserProfile(profile_id="sample-new-grad-v1", skills=["Python"])
+    assert not out_allowed(REPO_ROOT / "demo_runs" / "x.json", real)
+    assert not out_allowed(tmp_path / "x.json", real)
+    assert out_allowed(REPO_ROOT / "private" / "runs" / "x.json", real)
+    assert out_allowed(REPO_ROOT / "demo_runs" / "x.json", sample)

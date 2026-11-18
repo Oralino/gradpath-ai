@@ -6,12 +6,12 @@ id with status polling comes with the frontend. Errors are mapped to fixed messa
 `api/main.py`; no exception text reaches the client.
 """
 
-import threading
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from langchain_core.language_models.chat_models import BaseChatModel
 
+from gradpath.api import limits
 from gradpath.api.deps import get_answer_model, get_extraction_model, get_retrieval
 from gradpath.config import get_settings
 from gradpath.retrieval import RetrievalService
@@ -20,10 +20,6 @@ from gradpath.workflows.schemas import WorkflowInput
 
 router = APIRouter(prefix="/api/career", tags=["career"])
 
-# One workflow at a time per process: each run holds a worker thread for minutes, may start
-# Claude Code processes, and shares Voyage's 3-requests-a-minute free tier. A second request gets
-# 503 at once instead of queueing. Per-IP limits and auth come before deploy (TASKS.md).
-_RUNNING = threading.BoundedSemaphore(1)
 BUSY = "A preparation run is already in progress. Try again in a few minutes."
 
 
@@ -36,9 +32,8 @@ def prepare(
 ) -> CareerPrepResult:
     """The body is the same `WorkflowInput` that `run_workflow` validates (size limits, unknown
     fields refused). The revision limit comes from settings, never from the request."""
-    if not _RUNNING.acquire(blocking=False):
-        raise HTTPException(status_code=503, detail=BUSY)
-    try:
+    # One run at a time per process (`limits.CAREER`): each holds a worker thread for minutes.
+    with limits.slot(limits.CAREER, BUSY):
         return run_workflow(
             body.job_description,
             body.profile,
@@ -46,5 +41,3 @@ def prepare(
             max_revisions=get_settings().workflow_max_revisions,
             corrections=body.corrections,
         )
-    finally:
-        _RUNNING.release()

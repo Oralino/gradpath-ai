@@ -14,6 +14,7 @@ second, independent stop.
 """
 
 import inspect
+import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, fields
 from typing import Literal
@@ -71,6 +72,29 @@ def _retry_on(exc: Exception) -> bool:
     own construction code (a bug, not bad model output) also gets one retry."""
     return isinstance(exc, RETRYABLE)
 
+
+class _NoExceptionText(logging.Filter):
+    """LangGraph logs each retry as "Retrying task ... after <Type> <message>" with the traceback.
+    For a Pydantic error the message quotes the model's reply (posting or profile text), so keep
+    the exception type and drop its text and traceback."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.exc_info and record.exc_info[1] is not None:
+            name = type(record.exc_info[1]).__name__
+            msg = record.getMessage()
+            cut = msg.find(f" after {name}")
+            record.msg = (
+                msg[: cut + len(f" after {name}")] if cut >= 0 else f"retrying after {name}"
+            )
+            record.args = ()
+            record.exc_info = None
+            record.exc_text = None
+        return True
+
+
+# langgraph 1.2.22 logs retries from this (internal) module; a test pins the name.
+RETRY_LOGGER = "langgraph.pregel._retry"
+logging.getLogger(RETRY_LOGGER).addFilter(_NoExceptionText())
 
 MODEL_RETRY = RetryPolicy(max_attempts=MODEL_ATTEMPTS, initial_interval=1.0, retry_on=_retry_on)
 

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, Field
 
+from gradpath.api import limits
 from gradpath.api.deps import get_answer_model, get_extraction_model, get_retrieval
 from gradpath.jobs import JobAnalysis, analyze_job
 from gradpath.retrieval import RetrievalService
@@ -25,5 +26,6 @@ def analyze(
     smart: Annotated[BaseChatModel, Depends(get_answer_model)],
 ) -> JobAnalysis:
     """Synchronous for now (two model calls, roughly a minute on Claude Code); Milestone 3's
-    end-to-end workflow returns a job id and status instead."""
-    return analyze_job(body.job_description, retrieval, fast, smart)
+    end-to-end workflow returns a job id and status instead. One at a time (`limits`)."""
+    with limits.slot(limits.JOBS):
+        return analyze_job(body.job_description, retrieval, fast, smart)
