@@ -11,9 +11,11 @@ from typing import Literal
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_qdrant import QdrantVectorStore
+from langsmith import traceable
 from pydantic import BaseModel, Field
 from qdrant_client import QdrantClient, models
 
+import gradpath.tracing  # noqa: F401  (imported first so tracing starts off in every process)
 from gradpath.config import Settings, get_settings
 
 FilterKey = Literal["collection", "document_id", "topic"]
@@ -83,6 +85,29 @@ def cap_per_document(evidence: Iterable[Evidence], k: int, cap: int | None) -> l
     return kept
 
 
+def trace_summary(out: object) -> dict:
+    """Trace output for a search: chunk ids and scores, not chunk text.
+
+    The text already appears in the model call's prompt; repeating it here would double the
+    trace size. Used by `@traceable` on `search` and `search_many`.
+    """
+    result = out.get("output", out) if isinstance(out, dict) else out
+    results = result if isinstance(result, list) else [result]
+    return {
+        "results": [
+            {
+                "insufficient": r.insufficient,
+                "best_score": r.best_score,
+                "chunks": [
+                    {"chunk_id": e.chunk_id, "score": round(e.score, 4)} for e in r.evidence
+                ],
+            }
+            for r in results
+            if isinstance(r, RetrievalResult)
+        ]
+    }
+
+
 class RetrievalService:
     """Semantic search over the knowledge base with a relevance threshold.
 
@@ -109,6 +134,7 @@ class RetrievalService:
         # Local-mode Qdrant is not documented as thread-safe; API threads share one client.
         self._search_lock = threading.Lock()
 
+    @traceable(name="retrieve", run_type="retriever", process_outputs=trace_summary)
     def search(
         self,
         query: str,
@@ -121,6 +147,7 @@ class RetrievalService:
         vector = self.embeddings.embed_query(query)
         return self._search_vector(query, vector, k, filters, max_per_document)
 
+    @traceable(name="retrieve_many", run_type="retriever", process_outputs=trace_summary)
     def search_many(
         self,
         queries: list[str],

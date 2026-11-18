@@ -261,6 +261,39 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   context (precision). *"Why keep 0.45?"* On the labelled set it keeps 100% of covered questions
   and rejects 100% of uncovered ones; 0.55 would start dropping covered questions.
 
+## Tracing rules (`tracing.py`)
+- **What it is for:** a LangSmith trace shows one request as a tree (`answer_question` ->
+  `retrieve` -> model call) with inputs, outputs, timing and tokens, so you can see *why* an
+  answer came out the way it did.
+- **The risk:** a trace holds the full prompt (retrieved text, the job description, later a
+  profile), and turning tracing on sends it to an outside service. So the on/off decision lives
+  in one function with four rules: on only when asked **and** a key is set; never in live mode;
+  set in code so a stray shell variable can't override it; redacted before upload.
+- **The bug it fixed:** `.env` is read by pydantic-settings without exporting it to the
+  environment, while langsmith reads only the environment. So `LANGSMITH_TRACING=true` in `.env`
+  did nothing, and a shell variable could turn tracing on silently.
+- **Defence in depth for visitors:** live mode forces tracing off, and separately
+  `get_chat_model` refuses a visitor's key whenever tracing is on. Either check alone would do;
+  both together mean one mistake isn't enough to leak a visitor's prompt.
+- **Decision: full prompts locally, plus redaction** (owner, 2026-11-18). Rejected: metadata-only
+  traces. They're safer, but you couldn't see the prompt that produced a bad answer. Redaction uses
+  langsmith's built-in secret rules plus three of ours (Voyage keys, emails, phones); the phone
+  rule needs separators so scores and years survive.
+- **Retrieval output in traces is ids + scores only;** the chunk text is already in the model's
+  prompt, so repeating it would double the trace size.
+- **Thread fix:** `ChatClaudeCode`'s sync path runs the SDK in a worker thread; it now uses a copy
+  of the caller's context, so tracing context set by the caller is visible inside it.
+- **What the review caught:** the probe and eval CLIs never called `configure_tracing`, so with
+  `LANGSMITH_TRACING=true` in the shell they would have traced through langsmith's default client,
+  without redaction. Fix: tracing is switched off when `gradpath.tracing` is first imported, so the
+  safe state is the default and only one function can turn it on. Lesson: make the safe state
+  the default instead of relying on every entry point to remember a call.
+- **Likely questions:** *"How do you know tracing is really off?"* A test sets
+  `LANGSMITH_TRACING=true` in the environment and checks that our settings still switch it off;
+  another checks that a visitor key is refused while it's on. *"Why not just leave it off on the
+  server?"* "Just leave it off" depends on nobody setting a variable; code that enforces the rule
+  doesn't.
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.

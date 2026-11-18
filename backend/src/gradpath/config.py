@@ -50,7 +50,10 @@ class Settings(BaseSettings):
     retrieval_k: int = 5
     retrieval_min_score: float = 0.45  # probe 2026-11-17: covered >= 0.59, uncovered <= 0.39
 
+    # Tracing rules live in tracing.py: off unless true AND a key is set; never in live mode.
     langsmith_tracing: bool = False
+    langsmith_api_key: SecretStr | None = None
+    langsmith_endpoint: str = "https://api.smith.langchain.com"
     langsmith_project: str = "gradpath-dev"
 
     app_mode: Literal["demo", "live"] = "demo"

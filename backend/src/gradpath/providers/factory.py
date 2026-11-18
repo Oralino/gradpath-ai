@@ -10,6 +10,7 @@ from pydantic import BaseModel, SecretStr
 from gradpath.config import Settings, get_settings
 from gradpath.providers.claude_code import ChatClaudeCode
 from gradpath.providers.fake import FakeChatModel
+from gradpath.tracing import is_tracing
 
 Tier = Literal["fast", "smart"]
 
@@ -26,6 +27,7 @@ def get_chat_model(
     `api_key` is a visitor's key for one request (live mode); it is passed straight to the client
     and never stored. A request key never falls back to the server key (even when empty) and is
     refused under providers that can't use it, so a visitor can never run on the owner's account.
+    It is also refused while tracing is on, so a visitor's request is never traced.
     """
     s = settings or get_settings()
     model = s.model_fast if tier == "fast" else s.model_smart
@@ -34,6 +36,9 @@ def get_chat_model(
             raise ValueError("a request API key needs LLM_PROVIDER=anthropic_api")
         if not api_key.get_secret_value().strip():
             raise ValueError("the request API key is empty")
+        if is_tracing():
+            # A visitor's prompt must never reach LangSmith (live mode forces tracing off too).
+            raise ValueError("refusing a request API key while LangSmith tracing is on")
     if s.llm_provider == "claude_code":
         return ChatClaudeCode(model=model)
     if s.llm_provider == "anthropic_api":

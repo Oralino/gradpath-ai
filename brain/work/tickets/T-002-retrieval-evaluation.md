@@ -38,6 +38,11 @@ Steps:
   `RetrievalService.embed_many` / `search_vectors` (`search_many` now uses them, behaviour unchanged).
 - Dataset v1.1: `q-035` (CORS) relabelled covered after the first run (a factual labelling error).
 - Threshold stays 0.45: on v1.1 it keeps 100% covered and rejects 100% uncovered.
+- Tracing (owner approved 2026-11-18): full local traces + client-side redaction; on only when
+  asked and a key is set; never in live mode; set via `langsmith.configure` so the environment
+  can't override it; visitor keys refused while tracing is on. Dataset upload to LangSmith
+  deferred to Milestone 5 (useful once there are two configs to compare). Rejected: metadata-only
+  traces (safer, but hides the prompts that explain a bad answer).
 
 ## Changes
 - Branch: `feat/t-002-retrieval-evaluation`
@@ -53,3 +58,9 @@ Steps:
 - Real baseline run 2026-11-18 (one Voyage call): `evaluation/results/retrieval-20261118-051615.json`;
   numbers in `EVALUATION.md`. The v1 run (before the label fix) is kept as
   `retrieval-20261118-051350.json`.
+- Tracing: 116 tests pass, also with `LANGSMITH_TRACING` / `LANGCHAIN_TRACING_V2` / a key /
+  `LANGSMITH_ENDPOINT` forced in the shell (QA). code-reviewer: the probe and eval CLIs never
+  called `configure_tracing`, so a shell variable could still trace them unredacted; fixed by
+  switching tracing off at import. Also fixed: explicit endpoint, `LANGSMITH_RUNS_ENDPOINTS`
+  refused, wider phone rule, flush on shutdown even if close fails, env-cache-safe tests, a test
+  that the real client redacts. Deferred: the visitor guard re-check for live mode (TASKS).

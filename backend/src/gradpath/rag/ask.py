@@ -7,9 +7,11 @@ so stop the API server first (local Qdrant allows one process at a time).
 
 import sys
 
+from gradpath.config import get_settings
 from gradpath.providers import get_chat_model
 from gradpath.rag import answer_question
 from gradpath.retrieval import get_retrieval_service
+from gradpath.tracing import configure_tracing, flush
 
 
 def main() -> None:
@@ -17,11 +19,14 @@ def main() -> None:
     question = " ".join(sys.argv[1:]).strip()
     if not question:
         sys.exit('usage: python -m gradpath.rag.ask "your question"')
+    status = configure_tracing(get_settings())
+    print(f"tracing: {'on' if status.enabled else 'off'} ({status.reason})", file=sys.stderr)
     retrieval = get_retrieval_service()
     try:
         out = answer_question(question, retrieval, get_chat_model("smart"))
     finally:
         retrieval.store.client.close()
+        flush()
     print(f"\n[{out.status}]\n\n{out.answer}\n")
     for i, c in enumerate(out.citations, 1):
         where = f"{c.title} > {c.section}" if c.section else c.title

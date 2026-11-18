@@ -112,7 +112,7 @@ and analyses a job description, or says when it doesn't know.
 | 1. Ticket + housekeeping | ✅ | T-002, branch, Milestone 1 marked merged | Clean start | Pushed |
 | 2. Labelled question set | ✅ | 40 questions (31 covered, 9 uncovered), labelled by page + section heading, tagged by query type | You can't improve what you don't measure | All labels checked against the real chunks; owner approved; one label fixed after the first run (v1.1) |
 | 3. Eval runner + baseline | ✅ | Own code: Recall@K, Precision@K, MRR, abstention, threshold sweep, per-tag recall, latency; JSON results | One Voyage request per run fits the free tier | Recall@5 0.968, Precision@5 0.645, MRR 0.984; 0.45 keeps 100% covered, rejects 100% uncovered; 14 new tests (103 total); code review: no bugs, 4 hardening fixes |
-| 4. LangSmith tracing | ⏳ | Explicit on/off setting, rules for what may be traced | See each step of a request; high-risk area | |
+| 4. LangSmith tracing | ✅ code | `tracing.py`: one on/off rule (asked + key, never live mode, set in code), redaction, visitor keys refused while tracing; traced steps for answer, job analysis, retrieval; Claude Code thread fix | See each step of a request; high-risk area | 13 new tests (116 total); code review + QA found probe/eval could still trace from a shell variable, fixed by starting off at import; a real trace from your terminal still to check |
 | 5. GitHub Actions CI | ⏳ | Lint + tests on every push, no keys | Free, visible quality signal on the public repo | |
 
 ### Problems we hit and how we solved them
@@ -125,6 +125,7 @@ and analyses a job description, or says when it doesn't know.
 | The second run's latency read 60 s | The rate limiter was waiting out Voyage's 3-per-minute limit; embedding and search are now timed apart (0.66 s vs 3.3 ms) | Knowing what a number actually measures |
 | A label typo (`"sections"`) would be silently ignored and widen the target to a whole page | The code review caught it; the loader now refuses unknown fields, empty sections and duplicate targets | A test set needs validation as much as code does |
 | Recall@5 of 0.97 looks too good | Recorded with its bias: questions written from the sources' own headings | Reporting a result together with its limits |
+| `LANGSMITH_TRACING=true` in `.env` did nothing, while a shell variable could switch tracing on silently | Tracing is now decided in code from settings and set explicitly, which langsmith checks before the environment | Config that looks set but isn't is a classic, hard-to-see bug |
 
 ---
 

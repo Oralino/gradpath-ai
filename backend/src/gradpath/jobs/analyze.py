@@ -11,6 +11,7 @@ from typing import Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
+from langsmith import traceable
 from pydantic import BaseModel, Field
 
 from gradpath.providers import with_structure
@@ -180,6 +181,7 @@ class JobAnalysis(BaseModel):
     stats: dict[str, int]
 
 
+@traceable(name="analyze_job", run_type="chain")
 def analyze_job(
     job_description: str,
     retrieval: RetrievalService,

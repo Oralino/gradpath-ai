@@ -23,11 +23,12 @@ Before any deploy (Milestones 7–8):
       `/api/jobs/analyze` (each call can start a Claude Code process and spend plan quota).
 - [ ] Enforce `APP_MODE` (demo vs live); the app must start and serve demo mode with no keys set
       (today the lifespan needs `VOYAGE_API_KEY`).
+- [ ] When live-mode key handling lands: the visitor-key tracing guard in `get_chat_model` checks
+      once, when the model is built; re-check it covers how routes build models (T-002 review).
 Milestone 2 (tracing):
-- [ ] Wire `LANGSMITH_TRACING` explicitly (settings field is unused; tracing now depends on shell
-      variables) and decide what may reach LangSmith (always-hard area).
-- [ ] `ChatClaudeCode._generate` drops `run_manager` and context variables in its worker thread,
-      so callbacks/tracing don't see sync calls.
+- [x] Wire `LANGSMITH_TRACING` explicitly and decide what may reach LangSmith (T-002, `tracing.py`).
+- [x] `ChatClaudeCode._generate` worker thread now runs in a copy of the caller's context (T-002).
+      `run_manager` is still not passed in: it only matters for token streaming, which we don't use.
 - [ ] Grounding check beyond citation ids (faithfulness metric in `EVALUATION.md`).
 Ingestion polish:
 - [ ] Re-check robots.txt and the host gap after a redirect to another host.
