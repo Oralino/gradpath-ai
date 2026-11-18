@@ -4,8 +4,10 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] **(owner)** Review and merge the Milestone 1 PR.
-- [ ] Write `HANDOFF.md`; start the Milestone 2 session after owner approval.
+- [ ] [T-002 Milestone 2: retrieval evaluation + tracing](tickets/T-002-retrieval-evaluation.md)
+      (in progress).
+- [x] **(owner)** Review and merge the Milestone 1 PR (merged 2026-11-18 as `ec3310f`).
+- [x] Write `HANDOFF.md`; start the Milestone 2 session after owner approval.
 
 ## Before Milestone 2
 - [ ] **(owner + Claude)** Fill corpus gaps: behavioral interviews (STAR), caching, message queues,

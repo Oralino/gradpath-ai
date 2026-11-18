@@ -2,7 +2,7 @@
 Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 - **Type:** feature
-- **Status:** done (PR open)
+- **Status:** done (merged to `main` as `ec3310f`, 2026-11-18)
 - **Opened:** 2026-11-17 · **Closed:** 2026-11-17
 - **GitHub Issue:** none
 

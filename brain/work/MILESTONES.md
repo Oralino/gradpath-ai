@@ -11,7 +11,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 |---|---|---|---|---|
 | 0 | Project setup | ✅ | Decide the plan, stack and rules before coding | Public repo, `brain/` docs, licence-checked sources |
 | 1 | RAG foundation | ✅ | Load sources, answer with citations, analyse a job description | Cited answers, "not covered" answers, 40+ tests |
-| 2 | Retrieval evaluation + tracing | ⏳ | Measure search quality | Recall@K / Precision@K / MRR numbers, LangSmith traces |
+| 2 | Retrieval evaluation + tracing | 🔨 | Measure search quality | Recall@K / Precision@K / MRR numbers, LangSmith traces |
 | 3 | Agentic workflow | ⏳ | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop |
 | 4 | Router + fallback | ⏳ | Pick the cheapest path that works | Routing accuracy, labelled partial answers |
 | 5 | Hybrid retrieval + reranking | ⏳ | Improve search for exact terms | Before/after metrics vs semantic-only |
