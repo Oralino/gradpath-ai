@@ -2,8 +2,8 @@
 Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 - **Type:** feature
-- **Status:** in progress
-- **Opened:** 2026-11-18 · **Closed:**
+- **Status:** done (PR open)
+- **Opened:** 2026-11-18 · **Closed:** 2026-11-18
 - **GitHub Issue:** none
 
 ## Summary
@@ -56,4 +56,7 @@ High-risk area: the workflow's fallback limits (code-reviewer + qa-checker whate
 - Step 6 (`POST /api/assist`, route log, `router.cli`): 18 tests (rules, model, needs input,
   unsupported, injection, 422s, both caps, slots always released, errors and fallbacks in the log,
   log off and rotation). code-reviewer: no bugs; 4 fixes; one known gap recorded in TASKS.
+- Step 7 (evaluation): routing 30/30 on the labels (10 rules, 20 Haiku), adaptive served 4/4 vs
+  2/4 for always-RAG and always-workflow, retrieval unchanged (EVALUATION.md). Runners tested
+  with fakes; real runs from the Terminal panel on the Pro plan.
 - Security: threat model in `brain/engineering/SECURITY.md` (2026-11-18) from the owner's guides.

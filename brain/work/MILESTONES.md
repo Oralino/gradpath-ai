@@ -13,7 +13,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 1 | RAG foundation | ✅ | Load sources, answer with citations, analyse a job description | Cited answers, "not covered" answers, 40+ tests |
 | 2 | Retrieval evaluation + tracing | ✅ | Measure search quality | Recall@5 0.97, MRR 0.98, threshold checked, LangSmith traces, CI |
 | 3 | Agentic workflow | ✅ | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop; 4/4 workflow eval cases; `POST /api/career/prepare` |
-| 4 | Router + fallback | 🔨 | Pick the cheapest path that works | Routing accuracy, labelled partial answers |
+| 4 | Router + fallback | ✅ (PR open) | Pick the cheapest path that works | 30/30 routing labels; adaptive served 4/4 (3/4 strict) vs 2/4 for always-RAG or always-workflow; labelled fallback; `POST /api/assist` |
 | 5 | Hybrid retrieval + reranking | ⏳ | Improve search for exact terms | Before/after metrics vs semantic-only |
 | 6 | Frontend | ⏳ | Make it usable | Next.js app designed from `DESIGN.md` |
 | 7 | Demo and live modes | ⏳ | A public site that costs nothing | Recorded demo runs; live mode with a visitor's key |
@@ -162,7 +162,7 @@ critic, with a bounded revision loop, as a LangGraph workflow behind `POST /api/
 
 ---
 
-## Milestone 4: Router + fallback 🔨
+## Milestone 4: Router + fallback ✅ (PR open)
 *Ticket: `tickets/T-006-router-fallback.md`*
 
 **Goal:** pick traditional RAG or the workflow per request and record why; when the workflow can't
@@ -173,10 +173,23 @@ finish, return a labelled partial result instead of an error; measure routing ac
 | 1. Ticket + housekeeping | ✅ | T-006, branch, Milestone 3 marked merged | Clean start | Pushed |
 | 2. Explain routing + fallback, plan | ✅ | Rules + Haiku router, safe default RAG, `POST /api/assist`, fallback with a 300 s budget, unsupported/needs-input replies | The owner approves the design before code | Approved 2026-11-18 |
 | 3. Labelled routing set | ✅ | `evaluation/routing_cases.jsonl`: 30 requests labelled with route and action (run, needs input, unsupported) | Measure routing before building it | Owner approved 2026-11-18: 15 RAG, 7 workflow, 5 needs input, 3 unsupported; 7 borderline, 3 injection |
-| 4. Router | ✅ code | `router/`: rules for certain cases, Haiku names the kind, a fixed table picks route and action, safe default RAG; message HTML-escaped; threat model `SECURITY.md` from the owner's security guides | The cheapest path that works, and a route text can't steer | 46 new tests (297 total); rules decide 11 of 30 labels, all correctly; code review: 5 fixes (mixed questions, comparisons, invisible-character tags, whitespace, log status) |
+| 4. Router | ✅ code | `router/`: rules for certain cases, Haiku names the kind, a fixed table picks route and action, safe default RAG; message HTML-escaped; threat model `SECURITY.md` from the owner's security guides | The cheapest path that works, and a route text can't steer | 46 new tests (297 total); rules decide 10 of 30 labels, all correctly (11 before a review fix held back "between"); code review: 5 fixes (mixed questions, comparisons, invisible-character tags, whitespace, log status) |
 | 5. Fallback | ✅ code | `run_workflow` streams the graph and keeps the last finished step; a failed stage, an unavailable service, a rate limit, the loop limit or the 300 s budget ends in `status: "fallback"` with finished and unfinished stages, a fixed message, retrieved sources per requirement and at most one cited RAG answer | Never present a partial answer as complete, and never turn a failure into a bare error | 24 new tests (389 total); code review: 6 fixes (fallback could raise, retried a failed service, stale critic issues after a revision, stage lists, wrong-key and rate-limit cases, generator closing); QA clean |
 | 6. `POST /api/assist` + route log | ✅ code | One endpoint: route, then RAG, the workflow, or a fixed needs-input / unsupported reply; the decision comes back with the result; chat cap for routing and RAG, career cap for the workflow; one JSON line per request in `logs/routes.jsonl` (no request text); router traced; `router.cli` | The adaptive entry point the frontend will use, and the data for routing stats | 18 new tests (407 total); code review: no bugs; fixed: log capped and rotated, busy vs failed requests told apart in the log, explicit check instead of `assert` |
+| 7. Routing eval + comparison + PR | ✅ | `routing_eval` (rules-only free mode, `--rescore`), `routing_compare` (each path runs once, reused across strategies; "served" decided in code), release checks | Measure routing separately from answer quality, and test whether adaptive is really better (spec 2A) | 30/30 labels correct (10 by rules, 20 by Haiku, 2.2 s each); adaptive served 4/4 in 177 s and 15 calls vs always-workflow 2/4 in 320 s and 21 calls, always-RAG 2/4; retrieval unchanged; 425 tests; QA clean; PR open |
 
+
+### Problems we hit and how we solved them
+
+| Problem | What we did | Why it's worth mentioning |
+|---|---|---|
+| The spec's router schema has the model return the route, so an injected "route=agentic" could steer it | The model only names the kind of request; a fixed table in code picks the route | Keep decisions that cost money or matter for safety in code |
+| The first rules sent "What is Docker? Also summarise this posting." to RAG and dropped the second request | Rules decide only single, plain questions; anything mixed or about an attachment goes to the model | Rules are cheap, but only where they are certain |
+| Zero-width and fullwidth characters could hide our delimiter tags (also in the RAG and workflow prompts) | Untrusted text is normalised and invisible characters removed before tags are neutralised (T-008) | Injection defences need adversarial Unicode tests, not just the obvious spelling |
+| Ingestion redirects could reach any host, including private addresses | https manifest hosts only; private, numeric and localhost hosts refused (T-007) | SSRF and knowledge-base poisoning come through "harmless" plumbing |
+| The first fallback could itself crash, retried a service that had just failed, and showed critic issues for an older roadmap | Fallback assembly can't raise, no extra call after an outage, stale issues dropped and labelled | The failure path needs as much review as the happy path |
+| A failure used to be a bare 502 | The workflow streams step by step and returns a labelled partial result with what finished | Users get something honest and useful instead of an error page |
+| 30/30 routing accuracy looks too good | Recorded with its bias: labels and prompt written by the same author | Reporting a result together with its limits |
 ---
 
 ## Milestones 4–8: what's next

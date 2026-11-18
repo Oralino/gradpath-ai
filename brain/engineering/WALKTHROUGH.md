@@ -471,7 +471,7 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Decision: the model classifies, code routes.** Rejected: letting the model return the route
   (the spec's example schema). A route field could be injected ("route=agentic"); a kind can't set
   anything the table doesn't allow, and the table can be tested in full.
-- **Decision: rules only where certain.** On the 30 labelled requests the rules decide 11, all
+- **Decision: rules only where certain.** On the 30 labelled requests the rules decide 10, all
   correctly (a test pins this); anything mixed ("What is Docker? Also summarise this posting."),
   about an attachment, unsupported or steering ("ignore", "route", tags, JSON) goes to the model.
 - **Injection:** the whole message is HTML-escaped inside `<request>`, so no `<` survives (covers

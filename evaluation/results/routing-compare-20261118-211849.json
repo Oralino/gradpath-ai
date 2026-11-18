@@ -1,0 +1,157 @@
+{
+  "run_at": "2026-11-18T21:18:49+00:00",
+  "provider": "claude_code",
+  "model_fast": "claude-haiku-5-5",
+  "model_smart": "claude-sonnet-5-5",
+  "max_revisions": 1,
+  "cases": [
+    {
+      "id": "rt-001",
+      "expected": "traditional_rag",
+      "strategies": {
+        "adaptive": {
+          "path": "rag",
+          "outcome": {
+            "status": "answered",
+            "citations": 3
+          },
+          "seconds": 6.3,
+          "model_calls": 1,
+          "served": true
+        },
+        "always_rag": {
+          "path": "rag",
+          "outcome": {
+            "status": "answered",
+            "citations": 3
+          },
+          "seconds": 6.3,
+          "model_calls": 1,
+          "served": true
+        },
+        "always_workflow": {
+          "path": "workflow",
+          "outcome": {
+            "status": "not_run: missing input"
+          },
+          "seconds": 0.0,
+          "model_calls": 0,
+          "served": false
+        }
+      }
+    },
+    {
+      "id": "rt-017",
+      "expected": "traditional_rag",
+      "strategies": {
+        "adaptive": {
+          "path": "rag",
+          "outcome": {
+            "status": "insufficient_evidence",
+            "citations": 0
+          },
+          "seconds": 0.1,
+          "model_calls": 0,
+          "served": true
+        },
+        "always_rag": {
+          "path": "rag",
+          "outcome": {
+            "status": "insufficient_evidence",
+            "citations": 0
+          },
+          "seconds": 0.1,
+          "model_calls": 0,
+          "served": true
+        },
+        "always_workflow": {
+          "path": "workflow",
+          "outcome": {
+            "status": "complete",
+            "gaps": 18,
+            "items": 9
+          },
+          "seconds": 148.9,
+          "model_calls": 7,
+          "served": false
+        }
+      }
+    },
+    {
+      "id": "rt-011",
+      "expected": "agentic_workflow",
+      "strategies": {
+        "adaptive": {
+          "path": "workflow",
+          "outcome": {
+            "status": "complete_with_limitations",
+            "gaps": 17,
+            "items": 8
+          },
+          "seconds": 87.1,
+          "model_calls": 7,
+          "served": true
+        },
+        "always_rag": {
+          "path": "rag",
+          "outcome": {
+            "status": "insufficient_evidence",
+            "citations": 0
+          },
+          "seconds": 4.3,
+          "model_calls": 1,
+          "served": false
+        },
+        "always_workflow": {
+          "path": "workflow",
+          "outcome": {
+            "status": "complete_with_limitations",
+            "gaps": 17,
+            "items": 8
+          },
+          "seconds": 87.1,
+          "model_calls": 7,
+          "served": true
+        }
+      }
+    },
+    {
+      "id": "rt-016",
+      "expected": "agentic_workflow",
+      "strategies": {
+        "adaptive": {
+          "path": "workflow",
+          "outcome": {
+            "status": "complete",
+            "gaps": 17,
+            "items": 10
+          },
+          "seconds": 83.5,
+          "model_calls": 7,
+          "served": true
+        },
+        "always_rag": {
+          "path": "rag",
+          "outcome": {
+            "status": "insufficient_evidence",
+            "citations": 0
+          },
+          "seconds": 0.1,
+          "model_calls": 0,
+          "served": false
+        },
+        "always_workflow": {
+          "path": "workflow",
+          "outcome": {
+            "status": "complete",
+            "gaps": 17,
+            "items": 10
+          },
+          "seconds": 83.5,
+          "model_calls": 7,
+          "served": true
+        }
+      }
+    }
+  ]
+}

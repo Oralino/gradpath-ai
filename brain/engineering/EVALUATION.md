@@ -6,7 +6,7 @@ date, the configuration and the dataset version. Design is in `ARCHITECTURE.md`.
 | File | Contents | Size |
 |---|---|---|
 | `retrieval_questions.jsonl` | Questions with their relevant pages or sections (v1.1, 2026-11-18) | 40 (31 covered, 9 uncovered) |
-| `route_cases.jsonl` | Requests labelled `traditional_rag` or `agentic_workflow` | TBD |
+| `routing_cases.jsonl` | Requests labelled with the expected route and action (run, needs input, unsupported), tagged; owner-approved 2026-11-18 | 30 |
 | `workflow_cases.jsonl` | JD + sample profile cases with expected behaviour, scored in code (2026-11-18) | 4 |
 | `profiles/sample_*.json` | Fictional profiles: new grad (demos, tests, traces), sparse, injection | 3 |
 | `job_descriptions/sample_backend_new_grad.txt` | Fictional new-grad backend posting (the real one stays in `private/`) | 1 |
@@ -209,3 +209,70 @@ Same dataset (v1.1) and index as the baseline: Recall@5 0.968, Precision@5 0.645
 threshold 0.45 keeps 100% covered and rejects 100% uncovered; same two misses (`q-001`, `q-027`).
 Unchanged, as expected (Milestone 3 didn't touch retrieval; the T-005 index changes apply at the
 next ingest). Output: `evaluation/results/retrieval-20261118-070803.json`.
+
+### Routing evaluation (2026-11-18, labels v1, T-006)
+30 owner-approved labelled requests (`evaluation/routing_cases.jsonl`), run with
+`gradpath.evaluation.routing_eval` on the Pro plan (Haiku 5.5 through Claude Code).
+Outputs: `evaluation/results/routing-rules-20261118-211733.json` (rules only, free) and
+`routing-20261118-211756.json` (rules + Haiku).
+
+| Metric | Rules only | Rules + Haiku |
+|---|---|---|
+| Decided | 10 / 30 | 30 / 30 |
+| Accuracy (route and action) | 10/10 | 30/30 |
+| Workflow precision / recall | 1.0 / 1.0 | 1.0 / 1.0 |
+| Simple over-routed / complex under-routed | 0 / 0 | 0 / 0 |
+| Injection (3) / borderline (8) / missing input (5) / unsupported (3) | n/a | all correct |
+| Mean routing call | 0 s | 2.2 s (Haiku cases only) |
+
+What it shows and what it doesn't:
+- The rules took a third of the requests for free and never disagreed with a label; Haiku got
+  every case the rules left open, including "Am I ready to apply?", "What is Docker?" with a job
+  and profile attached, and the three injection attempts.
+- **Bias:** the labels and the router prompt were written in the same session, by the same
+  author, with the spec's own examples; 30/30 says the router matches its designer's intent on
+  these requests, not that it generalises. Next: labels written by someone else, more
+  phrasings per kind, and real requests from the route log once the app is used.
+- One run; model decisions can vary between runs.
+
+### Adaptive vs always-RAG vs always-workflow (2026-11-18, T-006)
+`gradpath.evaluation.routing_compare` on 4 labelled requests (owner decision: 4, for plan quota):
+rt-001 "What is a REST API?", rt-017 "What is Docker?" (job and profile attached), rt-011 the
+spec's roadmap request, rt-016 "Am I ready to apply?". Each path ran once per request and was
+reused by every strategy that takes it. "Served" is decided in code: a RAG-labelled request needs
+a cited answer or an honest "not covered"; a workflow-labelled request needs a complete workflow
+result. Output: `evaluation/results/routing-compare-20261118-211849.json`.
+
+| Strategy | Served | Served, strict* | Time (total) | Model calls (total) |
+|---|---|---|---|---|
+| Adaptive (router) | 4/4 | 3/4 | 177 s | 15 |
+| Always RAG | 2/4 | 1/4 | 11 s | 2 |
+| Always workflow | 2/4 | 2/4 | 320 s** | 21** |
+
+*strict: an honest "not covered" on a topic a new grad would expect covered (Docker) counts as
+not served. **rt-001 couldn't run at all, so these totals leave out its cost; model calls are
+chat-model calls through the two model instances (a retry counts twice).
+
+| Request | Adaptive | Always RAG | Always workflow |
+|---|---|---|---|
+| rt-001 REST API | RAG, 3 citations, 6 s | same | can't run (no job or profile) |
+| rt-017 What is Docker? | RAG abstained ("not covered"), 0.1 s, no model call | same | 149 s, 7 calls, a full plan that doesn't answer the question |
+| rt-011 roadmap | workflow, complete with limitations, 87 s | abstained after one model call (4 s): the retrieved text didn't answer a personal request | same as adaptive |
+| rt-016 ready to apply? | workflow, complete, 84 s | abstained before any model call: nothing above the threshold | same as adaptive |
+
+What it shows:
+- Adaptive served every request at about half the time and three quarters of the calls of
+  always-workflow, which also failed both simple questions. Always-RAG is cheapest but can't
+  answer personal requests: it searches the request text, which isn't about a topic (rt-016 found
+  nothing above the threshold; rt-011 found text, and the model said it didn't answer the request).
+- All four were decided by the rules (from the routing run; the comparison recorded 0 routing
+  calls), so the adaptive column has no routing-call cost; a
+  Haiku-routed request adds about 2 s and one call.
+- **"What is Docker?" isn't in the knowledge base** (a known corpus gap, TASKS.md); the RAG path
+  said so without calling the model. That counts as served (honest), not as strictly served.
+- Limits: 4 requests, one run, "served" is a code check of the outcome type, not answer quality.
+
+### Retrieval re-check (2026-11-18, release check for Milestone 4)
+Unchanged: Recall@5 0.968, Precision@5 0.645, MRR 0.984; threshold 0.45 keeps 100% covered and
+rejects 100% uncovered; same two misses. Milestone 4 didn't touch retrieval (T-008 changes only
+prompt text). Output: `evaluation/results/retrieval-20261118-212457.json`.
