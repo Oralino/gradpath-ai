@@ -8,6 +8,8 @@ date, the configuration and the dataset version. Design is in `ARCHITECTURE.md`.
 | `retrieval_questions.jsonl` | Questions with their relevant pages or sections (v1.1, 2026-11-18) | 40 (31 covered, 9 uncovered) |
 | `route_cases.jsonl` | Requests labelled `traditional_rag` or `agentic_workflow` | TBD |
 | `workflow_cases.jsonl` | JD + sample profile cases with expected outputs | TBD |
+| `profiles/sample_new_grad.json` | Fictional new-grad profile (structured form) for demos, tests and traces | 1 |
+| `job_descriptions/sample_backend_new_grad.txt` | Fictional new-grad backend posting (the real one stays in `private/`) | 1 |
 
 Datasets may also be uploaded to LangSmith for side-by-side experiment views; the files here are the
 source.

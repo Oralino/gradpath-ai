@@ -138,7 +138,8 @@ critic, with a bounded revision loop, as a LangGraph workflow behind `POST /api/
 | Step | Status | What we built | Why | Result |
 |---|---|---|---|---|
 | 1. Ticket + housekeeping | ✅ | T-003, branch, Milestone 2 marked merged | Clean start | Pushed |
-| 2. Explain LangGraph + plan | 🔨 | Node plan, state schema, revision loop | The owner approves the design before code | Awaiting go-ahead |
+| 2. Explain LangGraph + plan | ✅ | Node plan, `CareerPrepState`, bounded revision loop, open questions settled | The owner approves the design before code | Approved 2026-11-18: 1 revision round, structured profile, simple corrections now |
+| 3. Sample profile + job description | 🔨 | A fictional new-grad profile and a fictional backend posting, committed | Demos, tests and traces must never use real personal data | Drafts awaiting owner approval |
 
 ### Problems we hit and how we solved them
 

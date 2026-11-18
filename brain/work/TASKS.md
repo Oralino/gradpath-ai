@@ -5,7 +5,7 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 
 ## Current
 - [ ] [T-003 Milestone 3: agentic workflow (LangGraph)](tickets/T-003-agentic-workflow.md)
-      (in progress: plan awaiting the owner's go-ahead).
+      (in progress: plan approved; sample data awaiting approval).
 
 ## Before Milestone 2
 - [ ] **(owner + Claude)** Fill corpus gaps: behavioral interviews (STAR), caching, message queues,

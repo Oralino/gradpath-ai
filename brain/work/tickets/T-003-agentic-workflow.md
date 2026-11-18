@@ -27,6 +27,25 @@ High-risk (always hard): the workflow's retry, revision and fallback limits; pro
 defences for the profile and JD text; what reaches LangSmith.
 
 ## Decision
+- Owner approved the plan on 2026-11-18, with the recommended answers:
+  1. Sample data: a fictional profile (`evaluation/profiles/sample_new_grad.json`) and a fictional
+     job description (`evaluation/job_descriptions/sample_backend_new_grad.txt`), committed; the
+     owner approves their content. The real posting stays in `private/`.
+  2. Revision limit: 1 round by default, configurable in `.env`; tests cover 0, 1 and 2.
+  3. "Correct assumptions and regenerate": a simple version now, a `corrections` field on the
+     request that reruns the workflow. Pausing the graph for input (interrupt + checkpointer)
+     is deferred to the frontend milestone.
+  4. Profile input: a structured form (skills, projects, coursework, experience, weekly hours),
+     so `analyze_profile` needs no model call. Resume extraction later.
+- Graph: `analyze_job` (Haiku) -> `retrieve_knowledge` (one batched Voyage call) in parallel with
+  `analyze_profile` (code); join -> `analyze_gaps` (Sonnet, cites profile ids + chunk ids, checked
+  in code) -> `plan_roadmap` (Sonnet) in parallel with `interview_questions` (Haiku); join ->
+  `evaluate` (code checks, then Haiku) -> `revise` (bounded) or `finalize`.
+- Services (retrieval, models) go in LangGraph's runtime context, not the state, so the state stays
+  plain, serialisable data. `errors` and `node_log` use a list reducer (parallel writes).
+- `POST /api/career/prepare` answers synchronously in this milestone; the job-id + polling design
+  comes with the frontend.
+- `analyze_job()` and `POST /api/jobs/analyze` stay unchanged; the graph reuses their pieces.
 - LangGraph `langgraph==1.2.22` (already pinned). Checked against the installed package:
   `StateGraph(state_schema, context_schema=...)`, `add_edge([a, b], c)` waits for both branches,
   `add_conditional_edges(source, path, path_map)`, `RetryPolicy(max_attempts=...)`,
