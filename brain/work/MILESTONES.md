@@ -11,7 +11,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 |---|---|---|---|---|
 | 0 | Project setup | ✅ | Decide the plan, stack and rules before coding | Public repo, `brain/` docs, licence-checked sources |
 | 1 | RAG foundation | ✅ | Load sources, answer with citations, analyse a job description | Cited answers, "not covered" answers, 40+ tests |
-| 2 | Retrieval evaluation + tracing | 🔨 | Measure search quality | Recall@K / Precision@K / MRR numbers, LangSmith traces |
+| 2 | Retrieval evaluation + tracing | 🔨 | Measure search quality | Recall@5 0.97, MRR 0.98, threshold checked; LangSmith traces next |
 | 3 | Agentic workflow | ⏳ | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop |
 | 4 | Router + fallback | ⏳ | Pick the cheapest path that works | Routing accuracy, labelled partial answers |
 | 5 | Hybrid retrieval + reranking | ⏳ | Improve search for exact terms | Before/after metrics vs semantic-only |
@@ -110,10 +110,21 @@ and analyses a job description, or says when it doesn't know.
 | Step | Status | What we built | Why | Result |
 |---|---|---|---|---|
 | 1. Ticket + housekeeping | ✅ | T-002, branch, Milestone 1 marked merged | Clean start | Pushed |
-| 2. Labelled question set | ✅ draft | 40 questions (30 covered, 10 uncovered), labelled by page + section heading, tagged by query type | You can't improve what you don't measure | All 34 labels checked against the real chunks; awaiting owner review |
-| 3. Eval runner + baseline | ⏳ | Own code over `search_many`: Recall@K, Precision@K, MRR, latency, abstention | One Voyage request per run fits the free tier | |
+| 2. Labelled question set | ✅ | 40 questions (31 covered, 9 uncovered), labelled by page + section heading, tagged by query type | You can't improve what you don't measure | All labels checked against the real chunks; owner approved; one label fixed after the first run (v1.1) |
+| 3. Eval runner + baseline | ✅ | Own code: Recall@K, Precision@K, MRR, abstention, threshold sweep, per-tag recall, latency; JSON results | One Voyage request per run fits the free tier | Recall@5 0.968, Precision@5 0.645, MRR 0.984; 0.45 keeps 100% covered, rejects 100% uncovered; 14 new tests (103 total); code review: no bugs, 4 hardening fixes |
 | 4. LangSmith tracing | ⏳ | Explicit on/off setting, rules for what may be traced | See each step of a request; high-risk area | |
 | 5. GitHub Actions CI | ⏳ | Lint + tests on every push, no keys | Free, visible quality signal on the public repo | |
+
+### Problems we hit and how we solved them
+
+| Problem | What we did | Why it's worth mentioning |
+|---|---|---|
+| Chunk ids change when chunk size changes, which would break labels during the chunk-size experiment | Labels name pages + section headings instead | Designing the dataset for the experiments it has to support |
+| Two sources are single 100+ chunk pages, so page labels would count almost anything as relevant | Optional section heading, matched as a whole path component | Keeps precision honest |
+| The first run ranked an MDN paragraph first for the "uncovered" CORS question | It really does explain the origin rule, so the label was wrong; fixed in v1.1 and recorded | The eval tested the labels too; factual fixes are fine, relabelling to raise a score is not |
+| The second run's latency read 60 s | The rate limiter was waiting out Voyage's 3-per-minute limit; embedding and search are now timed apart (0.66 s vs 3.3 ms) | Knowing what a number actually measures |
+| A label typo (`"sections"`) would be silently ignored and widen the target to a whole page | The code review caught it; the loader now refuses unknown fields, empty sections and duplicate targets | A test set needs validation as much as code does |
+| Recall@5 of 0.97 looks too good | Recorded with its bias: questions written from the sources' own headings | Reporting a result together with its limits |
 
 ---
 

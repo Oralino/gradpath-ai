@@ -135,11 +135,32 @@ class RetrievalService:
         """
         if not queries:
             return []
+        return self.search_vectors(
+            queries,
+            self.embed_many(queries),
+            k=k,
+            filters=filters,
+            max_per_document=max_per_document,
+        )
+
+    def embed_many(self, queries: list[str]) -> list[list[float]]:
+        """Embed queries in one batch when the embeddings support it (one Voyage request)."""
         batch_fn = getattr(self.embeddings, "embed_queries", None)
         if batch_fn is None:
-            vectors = [self.embeddings.embed_query(q) for q in queries]
-        else:
-            vectors = batch_fn(queries)
+            return [self.embeddings.embed_query(q) for q in queries]
+        return batch_fn(queries)
+
+    def search_vectors(
+        self,
+        queries: list[str],
+        vectors: list[list[float]],
+        *,
+        k: int | None = None,
+        filters: dict[FilterKey, str | list[str]] | None = None,
+        max_per_document: int | None = None,
+    ) -> list[RetrievalResult]:
+        """Search with already-embedded queries (search_many, and the eval runner to time
+        embedding and vector search separately)."""
         return [
             self._search_vector(q, v, k, filters, max_per_document)
             for q, v in zip(queries, vectors, strict=True)
