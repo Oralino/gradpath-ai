@@ -64,7 +64,7 @@ and analyses a job description, or says when it doesn't know.
 | 2. Provider layer | ✅ | `ChatClaudeCode` (custom LangChain model on the Pro plan), `ChatAnthropic`, fake model, `get_chat_model()`, `with_structure()` | No extra cost locally; provider is a config switch; tests are free | Real Pro-plan call returned text and a validated `SQL / Required` result |
 | 3. Ingestion pipeline | ✅ | Polite download + cache, cleaning, heading-aware chunking, Voyage embeddings (rate limiter + cache), safe Qdrant rebuild | Search is only as good as its corpus; free-tier limits shaped the design | 18 sources -> 52 pages -> 956 chunks |
 | 4. Retrieval service | ✅ | `RetrievalService.search()` returns scored, citable evidence above a threshold | One search path for every feature; "I don't know" built in | 7 tests; real probe found the right source 5/5; threshold set to 0.45 |
-| 5. RAG + `POST /api/chat` | ⏳ | Answers only from retrieved evidence, citations checked, untrusted text marked | The fast path for focused questions | |
+| 5. RAG + `POST /api/chat` | ✅ | FastAPI app; answers only from retrieved evidence; citations verified in code; retrieved text marked as untrusted; abstains without calling the model when nothing is relevant | The fast path for focused questions, and grounded answering | 11 tests (54 total); real index abstains on off-topic questions |
 | 6. `POST /api/jobs/analyze` | ⏳ | Extract requirements, search per requirement, cited summary | The spec's first milestone; start of the job-to-roadmap flow | |
 | 7. Tests, review, commit | ⏳ | Full test run, code review (high-risk parts), commit and PR | Quality gate before merging | |
 

@@ -109,7 +109,12 @@ ingested without the owner's approval.
 
 First corpus (2026-11-17 dry run): 18 sources, 52 pages, 956 chunks, ~188K estimated tokens.
 
-Retrieval: planned (T-001 step 4).
+Retrieval (built): `RetrievalService.search` -> top-k chunks above `retrieval_min_score` (0.45,
+probe-calibrated), optional metadata filters and per-document cap; `insufficient` when none qualify.
+
+Traditional RAG (built): `rag.answer_question` -> `POST /api/chat`. Abstains without a model call
+when retrieval is insufficient; evidence in delimited untrusted blocks; Sonnet structured reply;
+citations verified against retrieved ids. API endpoints so far: `GET /api/health`, `POST /api/chat`.
 
 ## Security
 Retrieved content, uploads and JDs are untrusted data: delimited in prompts, never followed as
