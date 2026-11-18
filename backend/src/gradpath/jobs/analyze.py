@@ -41,6 +41,8 @@ Category = Literal[
 
 # Requirements that are about who may apply, not what to study (degree, clearance, work
 # authorization, years of experience): no knowledge-base search, coverage "not_applicable".
+Seniority = Literal["intern", "new_grad", "junior", "mid", "senior", "unknown"]
+
 NOT_STUDYABLE: set[str] = {"education_eligibility"}
 MAX_REQUIREMENTS = 40
 
@@ -73,7 +75,7 @@ class ExtractedRequirement(BaseModel):
 
 class JobExtraction(BaseModel):
     title: str
-    seniority: Literal["intern", "new_grad", "junior", "mid", "senior", "unknown"]
+    seniority: Seniority
     responsibilities: list[str]
     requirements: list[ExtractedRequirement]
 

@@ -4,10 +4,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+# Most critic -> revise rounds allowed (each is a Sonnet call); used by Settings and workflows.
+MAX_REVISIONS_CAP = 3
 
 
 class Settings(BaseSettings):
@@ -55,6 +57,10 @@ class Settings(BaseSettings):
     langsmith_api_key: SecretStr | None = None
     langsmith_endpoint: str = "https://api.smith.langchain.com"
     langsmith_project: str = "gradpath-dev"
+
+    # Career workflow (T-003): critic -> revise rounds before finalizing. Owner decision 2026-11-18:
+    # 1 by default; capped because each round is a Sonnet call on the owner's plan.
+    workflow_max_revisions: int = Field(default=1, ge=0, le=MAX_REVISIONS_CAP)
 
     app_mode: Literal["demo", "live"] = "demo"
 

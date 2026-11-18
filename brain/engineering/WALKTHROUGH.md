@@ -307,6 +307,53 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   `pyproject.toml`, so CI tests exactly the versions you run locally. *"Does CI run the
   retrieval eval?"* No: that needs the Voyage key and the local index; it's a manual release check.
 
+## Career workflow graph (`workflows/`: `state.py`, `schemas.py`, `graph.py`, `nodes.py`)
+- **What it is for:** the main feature (job description + profile -> gaps -> roadmap) needs
+  several dependent steps, each with its own model and its own checks. LangGraph runs them as a
+  graph over one typed state, `CareerPrepState`.
+- **LangGraph in five words:** *state* (one shared typed record), *nodes* (plain functions that
+  return only the keys they change), *edges* (fixed order), *conditional edges* (a function picks
+  the next node), *reducers* (how two parallel writes to one key are combined).
+- **Shape:** `analyze_job -> retrieve_knowledge` runs alongside `analyze_profile`; both join at
+  `analyze_gaps`; `plan_roadmap` and `interview_questions` run side by side and join at
+  `evaluate`; then `revise` (bounded) or `finalize`. A join is `add_edge([a, b], c)`: `c` waits
+  for both, even when one branch takes a step longer (tested).
+- **Decision: services in the runtime context, not the state.** The retrieval service and models
+  go in `WorkflowContext` (`invoke(..., context=...)`); the state holds only data, so it can be
+  logged, traced and checked in tests. Rejected: globals (hard to test) and putting clients in
+  the state (not serialisable, and they'd show up in traces).
+- **Decision: every state value is a Pydantic model,** so a bad model reply fails at the node that
+  produced it. The profile is untrusted input: unknown fields refused, every string and list
+  bounded.
+- **The revision loop is bounded three ways:** `route_after_evaluation` only revises while rounds
+  are left; graph code (one wrapper around every node) adds one to the counter after `revise`
+  and refuses any node update that touches the input, the limit, the counter or the log, so no
+  node can reset the counter or raise the limit (tested for each key); and `recursion_limit` is set
+  from the same number as an independent stop (tested by breaking the route on purpose). The
+  limit (`WORKFLOW_MAX_REVISIONS`, default 1, max 3) comes from settings, must be a real int,
+  and never comes from the request.
+- **Decision: code decides whether the critique passed,** not the critic's own flag: `Critique.ok`
+  is "passed and no blocking issue". A model that says "passed" while listing a blocking issue
+  gets a revision.
+- **Input limits in one place:** `WorkflowInput` validates the job description (50–20,000
+  characters), up to 10 corrections of 500 characters, and the profile (each field bounded, plus
+  12,000 characters in total, because the per-field maximums added up to ~30K tokens: too much
+  for free tiers).
+- **Gotcha we hit:** the first step formula (6 + 2 per revision) was one short; measuring showed
+  LangGraph counts the input step too, so it is 7 + 2 per revision (+2 spare). A test now runs the
+  worst case at the exact limit and checks one step fewer fails, so the formula can't drift.
+- **Honest result labels:** `complete` (critique ok), `complete_with_limitations` (limit reached,
+  open issues listed), `partial` (a stage reported an error, or the critic never ran; open issues
+  are still listed). Never present a limited result as complete.
+- **Likely questions:** *"Why not one big prompt?"* Each step's output is validated before the
+  next uses it, each step uses the cheapest model that works, a failure is retried or reported
+  for that step only, and the loop has a hard stop. *"What stops an infinite self-critique
+  loop?"* The three bounds above. *"Why is `analyze_profile` not an LLM call?"* The profile is a
+  structured form, so numbering its facts (`p-1`, `p-2`...) is plain code, and gap analysis must
+  cite those ids, which code can check. *"How did you test the loop limit?"* With a critic that
+  always fails at limits 0–3, a node that tries to reset the counter, and a route function broken
+  on purpose so only the recursion limit can stop it.
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.

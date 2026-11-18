@@ -67,6 +67,11 @@ request -> router -> traditional_rag | agentic_workflow -> validation -> respons
   `retrieve_knowledge` -> `analyze_gaps` -> `plan_roadmap` -> `evaluate` -> `revise` (bounded) or
   `finalize`. State is a typed `CareerPrepState` (see the spec, section 7); every node output is
   validated before the next node uses it.
+  Built in `workflows/` (T-003): `state.py` (state + `WorkflowContext` runtime context for the
+  retrieval service and models), `schemas.py`, `nodes.py`, `graph.py` (`build_graph`,
+  `run_workflow`). The critic -> revise loop is bounded by `WORKFLOW_MAX_REVISIONS` (default 1,
+  max 3), a counter kept by graph code, and `recursion_limit` = 7 + 2 per revision + 2. Joins use
+  `add_edge([a, b], c)`, and `revise` re-plans only the roadmap.
 - **Fallback:** on repeated tool failure, step/time budget overrun, invalid output after retries:
   keep the request, say which stages finished, run traditional RAG if it can still help, label the
   result partial, log the reason. No evidence means "the knowledge base doesn't cover this", never an

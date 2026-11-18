@@ -58,3 +58,12 @@ defences for the profile and JD text; what reaches LangSmith.
 - Commits (hash, message):
 
 ## Verification
+- Step 4 (skeleton): 36 tests in `tests/test_workflow_graph.py` (152 total), ruff clean. Covers
+  both joins, the loop at limits 0–3, protected keys, a broken route stopped by
+  `recursion_limit` (measured minimum 7 + 2 per revision), input limits, and the sample profile.
+- code-reviewer (step 4): no way found for the loop to exceed its limit. Fixed: any node could
+  overwrite the counter/limit (now protected keys), non-int limits, unbounded JD and corrections
+  (`WorkflowInput`), profile total size, critic flag vs blocking issues (`Critique.ok`), missing
+  critique now partial, clear error for non-dict node returns, one revision cap constant, shared
+  `Seniority` type. Deferred to step 6: mapping `GraphRecursionError` and node exceptions to API
+  errors. Not done: blank optional strings become a 422 (the client omits blank fields).
