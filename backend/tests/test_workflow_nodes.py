@@ -2,10 +2,11 @@
 so no model, Voyage or network calls."""
 
 import pytest
+from conftest import placeholder_nodes
 from pydantic import ValidationError
 
 from gradpath.providers import ClaudeCodeError, FakeChatModel
-from gradpath.workflows import NodeSet, UserProfile, WorkflowContext, run_workflow
+from gradpath.workflows import NodeSet, UserProfile, WorkflowContext, nodes, run_workflow
 from gradpath.workflows import graph as graph_module
 from gradpath.workflows.graph import MODEL_ATTEMPTS, MODEL_NODES, MODEL_RETRY, _retry_on
 from gradpath.workflows.schemas import Critique, CritiqueIssue, JobSummary
@@ -40,7 +41,9 @@ EXTRACTION = {
 }
 PROFILE = UserProfile(skills=["Python"])
 # Later nodes are still placeholders; this runs the real job + retrieval nodes inside the graph.
-STEP_5A = NodeSet()
+STEP_5A = placeholder_nodes(
+    analyze_job=nodes.analyze_job, retrieve_knowledge=nodes.retrieve_knowledge
+)
 
 
 @pytest.fixture(autouse=True)
@@ -169,7 +172,7 @@ def test_model_node_writing_a_protected_key_runs_once():
         calls.append(1)
         return {"critique": FAIL, "max_revisions": 3}
 
-    impl = NodeSet(analyze_job=lambda s: NO_JOB, retrieve_knowledge=lambda s: {}, evaluate=evaluate)
+    impl = placeholder_nodes(evaluate=evaluate)
     with pytest.raises(ValueError, match="may not write"):
         run_impl(impl)
     assert calls == [1]
@@ -182,7 +185,7 @@ def test_non_retryable_error_in_a_model_node_runs_once():
         calls.append(1)
         raise KeyError("missing")
 
-    impl = NodeSet(analyze_job=lambda s: NO_JOB, retrieve_knowledge=lambda s: {}, analyze_gaps=gaps)
+    impl = placeholder_nodes(analyze_gaps=gaps)
     with pytest.raises(KeyError):
         run_impl(impl)
     assert calls == [1]
@@ -201,9 +204,7 @@ def test_retried_revise_and_evaluate_count_once():
 
         return node
 
-    impl = NodeSet(
-        analyze_job=lambda s: NO_JOB,
-        retrieve_knowledge=lambda s: {},
+    impl = placeholder_nodes(
         evaluate=flaky("evaluate", lambda s: {"critique": FAIL}),
         revise=flaky("revise", lambda s: {}),
     )

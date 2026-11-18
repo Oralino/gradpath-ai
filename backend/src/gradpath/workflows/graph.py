@@ -26,7 +26,7 @@ from pydantic import ValidationError
 
 from gradpath.config import MAX_REVISIONS_CAP
 from gradpath.providers import ClaudeCodeError
-from gradpath.workflows import nodes
+from gradpath.workflows import critic, gaps, nodes, roadmap
 from gradpath.workflows.schemas import CareerPrepResult, UserProfile, WorkflowInput
 from gradpath.workflows.state import CareerPrepState, WorkflowContext
 
@@ -39,17 +39,16 @@ PROTECTED = frozenset(
 
 @dataclass(frozen=True)
 class NodeSet:
-    """One implementation per node. Defaults are the real nodes where built, placeholders
-    elsewhere; tests pass their own."""
+    """One implementation per node: the real nodes by default; tests pass their own."""
 
     analyze_job: Callable = nodes.analyze_job
     analyze_profile: Callable = nodes.analyze_profile
     retrieve_knowledge: Callable = nodes.retrieve_knowledge
-    analyze_gaps: Callable = nodes.stub_analyze_gaps
-    plan_roadmap: Callable = nodes.stub_plan_roadmap
-    interview_questions: Callable = nodes.stub_interview_questions
-    evaluate: Callable = nodes.stub_evaluate
-    revise: Callable = nodes.stub_revise
+    analyze_gaps: Callable = gaps.analyze_gaps
+    plan_roadmap: Callable = roadmap.plan_roadmap
+    interview_questions: Callable = gaps.interview_questions
+    evaluate: Callable = critic.evaluate
+    revise: Callable = roadmap.revise
     finalize: Callable = nodes.finalize
 
 

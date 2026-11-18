@@ -5,6 +5,7 @@ import json
 from dataclasses import replace
 
 import pytest
+from conftest import placeholder_nodes
 from langgraph.errors import GraphRecursionError
 from pydantic import ValidationError
 
@@ -12,7 +13,7 @@ from gradpath.config import REPO_ROOT, Settings
 from gradpath.workflows import NodeSet, UserProfile, WorkflowContext, build_graph, run_workflow
 from gradpath.workflows.graph import recursion_limit_for, route_after_evaluation
 from gradpath.workflows.nodes import profile_to_evidence
-from gradpath.workflows.schemas import Critique, CritiqueIssue, JobSummary
+from gradpath.workflows.schemas import Critique, CritiqueIssue
 
 SAMPLE_PROFILE = REPO_ROOT / "evaluation" / "profiles" / "sample_new_grad.json"
 SAMPLE_JD = (
@@ -20,12 +21,7 @@ SAMPLE_JD = (
 ).read_text(encoding="utf-8")
 CTX = WorkflowContext()
 # The graph with placeholders for the model/Voyage nodes, so these tests need no services.
-SKELETON = NodeSet(
-    analyze_job=lambda s: {
-        "job": JobSummary(title="", seniority="unknown", responsibilities=[], requirements=[])
-    },
-    retrieve_knowledge=lambda s: {"knowledge": []},
-)
+SKELETON = placeholder_nodes()
 FAIL = Critique(
     passed=False, issues=[CritiqueIssue(code="x", message="still wrong", severity="blocking")]
 )

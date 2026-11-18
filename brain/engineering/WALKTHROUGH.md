@@ -362,10 +362,46 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   retries almost every error it doesn't exclude, including an API 401 from a bad visitor key, and
   the Anthropic SDK already retries network errors twice, so one hiccup could cost 6 requests per
   node. Now the workflow retries only its allow-list, and network retries are left to the SDK.
+- **Gap analysis (`gaps.py`, Sonnet):** rates each studyable requirement as demonstrated /
+  partially evidenced / not yet evidenced, citing profile fact ids. Code keeps only ids that
+  exist; a "demonstrated" or "partial" claim with no valid fact becomes "not yet evidenced" with
+  low confidence; a requirement the model skipped is filled in as "not assessed"; degree and
+  clearance items are `not_applicable` without asking the model. Source ids are attached by code
+  from the search, so the model never sees (or needs) the knowledge-base text here: cheaper.
+- **Corrections = facts, not instructions:** "I've used PostgreSQL indexes" becomes fact `c-1`
+  (kind `correction`) that gap analysis may cite as self-reported evidence. That's the MVP's
+  "correct assumptions and regenerate": edit the corrections, run again. A requirement backed
+  only by corrections counts as "partially evidenced" at most, so one "I know all of these"
+  can't empty the roadmap (found in review).
+- **Roadmap (`roadmap.py`, Sonnet):** only gaps that need work, required first, with the
+  knowledge-base text retrieved for them and the hour budget (weekly hours x weeks). Code
+  (`check_items`) keeps resources only from chunks retrieved for that item's own requirements,
+  drops unknown requirement ids, renumbers items 1..n and keeps only dependencies on earlier
+  items. A requirement the knowledge base doesn't cover gets an item with no resources, never an
+  invented link. `revise` reuses the same function and checks, with the current plan and the
+  critic's issues added as tagged data. A revision must not make things worse: if it comes back
+  with nothing valid, or with more blocking code-check issues than the plan it replaces, the
+  previous plan is kept (the round still counts, so the loop stays bounded).
+- **Critic (`critic.py`): code first, then Haiku.** Code catches what it can check exactly:
+  an empty roadmap while gaps need work, a required gap with no item, total effort over 1.25x
+  the budget (blocking); duplicate topics, an item with no source although sources exist
+  (minor). Only when nothing is blocking does Haiku check what code can't (does each item follow
+  from its gap and do its sources fit?); its findings must name a real item. Pass/fail is decided
+  in code from the issues.
+- **Interview questions (`gaps.py`, Haiku):** for the least-evidenced required gaps first; code
+  keeps at most 2 per requirement and 10 in total, each tied to a real requirement id.
+- **One injection defence for every prompt (`prompting.py`):** all user, posting, knowledge-base
+  and earlier-model text goes through `block()`, which wraps it in a tag, neutralises every tag
+  the workflow uses, and escapes attributes. Tests put a fake closing tag in a profile fact and a
+  critique message and check it can't close its block. The review found `< /evidence>` (a
+  space before the slash) slipped past the shared regex used since Milestone 1; fixed for every
+  path.
 - **Likely questions:** *"Why not one big prompt?"* Each step's output is validated before the
   next uses it, each step uses the cheapest model that works, a failure is retried or reported
   for that step only, and the loop has a hard stop. *"What stops an infinite self-critique
-  loop?"* The three bounds above. *"Why is `analyze_profile` not an LLM call?"* The profile is a
+  loop?"* The three bounds above. *"How do you stop the model inventing sources?"* It can only cite ids we gave
+  it, and code drops any id that wasn't retrieved for that requirement. *"Why is `analyze_profile`
+  not an LLM call?"* The profile is a
   structured form, so numbering its facts (`p-1`, `p-2`...) is plain code, and gap analysis must
   cite those ids, which code can check. *"How did you test the loop limit?"* With a critic that
   always fails at limits 0–3, a node that tries to reset the counter, and a route function broken

@@ -85,10 +85,11 @@ class WorkflowInput(BaseModel):
 
 
 class ProfileEvidence(BaseModel):
-    """One citable fact from the profile. Gap analysis cites these ids; code checks they exist."""
+    """One citable fact: from the profile form (p-1, p-2, ...) or a user correction (c-1, ...).
+    Gap analysis cites these ids; code checks they exist."""
 
-    id: str = Field(description="p-1, p-2, ... in profile order")
-    kind: Literal["education", "skill", "coursework", "project", "experience"]
+    id: str = Field(description="p-N for profile facts, c-N for corrections")
+    kind: Literal["education", "skill", "coursework", "project", "experience", "correction"]
     text: str
 
 

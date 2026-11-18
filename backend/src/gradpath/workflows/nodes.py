@@ -1,11 +1,10 @@
 """Workflow nodes. Each takes the state (and, when it needs services, the runtime) and returns only
 the keys it changed.
 
-Real so far: `analyze_job`, `retrieve_knowledge` (step 5a), `analyze_profile`, `finalize`. The
-others are placeholders (`stub_*`) that return valid, empty outputs without calling any model or
-Voyage; step 5 replaces them one by one. `graph.build_graph` wires whichever implementations it is
-given. Nodes that need services take a parameter named `runtime` (LangGraph's `Runtime`) and read
-them from `runtime.context` (`WorkflowContext`).
+This module: `analyze_job`, `retrieve_knowledge`, `analyze_profile`, `finalize`. The model-heavy
+nodes live in `gaps.py`, `roadmap.py` and `critic.py`. `graph.build_graph` wires whichever
+implementations it is given. Nodes that need services take a parameter named `runtime`
+(LangGraph's `Runtime`) and read them from `runtime.context` (`WorkflowContext`).
 """
 
 from langgraph.runtime import Runtime
@@ -18,7 +17,6 @@ from gradpath.jobs.analyze import (
 )
 from gradpath.workflows.schemas import (
     CareerPrepResult,
-    Critique,
     JobRequirement,
     JobSummary,
     ProfileEvidence,
@@ -101,7 +99,14 @@ def profile_to_evidence(profile: UserProfile) -> list[ProfileEvidence]:
 
 
 def analyze_profile(state: CareerPrepState) -> dict:
-    return {"profile_evidence": profile_to_evidence(state["profile"])}
+    """Profile facts plus the user's corrections ("I have used PostgreSQL indexes"), which become
+    self-reported facts c-1, c-2, ... that gap analysis may cite: how "correct assumptions and
+    regenerate" works (owner decision 2026-11-18). They are facts, never instructions."""
+    corrections = [
+        ProfileEvidence(id=f"c-{i}", kind="correction", text=c)
+        for i, c in enumerate(state.get("corrections", []), 1)
+    ]
+    return {"profile_evidence": profile_to_evidence(state["profile"]) + corrections}
 
 
 def finalize(state: CareerPrepState) -> dict:
@@ -131,26 +136,3 @@ def finalize(state: CareerPrepState) -> dict:
         node_log=[],
     )
     return {"result": result}
-
-
-# ---------- placeholders, replaced in step 5 ----------
-
-
-def stub_analyze_gaps(state: CareerPrepState) -> dict:
-    return {"gaps": []}
-
-
-def stub_plan_roadmap(state: CareerPrepState) -> dict:
-    return {"roadmap": []}
-
-
-def stub_interview_questions(state: CareerPrepState) -> dict:
-    return {"interview_questions": []}
-
-
-def stub_evaluate(state: CareerPrepState) -> dict:
-    return {"critique": Critique(passed=True)}
-
-
-def stub_revise(state: CareerPrepState) -> dict:
-    return {"roadmap": state.get("roadmap", [])}

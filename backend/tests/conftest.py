@@ -69,3 +69,23 @@ def _no_tracing():
     langsmith.configure(client=None, enabled=False)
     yield
     langsmith.configure(client=None, enabled=False)
+
+
+def placeholder_nodes(**real):
+    """A workflow NodeSet whose model/Voyage nodes are placeholders returning valid empty output,
+    so graph tests need no services. Pass real nodes (or test doubles) as keyword arguments."""
+    from gradpath.workflows import NodeSet
+    from gradpath.workflows.schemas import Critique, JobSummary
+
+    placeholders = {
+        "analyze_job": lambda s: {
+            "job": JobSummary(title="", seniority="unknown", responsibilities=[], requirements=[])
+        },
+        "retrieve_knowledge": lambda s: {"knowledge": []},
+        "analyze_gaps": lambda s: {"gaps": []},
+        "plan_roadmap": lambda s: {"roadmap": []},
+        "interview_questions": lambda s: {"interview_questions": []},
+        "evaluate": lambda s: {"critique": Critique(passed=True)},
+        "revise": lambda s: {"roadmap": s.get("roadmap", [])},
+    }
+    return NodeSet(**{**placeholders, **real})

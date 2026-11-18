@@ -73,3 +73,10 @@ defences for the profile and JD text; what reaches LangSmith.
   allow-list instead of LangGraph's default (which retried API 401s on top of the SDK's own
   retries); added retry and guard tests. For step 6: never return `str(exc)` to the client (a
   ValidationError message can echo the model's reply).
+- Step 5b (gaps, roadmap, questions, critic, revise): 31 new tests (201 total), ruff clean, incl.
+  full fake-model runs (complete; one revision; limit reached). code-reviewer: all text reaches
+  prompts through `block()`, id checks hold, no cycles in dependencies. Fixed: `< /tag` slipped
+  past `safety.neutralise_tags` (shared with rag and jobs), an empty or worse revision replaced the plan, an
+  empty roadmap could pass, corrections alone could mark everything demonstrated, the item cap
+  ran before filtering, and items with no sources weren't flagged. Deferred to the API/frontend
+  steps: length caps on model-written text, and rendering it as text, never HTML.
