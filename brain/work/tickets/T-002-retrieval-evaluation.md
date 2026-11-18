@@ -64,3 +64,7 @@ Steps:
   switching tracing off at import. Also fixed: explicit endpoint, `LANGSMITH_RUNS_ENDPOINTS`
   refused, wider phone rule, flush on shutdown even if close fails, env-cache-safe tests, a test
   that the real client redacts. Deferred: the visitor guard re-check for live mode (TASKS).
+- Real trace 2026-11-18 (Pro plan, terminal panel shell): `rag.ask` printed `tracing: on`;
+  LangSmith received one trace `answer_question` (6.7 s) with children `retrieve` (outputs: chunk
+  ids + scores only) and `RunnableSequence` -> `ChatClaudeCode` (626 tokens, which excludes cached
+  input tokens, a known Claude Code reporting gap) -> `parse`. Tracing set back to off afterwards.
