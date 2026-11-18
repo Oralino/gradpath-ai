@@ -210,6 +210,103 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Deferred, on purpose:** auth and rate limits before deploy, LangSmith wiring in Milestone 2,
   ingestion polish (all listed in `TASKS.md`). Knowing what not to fix yet is part of the answer.
 
+## Retrieval evaluation dataset (`evaluation/retrieval_questions.jsonl`)
+- **What it is for:** testing search on its own, before any model writes an answer. If the right
+  page isn't retrieved, no prompt can fix the answer (the Milestone 1 multi-column index miss).
+  Every later experiment (hybrid, reranking, chunk size) is compared on this set.
+- **Decision: label pages and section headings, not chunk ids.** Chunk ids change when chunking
+  changes, which would break the labels exactly when they're needed for the chunk-size
+  experiment. Sections are added for the two single-page sources with 100+ chunks; otherwise
+  "the System Design Primer" would count as relevant for any system design question.
+- **Decision: 9 of 40 questions are uncovered on purpose,** 6 of them near the corpus (Kubernetes,
+  OAuth, JWT...).
+- **The eval caught a labelling error:** CORS was labelled uncovered, but the first run ranked an
+  MDN paragraph on "relaxing the origin constraint" first at 0.53. It was a real partial answer, so
+  the label was fixed (v1.1). Labels are tested too: fix factual errors, never relabel to improve a
+  score. Off-topic questions like "sourdough" are easy to reject; near-domain ones are what
+  test the 0.45 threshold.
+- **Rejected:** generating questions and labels with an LLM. That is cheaper to write, but the
+  labels would then be the model's opinion. Every label here was checked against the real chunks.
+- **Tags** let results be split by kind of query (exact terms and acronyms are where vector search
+  is expected to be weakest, which is the case for hybrid search).
+- **Likely questions:** *"Is 40 questions enough?"* It's enough to see big differences (a 10-point
+  recall change) and to keep each run within Voyage's free tier. It's too small to trust a
+  1–2 point change, so the results say so. *"Why not graded relevance?"* Binary labels are faster
+  to check and explain; nDCG with grades can come later if rankings need finer comparison.
+
+## Retrieval eval runner (`evaluation/retrieval_eval.py`, `metrics.py`, `dataset.py`)
+- **What it does:** loads the labelled questions, embeds them all in **one** Voyage call, searches
+  each in Qdrant, and reports Recall@K, Precision@K, MRR@K (K = 1, 3, 5, 10), abstention at the
+  threshold, a threshold sweep, recall per tag, latency, and the misses. Full results go to JSON.
+- **Decision: score the raw ranking, judge the threshold separately.** The runner lifts the
+  threshold to -1 for the search, so ranking metrics don't change when the threshold does;
+  hybrid search or reranking can then be compared on ranking alone. Abstention is worked out
+  offline from each question's best score, so the sweep costs no extra API calls.
+- **Decision: own code, not an eval framework** (RAGAS, LangSmith evaluators). These metrics are
+  about 40 lines; writing them shows you know exactly what they count. LangSmith can still show
+  the runs side by side later.
+- **Decision: time embedding and search separately.** The second run's combined timing read 60 s
+  because the rate limiter was waiting out Voyage's 3-per-minute limit. `RetrievalService` gained
+  `embed_many` and `search_vectors` (which `search_many` now uses), so the runner reports 0.66 s
+  to embed and 3.3 ms per search.
+- **Gotchas:** a section label matches whole headings only ("Cache" doesn't match
+  "Cache-control"), and a parent heading covers its subsections. Precision counts empty slots as
+  misses, so a short result list can't inflate it. The loader refuses unknown fields, because a
+  typo like `"sections"` would silently turn a section label into a whole-page label.
+- **Likely questions:** *"Recall@5 is 0.97: is search solved?"* No. The questions were written
+  from the sources, so their wording is close; real users phrase things differently. The two
+  misses (a multi-source question and a career one) show where to improve. *"Why is precision so
+  much lower than recall?"* Most questions have one target section, so the other 3–4 slots
+  are usually neighbouring pages. For RAG, missing the answer (recall) hurts more than extra
+  context (precision). *"Why keep 0.45?"* On the labelled set it keeps 100% of covered questions
+  and rejects 100% of uncovered ones; 0.55 would start dropping covered questions.
+
+## Tracing rules (`tracing.py`)
+- **What it is for:** a LangSmith trace shows one request as a tree (`answer_question` ->
+  `retrieve` -> model call) with inputs, outputs, timing and tokens, so you can see *why* an
+  answer came out the way it did.
+- **The risk:** a trace holds the full prompt (retrieved text, the job description, later a
+  profile), and turning tracing on sends it to an outside service. So the on/off decision lives
+  in one function with four rules: on only when asked **and** a key is set; never in live mode;
+  set in code so a stray shell variable can't override it; redacted before upload.
+- **The bug it fixed:** `.env` is read by pydantic-settings without exporting it to the
+  environment, while langsmith reads only the environment. So `LANGSMITH_TRACING=true` in `.env`
+  did nothing, and a shell variable could turn tracing on silently.
+- **Defence in depth for visitors:** live mode forces tracing off, and separately
+  `get_chat_model` refuses a visitor's key whenever tracing is on. Either check alone would do;
+  both together mean one mistake isn't enough to leak a visitor's prompt.
+- **Decision: full prompts locally, plus redaction** (owner, 2026-11-18). Rejected: metadata-only
+  traces. They're safer, but you couldn't see the prompt that produced a bad answer. Redaction uses
+  langsmith's built-in secret rules plus three of ours (Voyage keys, emails, phones); the phone
+  rule needs separators so scores and years survive.
+- **Retrieval output in traces is ids + scores only;** the chunk text is already in the model's
+  prompt, so repeating it would double the trace size.
+- **Thread fix:** `ChatClaudeCode`'s sync path runs the SDK in a worker thread; it now uses a copy
+  of the caller's context, so tracing context set by the caller is visible inside it.
+- **What the review caught:** the probe and eval CLIs never called `configure_tracing`, so with
+  `LANGSMITH_TRACING=true` in the shell they would have traced through langsmith's default client,
+  without redaction. Fix: tracing is switched off when `gradpath.tracing` is first imported, so the
+  safe state is the default and only one function can turn it on. Lesson: make the safe state
+  the default instead of relying on every entry point to remember a call.
+- **Likely questions:** *"How do you know tracing is really off?"* A test sets
+  `LANGSMITH_TRACING=true` in the environment and checks that our settings still switch it off;
+  another checks that a visitor key is refused while it's on. *"Why not just leave it off on the
+  server?"* "Just leave it off" depends on nobody setting a variable; code that enforces the rule
+  doesn't.
+
+## CI (`.github/workflows/ci.yml`)
+- **What it does:** on every push and every PR to `main`, a GitHub runner installs exactly what
+  `uv.lock` pins (`uv sync --locked`), then runs ruff (lint + format) and pytest.
+- **Decision: no secrets in CI.** Tests already use the fake model, fake embeddings and in-memory
+  Qdrant, so CI needs no keys and costs nothing; `LLM_PROVIDER=fake` and `LANGSMITH_TRACING=false`
+  are set anyway, so nothing in CI can call a model or send a trace.
+- **Decision: actions pinned to commit SHAs** (with the version in a comment), not tags: a tag can
+  be moved to different code, a commit SHA can't. `contents: read` permission only, and
+  `persist-credentials: false`, so a step can't push with the workflow's token.
+- **Likely questions:** *"Why `--locked`?"* It fails if `uv.lock` is out of date with
+  `pyproject.toml`, so CI tests exactly the versions you run locally. *"Does CI run the
+  retrieval eval?"* No: that needs the Voyage key and the local index; it's a manual release check.
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.

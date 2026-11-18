@@ -6,11 +6,14 @@ Add `--json` to print the full JSON. Stop the API server first (local Qdrant: on
 """
 
 import argparse
+import sys
 from pathlib import Path
 
+from gradpath.config import get_settings
 from gradpath.jobs import analyze_job
 from gradpath.providers import get_chat_model
 from gradpath.retrieval import get_retrieval_service
+from gradpath.tracing import configure_tracing, flush
 
 MARK = {"covered": "✓", "weak_evidence": "~", "not_covered": "✗", "not_applicable": "–"}
 
@@ -23,11 +26,14 @@ def main() -> None:
     args = parser.parse_args()
 
     jd = args.path.read_text(encoding="utf-8")
+    status = configure_tracing(get_settings())
+    print(f"tracing: {'on' if status.enabled else 'off'} ({status.reason})", file=sys.stderr)
     retrieval = get_retrieval_service()
     try:
         result = analyze_job(jd, retrieval, get_chat_model("fast"), get_chat_model("smart"))
     finally:
         retrieval.store.client.close()
+        flush()
 
     if args.json:
         print(result.model_dump_json(indent=2))

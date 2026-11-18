@@ -6,11 +6,13 @@ the pytest suite, because it calls a real model.
 """
 
 import asyncio
+import sys
 
 from pydantic import BaseModel
 
 from gradpath.config import get_settings
 from gradpath.providers import get_chat_model, with_structure
+from gradpath.tracing import configure_tracing, flush
 
 
 class Requirement(BaseModel):
@@ -21,6 +23,8 @@ class Requirement(BaseModel):
 async def main() -> None:
     """Print one plain reply and one validated structured reply, or the error that stops them."""
     settings = get_settings()
+    status = configure_tracing(settings)
+    print(f"tracing: {'on' if status.enabled else 'off'} ({status.reason})", file=sys.stderr)
     llm = get_chat_model("fast")
     print(f"provider={settings.llm_provider} model={settings.model_fast}")
 
@@ -35,4 +39,7 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    finally:
+        flush()

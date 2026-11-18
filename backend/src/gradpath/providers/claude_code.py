@@ -1,6 +1,7 @@
 """`ChatClaudeCode`: a LangChain chat model that runs Claude through Claude Code (owner's plan)."""
 
 import asyncio
+import contextvars
 import json
 import logging
 import os
@@ -134,7 +135,11 @@ class ChatClaudeCode(BaseChatModel):
         run_manager: CallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> ChatResult:
-        """Sync entry point: runs `_agenerate` on a fresh event loop (in a thread if one runs)."""
+        """Sync entry point: runs `_agenerate` on a fresh event loop (in a thread if one runs).
+
+        The worker thread runs in a copy of the caller's context, so tracing and other context
+        variables set by the caller (e.g. LangSmith's parent run) are still visible inside it.
+        """
         coro_factory = lambda: self._agenerate(messages, stop, None, **kwargs)  # noqa: E731
         try:
             asyncio.get_running_loop()
@@ -148,7 +153,7 @@ class ChatClaudeCode(BaseChatModel):
             except BaseException as exc:  # re-raised in the calling thread
                 box["error"] = exc
 
-        thread = threading.Thread(target=worker)
+        thread = threading.Thread(target=contextvars.copy_context().run, args=(worker,))
         thread.start()
         thread.join()
         if "error" in box:

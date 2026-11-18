@@ -89,10 +89,25 @@ Deployed site:
   use the owner's Voyage key with a rate limit (TBD, see REQUIREMENTS).
 
 ## Tracing
-- Local development: LangSmith on when `LANGSMITH_TRACING=true` and a key is set; otherwise local JSON
-  logs (route, nodes, tool calls, errors, fallback events, latency, tokens).
-- Deployed site: LangSmith off for visitor requests. Traces contain full prompts, so local tracing uses
-  the sample profile, not real personal data.
+Built in Milestone 2 (`tracing.py`, ticket T-002). One function, `configure_tracing(settings)`, decides
+for the whole process; the API lifespan and the model-calling CLIs (`rag.ask`, `jobs.cli`,
+`providers.smoke`) call it at start and `flush()` at exit.
+
+| Rule | Where |
+|---|---|
+| On only if `LANGSMITH_TRACING=true` **and** `LANGSMITH_API_KEY` is set in `.env` | `tracing.decide` |
+| Always off in live mode (`APP_MODE=live`), whatever `.env` says | `tracing.decide` |
+| Off from import: `gradpath.tracing` sets `enabled=False` when first imported (retrieval and providers import it), so ingest, probe and eval never trace. Only `configure_tracing` turns it on, from our settings; langsmith's own variables (`LANGSMITH_TRACING`, `LANGCHAIN_TRACING_V2`) can't act alone | `tracing.py` |
+| Uploads go only to `LANGSMITH_ENDPOINT` from settings (default LangSmith US); refused if `LANGSMITH_RUNS_ENDPOINTS` (extra destinations) is set | `tracing.decide`, `configure_tracing` |
+| A request (visitor) API key is refused while tracing is on (checked when the model is built) | `providers.factory.get_chat_model` |
+| Redacted client-side before upload: langsmith's secret rules + Voyage keys, emails, phone numbers. Not redacted: names, addresses, phone numbers without separators; hence the sample-profile rule | `tracing.redact` (the client's anonymizer) |
+| Tests never trace (autouse fixture) | `tests/conftest.py` |
+
+Trace tree: `answer_question` / `analyze_job` (chain) -> `retrieve` / `retrieve_many` (retriever;
+output is chunk ids + scores only, the text is already in the prompt) -> the model call. Traces hold
+full prompts, so with tracing on use only public postings and the sample profile, never a real
+profile. Free plan: ~5k traces a month, ~14-day retention. Local JSON logs (route, nodes, fallback
+events) come with the workflow in Milestone 3.
 
 ## Ingestion and retrieval
 Ingestion (built, `ingestion/`, details in `WALKTHROUGH.md`): manifest (approved rows) -> polite

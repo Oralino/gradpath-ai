@@ -59,3 +59,13 @@ def kb_service() -> RetrievalService:
     client = QdrantClient(":memory:")
     rebuild_index(client, "kb", KB_DOCS, KeywordEmbeddings())
     return RetrievalService(client, "kb", KeywordEmbeddings(), k=3, min_score=0.5)
+
+
+@pytest.fixture(autouse=True)
+def _no_tracing():
+    """Tests never send traces, even if the developer's shell sets LANGSMITH_TRACING=true."""
+    import langsmith
+
+    langsmith.configure(client=None, enabled=False)
+    yield
+    langsmith.configure(client=None, enabled=False)

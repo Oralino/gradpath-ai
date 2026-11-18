@@ -16,6 +16,7 @@ from gradpath.api.jobs import router as jobs_router
 from gradpath.config import get_settings
 from gradpath.providers import ClaudeCodeError
 from gradpath.retrieval import get_retrieval_service
+from gradpath.tracing import configure_tracing, flush
 
 log = logging.getLogger(__name__)
 
@@ -44,13 +45,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     Qdrant's local (file) mode allows one open client per folder, so routes share this one
     instead of creating their own. Tests set `app.state.retrieval` themselves and skip this.
+    Tracing is decided here, once per process (see `tracing.py`).
     """
+    configure_tracing(get_settings())
     if getattr(app.state, "retrieval", None) is None:
         app.state.retrieval = get_retrieval_service()
     try:
         yield
     finally:
-        app.state.retrieval.store.client.close()
+        try:
+            app.state.retrieval.store.client.close()
+        finally:
+            flush()
 
 
 def create_app(*, use_lifespan: bool = True) -> FastAPI:

@@ -1,0 +1,3356 @@
+{
+  "run_at": "2026-11-18 05:13 UTC",
+  "config": {
+    "dataset": "retrieval_questions.jsonl",
+    "dataset_sha256": "4a71374ea6c3",
+    "embed_model": "voyage-4",
+    "collection": "gradpath_kb",
+    "chunks": 956,
+    "chunk_size": 1200,
+    "chunk_overlap": 150,
+    "search": "semantic (cosine)",
+    "threshold": 0.45,
+    "max_per_document": null
+  },
+  "summary": {
+    "covered": 30,
+    "uncovered": 10,
+    "recall": {
+      "1": 0.9,
+      "3": 0.95,
+      "5": 0.9666666666666667,
+      "10": 1.0
+    },
+    "precision": {
+      "1": 0.9666666666666667,
+      "3": 0.7666666666666667,
+      "5": 0.66,
+      "10": 0.5066666666666666
+    },
+    "mrr": {
+      "1": 0.9666666666666667,
+      "3": 0.9833333333333333,
+      "5": 0.9833333333333333,
+      "10": 0.9833333333333333
+    },
+    "recall_after_threshold": {
+      "1": 0.9,
+      "3": 0.95,
+      "5": 0.9666666666666667,
+      "10": 1.0
+    },
+    "threshold": 0.45,
+    "covered_kept": 1.0,
+    "uncovered_rejected": 0.9,
+    "lowest_covered_best": 0.526127020224342,
+    "highest_uncovered_best": 0.5307790631227904,
+    "recall_by_tag": {
+      "acronym": 1.0,
+      "career": 0.8333333333333334,
+      "concept": 1.0,
+      "exact_term": 1.0,
+      "how_to": 1.0,
+      "interview": 1.0,
+      "job_requirement": 1.0,
+      "multi_source": 0.75,
+      "number": 1.0,
+      "paraphrase": 0.9166666666666666,
+      "security": 1.0
+    },
+    "search_seconds_total": 0.753,
+    "search_ms_per_question": 18.8
+  },
+  "threshold_sweep": [
+    {
+      "threshold": 0.3,
+      "covered_kept": 1.0,
+      "uncovered_rejected": 0.3
+    },
+    {
+      "threshold": 0.35,
+      "covered_kept": 1.0,
+      "uncovered_rejected": 0.5
+    },
+    {
+      "threshold": 0.4,
+      "covered_kept": 1.0,
+      "uncovered_rejected": 0.8
+    },
+    {
+      "threshold": 0.45,
+      "covered_kept": 1.0,
+      "uncovered_rejected": 0.9
+    },
+    {
+      "threshold": 0.5,
+      "covered_kept": 1.0,
+      "uncovered_rejected": 0.9
+    },
+    {
+      "threshold": 0.55,
+      "covered_kept": 0.9666666666666667,
+      "uncovered_rejected": 1.0
+    },
+    {
+      "threshold": 0.6,
+      "covered_kept": 0.8333333333333334,
+      "uncovered_rejected": 1.0
+    }
+  ],
+  "questions": [
+    {
+      "id": "q-001",
+      "question": "What is a database index and when should I use one?",
+      "covered": true,
+      "tags": [
+        "paraphrase",
+        "multi_source"
+      ],
+      "best_score": 0.6879447923529403,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 0.5,
+        "3": 0.5,
+        "5": 0.5,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.6666666666666666,
+        "5": 0.6,
+        "10": 0.4
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 0.5,
+        "3": 0.5,
+        "5": 0.5,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "db-postgres-indexes:0:1",
+          "score": 0.6879,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:0:2",
+          "score": 0.6799,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:6",
+          "score": 0.6445,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:0:3",
+          "score": 0.6189,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:11",
+          "score": 0.6148,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:7",
+          "score": 0.6126,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:2:7",
+          "score": 0.6091,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:15",
+          "score": 0.5999,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:14",
+          "score": 0.5982,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:92",
+          "score": 0.5981,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-002",
+      "question": "When does a multicolumn index help a query, and does the column order matter?",
+      "covered": true,
+      "tags": [
+        "multi_source"
+      ],
+      "best_score": 0.6127476581186951,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 0.5,
+        "3": 0.5,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.6666666666666666,
+        "5": 0.8,
+        "10": 0.5
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 0.5,
+        "3": 0.5,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "db-postgres-indexes:2:7",
+          "score": 0.6127,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:2:2",
+          "score": 0.6007,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:26",
+          "score": 0.5963,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:13",
+          "score": 0.5776,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:2:6",
+          "score": 0.5659,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:27",
+          "score": 0.5527,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:14",
+          "score": 0.5505,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:29",
+          "score": 0.5395,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:17",
+          "score": 0.5281,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:22",
+          "score": 0.5076,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-003",
+      "question": "What is a covering index?",
+      "covered": true,
+      "tags": [
+        "exact_term"
+      ],
+      "best_score": 0.6043763976233639,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.6666666666666666,
+        "5": 0.4,
+        "10": 0.2
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "db-sqlite-query-planner:0:15",
+          "score": 0.6044,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:16",
+          "score": 0.5911,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:24",
+          "score": 0.5876,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:28",
+          "score": 0.5615,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:0:1",
+          "score": 0.5142,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:6",
+          "score": 0.5015,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:2:3",
+          "score": 0.4916,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:2:4",
+          "score": 0.4904,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:2:2",
+          "score": 0.4784,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:13",
+          "score": 0.4737,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-004",
+      "question": "What is the difference between B-tree, hash and GIN indexes in PostgreSQL?",
+      "covered": true,
+      "tags": [
+        "exact_term"
+      ],
+      "best_score": 0.6953008008257184,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.6666666666666666,
+        "5": 0.8,
+        "10": 0.8
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "db-postgres-indexes:1:1",
+          "score": 0.6953,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:2:6",
+          "score": 0.653,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:1:8",
+          "score": 0.6506,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:1:9",
+          "score": 0.6314,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:1:2",
+          "score": 0.6012,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:1:5",
+          "score": 0.5895,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:1:7",
+          "score": 0.5815,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:2:1",
+          "score": 0.5797,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:1:4",
+          "score": 0.5698,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:1:3",
+          "score": 0.5241,
+          "relevant": true
+        }
+      ]
+    },
+    {
+      "id": "q-005",
+      "question": "How can I check whether PostgreSQL is actually using my index?",
+      "covered": true,
+      "tags": [
+        "paraphrase"
+      ],
+      "best_score": 0.6828441790827986,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 0.8,
+        "10": 0.4
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "db-postgres-indexes:3:1",
+          "score": 0.6828,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:3:4",
+          "score": 0.6776,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:3:2",
+          "score": 0.6102,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-indexes:0:3",
+          "score": 0.6015,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:3:5",
+          "score": 0.5709,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:12",
+          "score": 0.5327,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:0:5",
+          "score": 0.5149,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:1:2",
+          "score": 0.5146,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:2:4",
+          "score": 0.5094,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:2:1",
+          "score": 0.4977,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-006",
+      "question": "What is MVCC?",
+      "covered": true,
+      "tags": [
+        "exact_term",
+        "acronym"
+      ],
+      "best_score": 0.5677935922727859,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.6666666666666666,
+        "5": 0.4,
+        "10": 0.2
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "db-postgres-mvcc:0:1",
+          "score": 0.5678,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:0:2",
+          "score": 0.5254,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:25",
+          "score": 0.4197,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:45",
+          "score": 0.4168,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:1",
+          "score": 0.4077,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:18",
+          "score": 0.4034,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:17",
+          "score": 0.3992,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:83",
+          "score": 0.3986,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:20",
+          "score": 0.3927,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:46",
+          "score": 0.3913,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-007",
+      "question": "What is the difference between Read Committed and Repeatable Read isolation?",
+      "covered": true,
+      "tags": [
+        "exact_term"
+      ],
+      "best_score": 0.7095841483503762,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "db-postgres-mvcc:1:14",
+          "score": 0.7096,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:18",
+          "score": 0.6521,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:17",
+          "score": 0.631,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:19",
+          "score": 0.6166,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:1",
+          "score": 0.6164,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:2",
+          "score": 0.6098,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:13",
+          "score": 0.6033,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:20",
+          "score": 0.603,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:21",
+          "score": 0.6015,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:5",
+          "score": 0.5975,
+          "relevant": true
+        }
+      ]
+    },
+    {
+      "id": "q-008",
+      "question": "What does HTTP status 429 mean and how should a client react?",
+      "covered": true,
+      "tags": [
+        "exact_term",
+        "number"
+      ],
+      "best_score": 0.6198169804915827,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 0.6,
+        "10": 0.6
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "fund-mdn-http-status:0:12",
+          "score": 0.6198,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:9",
+          "score": 0.4935,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:7",
+          "score": 0.4832,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:14",
+          "score": 0.4717,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:16",
+          "score": 0.4688,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:11",
+          "score": 0.4664,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:119",
+          "score": 0.4648,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:8",
+          "score": 0.4621,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:10",
+          "score": 0.4588,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:15",
+          "score": 0.4414,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-009",
+      "question": "HTTP is stateless, so how do websites keep me logged in?",
+      "covered": true,
+      "tags": [
+        "paraphrase"
+      ],
+      "best_score": 0.6049533592169515,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.3333333333333333,
+        "5": 0.2,
+        "10": 0.1
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "fund-mdn-http-overview:0:8",
+          "score": 0.605,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:12",
+          "score": 0.6022,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-twelve-factor:5:2",
+          "score": 0.5241,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:11",
+          "score": 0.5064,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:5",
+          "score": 0.4619,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:66",
+          "score": 0.4288,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:9",
+          "score": 0.3961,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:13",
+          "score": 0.3941,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:65",
+          "score": 0.3873,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:105",
+          "score": 0.3857,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-010",
+      "question": "How should I version a REST API?",
+      "covered": true,
+      "tags": [
+        "job_requirement"
+      ],
+      "best_score": 0.6081554461191876,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.6666666666666666,
+        "5": 0.6,
+        "10": 0.3
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:64",
+          "score": 0.6082,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:63",
+          "score": 0.5626,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:0",
+          "score": 0.5609,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:62",
+          "score": 0.5238,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:1",
+          "score": 0.5156,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:3",
+          "score": 0.5052,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:25",
+          "score": 0.5016,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:2",
+          "score": 0.5002,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:23",
+          "score": 0.4948,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:4",
+          "score": 0.4912,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-011",
+      "question": "How do I make it safe for a client to retry a POST request after a timeout?",
+      "covered": true,
+      "tags": [
+        "paraphrase"
+      ],
+      "best_score": 0.526127020224342,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.3333333333333333,
+        "5": 0.2,
+        "10": 0.1
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:70",
+          "score": 0.5261,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:11",
+          "score": 0.458,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:91",
+          "score": 0.3878,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:82",
+          "score": 0.3806,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:89",
+          "score": 0.3699,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:46",
+          "score": 0.3611,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:12",
+          "score": 0.358,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:77",
+          "score": 0.353,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:119",
+          "score": 0.3467,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:19",
+          "score": 0.3424,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-012",
+      "question": "How do I return a 404 error from a FastAPI endpoint?",
+      "covered": true,
+      "tags": [
+        "how_to"
+      ],
+      "best_score": 0.703028570842522,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:2",
+          "score": 0.703,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:3",
+          "score": 0.6715,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:4",
+          "score": 0.6469,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:0",
+          "score": 0.6054,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:12",
+          "score": 0.6018,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:5",
+          "score": 0.5906,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:7",
+          "score": 0.5902,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:17",
+          "score": 0.5828,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:10",
+          "score": 0.5564,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:8",
+          "score": 0.5415,
+          "relevant": true
+        }
+      ]
+    },
+    {
+      "id": "q-013",
+      "question": "How do I accept and validate a JSON request body in FastAPI?",
+      "covered": true,
+      "tags": [
+        "how_to"
+      ],
+      "best_score": 0.6542447028227282,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.3333333333333333,
+        "5": 0.6,
+        "10": 0.7
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "fund-fastapi-tutorial:2:4",
+          "score": 0.6542,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:13",
+          "score": 0.6231,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:14",
+          "score": 0.5795,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:2:9",
+          "score": 0.5637,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:2:2",
+          "score": 0.5553,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:2:8",
+          "score": 0.5532,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:1:3",
+          "score": 0.5516,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:2:0",
+          "score": 0.5407,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:2:1",
+          "score": 0.5329,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:2:3",
+          "score": 0.5236,
+          "relevant": true
+        }
+      ]
+    },
+    {
+      "id": "q-014",
+      "question": "Where should an application keep configuration like database URLs and API keys?",
+      "covered": true,
+      "tags": [
+        "paraphrase"
+      ],
+      "best_score": 0.6044865035072055,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 0.6,
+        "10": 0.3
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "be-twelve-factor:2:0",
+          "score": 0.6045,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-twelve-factor:2:1",
+          "score": 0.5688,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-twelve-factor:2:2",
+          "score": 0.4545,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-twelve-factor:3:1",
+          "score": 0.425,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-twelve-factor:3:0",
+          "score": 0.3977,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:79",
+          "score": 0.3673,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:106",
+          "score": 0.3666,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:82",
+          "score": 0.3624,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-twelve-factor:9:1",
+          "score": 0.3596,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:139",
+          "score": 0.3575,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-015",
+      "question": "Explain the CAP theorem.",
+      "covered": true,
+      "tags": [
+        "exact_term",
+        "concept"
+      ],
+      "best_score": 0.7161434962879066,
+      "first_relevant_rank": 2,
+      "recall": {
+        "1": 0.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 0.0,
+        "3": 0.3333333333333333,
+        "5": 0.2,
+        "10": 0.2
+      },
+      "reciprocal_rank": {
+        "1": 0.0,
+        "3": 0.5,
+        "5": 0.5,
+        "10": 0.5
+      },
+      "recall_after_threshold": {
+        "1": 0.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "be-system-design-primer:0:44",
+          "score": 0.7161,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:42",
+          "score": 0.69,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:45",
+          "score": 0.6391,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:10",
+          "score": 0.5783,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:94",
+          "score": 0.5378,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:43",
+          "score": 0.5348,
+          "relevant": true
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:0",
+          "score": 0.5153,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:50",
+          "score": 0.5003,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:83",
+          "score": 0.4746,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:47",
+          "score": 0.4705,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-016",
+      "question": "What are cache-aside and write-through caching, and when do I use each?",
+      "covered": true,
+      "tags": [
+        "concept"
+      ],
+      "best_score": 0.6512492486307786,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 0.8,
+        "10": 0.4
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "be-system-design-primer:0:111",
+          "score": 0.6512,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:112",
+          "score": 0.6191,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:113",
+          "score": 0.5851,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:110",
+          "score": 0.5584,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:107",
+          "score": 0.5078,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:102",
+          "score": 0.4873,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:109",
+          "score": 0.4842,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:12",
+          "score": 0.4768,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:108",
+          "score": 0.468,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:103",
+          "score": 0.4448,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-017",
+      "question": "When should a backend use a message queue?",
+      "covered": true,
+      "tags": [
+        "concept",
+        "job_requirement"
+      ],
+      "best_score": 0.5831410633837597,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 0.8,
+        "10": 0.5
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "be-system-design-primer:0:117",
+          "score": 0.5831,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:121",
+          "score": 0.5282,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:119",
+          "score": 0.5139,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-twelve-factor:9:2",
+          "score": 0.4785,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:120",
+          "score": 0.4741,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:118",
+          "score": 0.4667,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-twelve-factor:8:2",
+          "score": 0.4346,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-twelve-factor:8:1",
+          "score": 0.4047,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-twelve-factor:3:0",
+          "score": 0.4016,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-twelve-factor:9:1",
+          "score": 0.3816,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-018",
+      "question": "What is the difference between layer 4 and layer 7 load balancing?",
+      "covered": true,
+      "tags": [
+        "concept"
+      ],
+      "best_score": 0.734413094550485,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 0.8,
+        "10": 0.5
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "be-system-design-primer:0:68",
+          "score": 0.7344,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:67",
+          "score": 0.6807,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:71",
+          "score": 0.6277,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:66",
+          "score": 0.6145,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:74",
+          "score": 0.5853,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:76",
+          "score": 0.5233,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:65",
+          "score": 0.5205,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:5",
+          "score": 0.5101,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:11",
+          "score": 0.4905,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:124",
+          "score": 0.4644,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-019",
+      "question": "How do I approach a system design interview question?",
+      "covered": true,
+      "tags": [
+        "interview",
+        "multi_source"
+      ],
+      "best_score": 0.6952096995142354,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 0.5,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 0.8,
+        "10": 0.6
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 0.5,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "be-system-design-primer:0:17",
+          "score": 0.6952,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:3:0",
+          "score": 0.612,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:23",
+          "score": 0.6104,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:6",
+          "score": 0.6,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:3:1",
+          "score": 0.5987,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:20",
+          "score": 0.5874,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:18",
+          "score": 0.5859,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:3",
+          "score": 0.5799,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:34",
+          "score": 0.5704,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:16",
+          "score": 0.5627,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-020",
+      "question": "How do I answer behavioral interview questions using the STAR format?",
+      "covered": true,
+      "tags": [
+        "interview",
+        "acronym"
+      ],
+      "best_score": 0.7010876414705913,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 0.9
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "ip-tech-interview-handbook:0:6",
+          "score": 0.7011,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:0:5",
+          "score": 0.6952,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:0:11",
+          "score": 0.6621,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:0:9",
+          "score": 0.62,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:0:4",
+          "score": 0.5998,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:0:12",
+          "score": 0.5142,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:0:10",
+          "score": 0.5038,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:17",
+          "score": 0.4738,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:0:1",
+          "score": 0.4726,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:0:14",
+          "score": 0.4711,
+          "relevant": true
+        }
+      ]
+    },
+    {
+      "id": "q-021",
+      "question": "How do I get my resume past an applicant tracking system?",
+      "covered": true,
+      "tags": [
+        "career"
+      ],
+      "best_score": 0.6566535046805955,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:22",
+          "score": 0.6567,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:1",
+          "score": 0.6417,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:18",
+          "score": 0.6272,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:33",
+          "score": 0.6065,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:0",
+          "score": 0.6036,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:2",
+          "score": 0.5972,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:19",
+          "score": 0.5905,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:16",
+          "score": 0.5749,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:5",
+          "score": 0.5741,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:21",
+          "score": 0.5681,
+          "relevant": true
+        }
+      ]
+    },
+    {
+      "id": "q-022",
+      "question": "What should I do when I am stuck on a coding interview problem?",
+      "covered": true,
+      "tags": [
+        "interview",
+        "paraphrase"
+      ],
+      "best_score": 0.65061036801557,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 0.9
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "ip-tech-interview-handbook:2:1",
+          "score": 0.6506,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:2:0",
+          "score": 0.6317,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:2:4",
+          "score": 0.6164,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:2:5",
+          "score": 0.5791,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:2:2",
+          "score": 0.5774,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:1:11",
+          "score": 0.5639,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:2:7",
+          "score": 0.5531,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:2:9",
+          "score": 0.547,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:2:3",
+          "score": 0.545,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:2:24",
+          "score": 0.5232,
+          "relevant": true
+        }
+      ]
+    },
+    {
+      "id": "q-023",
+      "question": "How do I resolve a merge conflict in Git?",
+      "covered": true,
+      "tags": [
+        "how_to"
+      ],
+      "best_score": 0.6784482886659994,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 0.8,
+        "10": 0.6
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "career-pro-git:1:10",
+          "score": 0.6784,
+          "relevant": true
+        },
+        {
+          "chunk_id": "career-pro-git:1:12",
+          "score": 0.672,
+          "relevant": true
+        },
+        {
+          "chunk_id": "career-pro-git:1:9",
+          "score": 0.6629,
+          "relevant": true
+        },
+        {
+          "chunk_id": "career-pro-git:1:8",
+          "score": 0.6522,
+          "relevant": true
+        },
+        {
+          "chunk_id": "career-pro-git:3:11",
+          "score": 0.5945,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:1:13",
+          "score": 0.5902,
+          "relevant": true
+        },
+        {
+          "chunk_id": "career-pro-git:1:11",
+          "score": 0.5846,
+          "relevant": true
+        },
+        {
+          "chunk_id": "career-pro-git:3:15",
+          "score": 0.5643,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:1:6",
+          "score": 0.5603,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:1:4",
+          "score": 0.5429,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-024",
+      "question": "What makes a good Git commit message?",
+      "covered": true,
+      "tags": [
+        "how_to"
+      ],
+      "best_score": 0.6752926034263714,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 0.8,
+        "10": 0.5
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "career-pro-git:3:5",
+          "score": 0.6753,
+          "relevant": true
+        },
+        {
+          "chunk_id": "career-pro-git:3:6",
+          "score": 0.6515,
+          "relevant": true
+        },
+        {
+          "chunk_id": "career-pro-git:3:7",
+          "score": 0.6411,
+          "relevant": true
+        },
+        {
+          "chunk_id": "career-pro-git:3:3",
+          "score": 0.5976,
+          "relevant": true
+        },
+        {
+          "chunk_id": "career-pro-git:0:22",
+          "score": 0.5964,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:3:4",
+          "score": 0.5848,
+          "relevant": true
+        },
+        {
+          "chunk_id": "career-pro-git:3:40",
+          "score": 0.5573,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:0:23",
+          "score": 0.5429,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:0:19",
+          "score": 0.5361,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:0:15",
+          "score": 0.5193,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-025",
+      "question": "How do I write a pytest test that checks a function raises an exception?",
+      "covered": true,
+      "tags": [
+        "how_to"
+      ],
+      "best_score": 0.6170512474448293,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.3333333333333333,
+        "5": 0.2,
+        "10": 0.1
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "fund-pytest-getting-started:0:5",
+          "score": 0.6171,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-pytest-getting-started:0:2",
+          "score": 0.4804,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-pytest-getting-started:0:3",
+          "score": 0.4793,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:9",
+          "score": 0.4744,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:10",
+          "score": 0.4684,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:21",
+          "score": 0.466,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-pytest-getting-started:0:11",
+          "score": 0.449,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:24",
+          "score": 0.4423,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-pytest-getting-started:0:6",
+          "score": 0.4383,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:23",
+          "score": 0.4334,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-026",
+      "question": "How do try, except and finally work in Python?",
+      "covered": true,
+      "tags": [
+        "how_to"
+      ],
+      "best_score": 0.7112200504361159,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "fund-python-tutorial:2:15",
+          "score": 0.7112,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:17",
+          "score": 0.711,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:16",
+          "score": 0.6849,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:8",
+          "score": 0.6312,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:4",
+          "score": 0.6007,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:6",
+          "score": 0.577,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:5",
+          "score": 0.5692,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:7",
+          "score": 0.5505,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:9",
+          "score": 0.55,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-python-tutorial:2:11",
+          "score": 0.5478,
+          "relevant": true
+        }
+      ]
+    },
+    {
+      "id": "q-027",
+      "question": "What does a software developer do day to day?",
+      "covered": true,
+      "tags": [
+        "career",
+        "multi_source"
+      ],
+      "best_score": 0.5769311632994839,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 0.5,
+        "3": 0.5,
+        "5": 0.5,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 0.8,
+        "10": 0.8
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 0.5,
+        "3": 0.5,
+        "5": 0.5,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:9",
+          "score": 0.5769,
+          "relevant": true
+        },
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:7",
+          "score": 0.573,
+          "relevant": true
+        },
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:10",
+          "score": 0.5596,
+          "relevant": true
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:0",
+          "score": 0.5547,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:1",
+          "score": 0.5539,
+          "relevant": true
+        },
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:8",
+          "score": 0.5518,
+          "relevant": true
+        },
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:6",
+          "score": 0.5393,
+          "relevant": true
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:4",
+          "score": 0.5364,
+          "relevant": true
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:5",
+          "score": 0.5335,
+          "relevant": true
+        },
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:2",
+          "score": 0.5104,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-028",
+      "question": "What is the job outlook for software developers?",
+      "covered": true,
+      "tags": [
+        "career"
+      ],
+      "best_score": 0.6986052026406286,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.3333333333333333,
+        "5": 0.2,
+        "10": 0.1
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:5",
+          "score": 0.6986,
+          "relevant": true
+        },
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:0",
+          "score": 0.6415,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:0",
+          "score": 0.6105,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:42",
+          "score": 0.5534,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:4",
+          "score": 0.5502,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:2",
+          "score": 0.5484,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:3",
+          "score": 0.5298,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:38",
+          "score": 0.5285,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:16",
+          "score": 0.5092,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:1",
+          "score": 0.4949,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-029",
+      "question": "How does a heap work as a priority queue?",
+      "covered": true,
+      "tags": [
+        "concept",
+        "interview"
+      ],
+      "best_score": 0.6338737180319831,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.3333333333333333,
+        "5": 0.2,
+        "10": 0.1
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "ip-open-data-structures:5:0",
+          "score": 0.6339,
+          "relevant": true
+        },
+        {
+          "chunk_id": "ip-open-data-structures:6:1",
+          "score": 0.4141,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-open-data-structures:6:0",
+          "score": 0.4132,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:2:15",
+          "score": 0.403,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-python-tutorial:1:5",
+          "score": 0.387,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:2:8",
+          "score": 0.3451,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-python-tutorial:1:4",
+          "score": 0.3436,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:121",
+          "score": 0.3348,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-open-data-structures:1:0",
+          "score": 0.3203,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-open-data-structures:2:0",
+          "score": 0.3079,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-030",
+      "question": "What is broken object level authorization in an API?",
+      "covered": true,
+      "tags": [
+        "exact_term",
+        "security"
+      ],
+      "best_score": 0.5718399108441354,
+      "first_relevant_rank": 1,
+      "recall": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "precision": {
+        "1": 1.0,
+        "3": 0.6666666666666666,
+        "5": 0.8,
+        "10": 0.4
+      },
+      "reciprocal_rank": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "recall_after_threshold": {
+        "1": 1.0,
+        "3": 1.0,
+        "5": 1.0,
+        "10": 1.0
+      },
+      "ranked": [
+        {
+          "chunk_id": "be-owasp-api-top10:0:0",
+          "score": 0.5718,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-owasp-api-top10:0:1",
+          "score": 0.458,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:96",
+          "score": 0.4031,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-owasp-api-top10:0:3",
+          "score": 0.364,
+          "relevant": true
+        },
+        {
+          "chunk_id": "be-owasp-api-top10:0:2",
+          "score": 0.3634,
+          "relevant": true
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:98",
+          "score": 0.3219,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:27",
+          "score": 0.3192,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:7",
+          "score": 0.3059,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:71",
+          "score": 0.3053,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:26",
+          "score": 0.2998,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-031",
+      "question": "How do I configure liveness probes for a Kubernetes deployment?",
+      "covered": false,
+      "tags": [
+        "near_domain"
+      ],
+      "best_score": 0.3576826293260286,
+      "first_relevant_rank": null,
+      "recall": {},
+      "precision": {},
+      "reciprocal_rank": {},
+      "recall_after_threshold": {},
+      "ranked": [
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:85",
+          "score": 0.3577,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-twelve-factor:8:0",
+          "score": 0.3342,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:75",
+          "score": 0.3266,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:90",
+          "score": 0.3265,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:91",
+          "score": 0.323,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:81",
+          "score": 0.3228,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:74",
+          "score": 0.3185,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-twelve-factor:11:0",
+          "score": 0.3183,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:73",
+          "score": 0.3023,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:92",
+          "score": 0.298,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-032",
+      "question": "How does the OAuth 2.0 authorization code flow with PKCE work?",
+      "covered": false,
+      "tags": [
+        "near_domain",
+        "security"
+      ],
+      "best_score": 0.27181505332182965,
+      "first_relevant_rank": null,
+      "recall": {},
+      "precision": {},
+      "reciprocal_rank": {},
+      "recall_after_threshold": {},
+      "ranked": [
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:46",
+          "score": 0.2718,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:13",
+          "score": 0.2667,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:3:39",
+          "score": 0.2576,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:125",
+          "score": 0.2498,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:17",
+          "score": 0.2495,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:139",
+          "score": 0.2489,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:8",
+          "score": 0.2452,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-owasp-api-top10:0:3",
+          "score": 0.2426,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:3",
+          "score": 0.2417,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:44",
+          "score": 0.2398,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-033",
+      "question": "How do I verify a JWT signature in my backend?",
+      "covered": false,
+      "tags": [
+        "near_domain",
+        "security"
+      ],
+      "best_score": 0.36818265367329245,
+      "first_relevant_rank": null,
+      "recall": {},
+      "precision": {},
+      "reciprocal_rank": {},
+      "recall_after_threshold": {},
+      "ranked": [
+        {
+          "chunk_id": "fund-fastapi-tutorial:0:4",
+          "score": 0.3682,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:17",
+          "score": 0.3143,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:1:14",
+          "score": 0.296,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:18",
+          "score": 0.2906,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:0:8",
+          "score": 0.2809,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:16",
+          "score": 0.2771,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:139",
+          "score": 0.277,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:105",
+          "score": 0.2751,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-owasp-api-top10:0:0",
+          "score": 0.27,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:20",
+          "score": 0.2699,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-034",
+      "question": "How do I set up a CI/CD pipeline with GitHub Actions?",
+      "covered": false,
+      "tags": [
+        "near_domain"
+      ],
+      "best_score": 0.35407556900121107,
+      "first_relevant_rank": null,
+      "recall": {},
+      "precision": {},
+      "reciprocal_rank": {},
+      "recall_after_threshold": {},
+      "ranked": [
+        {
+          "chunk_id": "career-pro-git:3:39",
+          "score": 0.3541,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:2:0",
+          "score": 0.3468,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:3:17",
+          "score": 0.3417,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:3:26",
+          "score": 0.3401,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-twelve-factor:4:0",
+          "score": 0.3395,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:3:8",
+          "score": 0.3371,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:3:2",
+          "score": 0.3363,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:3:25",
+          "score": 0.3347,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-twelve-factor:4:2",
+          "score": 0.3327,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:1:0",
+          "score": 0.3272,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-035",
+      "question": "Why does my browser block my API request with a CORS error?",
+      "covered": false,
+      "tags": [
+        "near_domain"
+      ],
+      "best_score": 0.5307790631227904,
+      "first_relevant_rank": null,
+      "recall": {},
+      "precision": {},
+      "reciprocal_rank": {},
+      "recall_after_threshold": {},
+      "ranked": [
+        {
+          "chunk_id": "fund-mdn-http-overview:0:11",
+          "score": 0.5308,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:18",
+          "score": 0.4742,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:8",
+          "score": 0.4417,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:7",
+          "score": 0.4335,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:2",
+          "score": 0.4193,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:12",
+          "score": 0.4187,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:0:4",
+          "score": 0.4164,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:5",
+          "score": 0.4118,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:3:0",
+          "score": 0.4117,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:9",
+          "score": 0.4096,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-036",
+      "question": "When does the React useEffect hook run?",
+      "covered": false,
+      "tags": [
+        "near_domain"
+      ],
+      "best_score": 0.2775089226600991,
+      "first_relevant_rank": null,
+      "recall": {},
+      "precision": {},
+      "reciprocal_rank": {},
+      "recall_after_threshold": {},
+      "ranked": [
+        {
+          "chunk_id": "fund-python-tutorial:0:39",
+          "score": 0.2775,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-twelve-factor:4:2",
+          "score": 0.2702,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:21",
+          "score": 0.2493,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:17",
+          "score": 0.2471,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-twelve-factor:5:1",
+          "score": 0.2419,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:12",
+          "score": 0.2416,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:44",
+          "score": 0.2403,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-indexes:3:2",
+          "score": 0.2399,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-overview:0:18",
+          "score": 0.235,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:0:4",
+          "score": 0.2339,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-037",
+      "question": "How should I negotiate salary for a new-grad job offer?",
+      "covered": false,
+      "tags": [
+        "near_domain",
+        "career"
+      ],
+      "best_score": 0.3230383352797072,
+      "first_relevant_rank": null,
+      "recall": {},
+      "precision": {},
+      "reciprocal_rank": {},
+      "recall_after_threshold": {},
+      "ranked": [
+        {
+          "chunk_id": "ip-tech-interview-handbook:0:12",
+          "score": 0.323,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:1:13",
+          "score": 0.3202,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:21",
+          "score": 0.3196,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:13",
+          "score": 0.3147,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-bls-ooh-software-developers:0:4",
+          "score": 0.312,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:30",
+          "score": 0.3115,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:36",
+          "score": 0.3096,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:0:2",
+          "score": 0.2997,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:0:0",
+          "score": 0.2994,
+          "relevant": false
+        },
+        {
+          "chunk_id": "ip-tech-interview-handbook:4:27",
+          "score": 0.2968,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-038",
+      "question": "How do I get a US security clearance?",
+      "covered": false,
+      "tags": [
+        "off_domain"
+      ],
+      "best_score": 0.4009460622428679,
+      "first_relevant_rank": null,
+      "recall": {},
+      "precision": {},
+      "reciprocal_rank": {},
+      "recall_after_threshold": {},
+      "ranked": [
+        {
+          "chunk_id": "role-onet-software-developers:0:15",
+          "score": 0.4009,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:42",
+          "score": 0.4002,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:39",
+          "score": 0.355,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:2",
+          "score": 0.3543,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:8",
+          "score": 0.3498,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:138",
+          "score": 0.3474,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:6",
+          "score": 0.3452,
+          "relevant": false
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:30",
+          "score": 0.3383,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:41",
+          "score": 0.3309,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:38",
+          "score": 0.3258,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-039",
+      "question": "How do I bake sourdough bread?",
+      "covered": false,
+      "tags": [
+        "off_domain"
+      ],
+      "best_score": 0.30252460098847356,
+      "first_relevant_rank": null,
+      "recall": {},
+      "precision": {},
+      "reciprocal_rank": {},
+      "recall_after_threshold": {},
+      "ranked": [
+        {
+          "chunk_id": "career-pro-git:0:18",
+          "score": 0.3025,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:5",
+          "score": 0.302,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:0:4",
+          "score": 0.2985,
+          "relevant": false
+        },
+        {
+          "chunk_id": "career-pro-git:3:39",
+          "score": 0.2928,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-mdn-http-status:0:17",
+          "score": 0.2885,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:0:10",
+          "score": 0.2852,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:0:20",
+          "score": 0.2834,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:0:2",
+          "score": 0.28,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-pytest-getting-started:0:0",
+          "score": 0.2794,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-fastapi-tutorial:0:1",
+          "score": 0.277,
+          "relevant": false
+        }
+      ]
+    },
+    {
+      "id": "q-040",
+      "question": "What is the capital of Australia?",
+      "covered": false,
+      "tags": [
+        "off_domain"
+      ],
+      "best_score": 0.2717716445811804,
+      "first_relevant_rank": null,
+      "recall": {},
+      "precision": {},
+      "reciprocal_rank": {},
+      "recall_after_threshold": {},
+      "ranked": [
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:44",
+          "score": 0.2718,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-python-tutorial:3:21",
+          "score": 0.2533,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:2",
+          "score": 0.2531,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-python-tutorial:3:13",
+          "score": 0.2456,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-python-tutorial:3:10",
+          "score": 0.2372,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:37",
+          "score": 0.2347,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:28",
+          "score": 0.2344,
+          "relevant": false
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:44",
+          "score": 0.2341,
+          "relevant": false
+        },
+        {
+          "chunk_id": "fund-python-tutorial:3:3",
+          "score": 0.2336,
+          "relevant": false
+        },
+        {
+          "chunk_id": "role-onet-software-developers:0:15",
+          "score": 0.2333,
+          "relevant": false
+        }
+      ]
+    }
+  ]
+}

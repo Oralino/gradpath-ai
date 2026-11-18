@@ -40,9 +40,10 @@ uv run python -m gradpath.ingestion.ingest [--dry-run]   # build the knowledge b
 uv run python -m gradpath.retrieval.probe                # real retrieval scores (threshold check)
 uv run python -m gradpath.rag.ask "question"             # one RAG answer from the terminal
 uv run python -m gradpath.jobs.cli <job_description_file> [--json]   # analyse a posting
+uv run python -m gradpath.evaluation.retrieval_eval [--k 1,3,5,10]   # retrieval eval (1 Voyage call)
 uv run uvicorn gradpath.api.main:app --reload            # API on :8000 (docs at /docs)
 ```
-- Local Qdrant allows one process at a time: stop the API before running ingest, probe or ask.
+- Local Qdrant allows one process at a time: stop the API before running ingest, probe, ask or eval.
 - Frontend (from its milestone): `cd frontend && npm install && npm run dev`.
 - Claude Code mode needs the Claude Code login once on this PC (see README). Run real calls from your
   own terminal: a shell inside a Claude Code session inherits that session's variables.
@@ -92,8 +93,9 @@ Without those agents, the main session does the work itself. This project adds:
 - No project-only agents.
 
 ## Git
-- Branch per ticket or milestone, PR to `main`, merge after review. GitHub CI: TBD (added with the
-  backend; then the global PR and CI rules apply).
+- Branch per ticket or milestone, PR to `main`, merge after review. GitHub CI:
+  `.github/workflows/ci.yml` (ruff + pytest on every push and PR, no secrets); the global PR and CI
+  rules apply (never merge on a red or unfinished build).
 - Commit after each completed task, once its tier's review and QA have passed. Only the main session
   commits. Conventional Commits ending with the ticket ID, for example
   `feat: add document chunker (T-003)`. One logical change per commit.

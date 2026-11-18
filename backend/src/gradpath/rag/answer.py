@@ -9,6 +9,7 @@ from typing import Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
+from langsmith import traceable
 from pydantic import BaseModel, Field
 
 from gradpath.providers import with_structure
@@ -108,6 +109,7 @@ def to_citation(e: Evidence) -> Citation:
     )
 
 
+@traceable(name="answer_question", run_type="chain")
 def answer_question(
     question: str,
     retrieval: RetrievalService,
