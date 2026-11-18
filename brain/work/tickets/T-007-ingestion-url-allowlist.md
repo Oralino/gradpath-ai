@@ -32,7 +32,7 @@ is caught so one bad redirect skips a page instead of stopping the run.
 
 ## Changes
 - Branch: `feat/t-006-router-fallback`
-- PR:
+- PR: https://github.com/Oralino/gradpath-ai/pull/4
 - Files touched: `backend/src/gradpath/ingestion/fetch.py`, `ingest.py`, `backend/tests/test_ingestion.py`
 - Commits (hash, message):
 

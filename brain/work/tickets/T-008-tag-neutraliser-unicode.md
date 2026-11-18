@@ -31,7 +31,7 @@ the model's quote.
 
 ## Changes
 - Branch: `feat/t-006-router-fallback`
-- PR:
+- PR: https://github.com/Oralino/gradpath-ai/pull/4
 - Files touched: `backend/src/gradpath/safety.py`, `jobs/analyze.py`, `backend/tests/test_safety.py` (new)
 - Commits (hash, message):
 

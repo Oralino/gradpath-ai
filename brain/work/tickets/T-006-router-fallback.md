@@ -36,7 +36,7 @@ High-risk area: the workflow's fallback limits (code-reviewer + qa-checker whate
 
 ## Changes
 - Branch: `feat/t-006-router-fallback`
-- PR:
+- PR: https://github.com/Oralino/gradpath-ai/pull/4
 - Files touched: `backend/src/gradpath/router/` (new), `backend/tests/test_router.py`,
   `evaluation/routing_cases.jsonl`, `brain/engineering/SECURITY.md` (new), `CLAUDE.md`, `brain/`,
   `workflows/fallback.py` (new), `workflows/graph.py`, `workflows/schemas.py`, `workflows/cli.py`,
