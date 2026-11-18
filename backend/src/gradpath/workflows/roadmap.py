@@ -123,11 +123,15 @@ def check_items(drafts: list[DraftItem], gaps: list[GapItem], state: CareerPrepS
         if not req_ids or not d.topic.strip():
             continue
         allowed = set().union(*(by_req[r] for r in req_ids))
-        resources = [
-            to_citation(chunks[c])
-            for c in dict.fromkeys(d.resource_chunk_ids)
-            if c in allowed and c in chunks
-        ]
+        # One citation per source section: two chunks of the same section would show as the same
+        # line twice (seen in the first real run).
+        resources, shown = [], set()
+        for c in dict.fromkeys(d.resource_chunk_ids):
+            if c in allowed and c in chunks:
+                cite = to_citation(chunks[c])
+                if (cite.source_url, cite.section) not in shown:
+                    shown.add((cite.source_url, cite.section))
+                    resources.append(cite)
         order = len(items) + 1
         deps = sorted({renumber[o] for o in d.depends_on if o in renumber})
         renumber.setdefault(d.order, order)

@@ -1,0 +1,772 @@
+{
+  "status": "complete",
+  "job": {
+    "title": "Junior Backend Software Engineer (New Grad)",
+    "seniority": "new_grad",
+    "responsibilities": [
+      "Design, build and maintain Python REST APIs serving web and mobile apps.",
+      "Write and optimise PostgreSQL queries, including adding indexes for slow queries.",
+      "Write unit and integration tests and keep the test suite green.",
+      "Take part in code reviews and work with Git-based pull requests.",
+      "Help investigate production issues using logs and metrics.",
+      "Package and deploy services with Docker.",
+      "Learn how reliable backend services are built and run in production."
+    ],
+    "requirements": [
+      {
+        "skill": "Python, Java, or Go",
+        "category": "programming_languages",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Programming experience in Python, Java or Go.",
+        "id": "r-1",
+        "quote_verified": true
+      },
+      {
+        "skill": "HTTP and REST API fundamentals",
+        "category": "apis_backend",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Understanding of HTTP and how REST APIs use methods and status codes.",
+        "id": "r-2",
+        "quote_verified": true
+      },
+      {
+        "skill": "SQL and relational databases",
+        "category": "databases",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Working knowledge of SQL and relational databases.",
+        "id": "r-3",
+        "quote_verified": true
+      },
+      {
+        "skill": "PostgreSQL",
+        "category": "databases",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Write and optimise SQL queries against PostgreSQL, including adding indexes for slow queries.",
+        "id": "r-4",
+        "quote_verified": true
+      },
+      {
+        "skill": "SQL query optimization and indexing",
+        "category": "databases",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "including adding indexes for slow queries",
+        "id": "r-5",
+        "quote_verified": true
+      },
+      {
+        "skill": "Automated testing (unit and integration)",
+        "category": "testing_quality",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Experience writing automated tests.",
+        "id": "r-6",
+        "quote_verified": true
+      },
+      {
+        "skill": "Git and collaborative development",
+        "category": "tools_version_control",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Familiarity with Git and collaborative development.",
+        "id": "r-7",
+        "quote_verified": true
+      },
+      {
+        "skill": "Code review participation and pull requests",
+        "category": "collaboration_soft_skills",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Take part in code reviews and work with Git-based pull requests.",
+        "id": "r-8",
+        "quote_verified": true
+      },
+      {
+        "skill": "Data structures and algorithms",
+        "category": "other",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Solid understanding of data structures and algorithms.",
+        "id": "r-9",
+        "quote_verified": true
+      },
+      {
+        "skill": "Bachelor's degree in CS or related field, or equivalent practical experience",
+        "category": "education_eligibility",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Bachelor's degree in Computer Science or a related field, or equivalent practical experience.",
+        "id": "r-10",
+        "quote_verified": true
+      },
+      {
+        "skill": "Docker packaging and deployment",
+        "category": "cloud_devops",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Package and deploy services with Docker.",
+        "id": "r-11",
+        "quote_verified": true
+      },
+      {
+        "skill": "Production debugging with logs and metrics",
+        "category": "cloud_devops",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Help investigate production issues using logs and metrics.",
+        "id": "r-12",
+        "quote_verified": true
+      },
+      {
+        "skill": "Python web framework (FastAPI or Flask)",
+        "category": "apis_backend",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Experience with a Python web framework such as FastAPI or Flask.",
+        "id": "r-13",
+        "quote_verified": true
+      },
+      {
+        "skill": "Database transactions and concurrency",
+        "category": "databases",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Knowledge of database transactions and concurrency.",
+        "id": "r-14",
+        "quote_verified": true
+      },
+      {
+        "skill": "Caching and basic system design",
+        "category": "distributed_systems",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Familiarity with caching and basic system design concepts.",
+        "id": "r-15",
+        "quote_verified": true
+      },
+      {
+        "skill": "API security risks",
+        "category": "security",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Awareness of common API security risks.",
+        "id": "r-16",
+        "quote_verified": true
+      },
+      {
+        "skill": "Major cloud provider experience",
+        "category": "cloud_devops",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Experience with Docker or a major cloud provider.",
+        "id": "r-17",
+        "quote_verified": true
+      },
+      {
+        "skill": "Monitoring and alerting for production services",
+        "category": "cloud_devops",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Exposure to monitoring and alerting for production services.",
+        "id": "r-18",
+        "quote_verified": true
+      }
+    ]
+  },
+  "gaps": [
+    {
+      "requirement_id": "r-1",
+      "skill": "Python, Java, or Go",
+      "importance": "required",
+      "status": "demonstrated",
+      "profile_evidence_ids": [
+        "p-2",
+        "p-3",
+        "p-11",
+        "p-12"
+      ],
+      "knowledge_chunk_ids": [
+        "ip-tech-interview-handbook:1:5"
+      ],
+      "reasoning": "Python used in the Flask project and Java in the library inventory app; both listed as skills.",
+      "confidence": "high"
+    },
+    {
+      "requirement_id": "r-2",
+      "skill": "HTTP and REST API fundamentals",
+      "importance": "required",
+      "status": "partially_evidenced",
+      "profile_evidence_ids": [
+        "p-11"
+      ],
+      "knowledge_chunk_ids": [
+        "be-system-design-primer:0:133",
+        "be-system-design-primer:0:123",
+        "fund-ms-rest-guidelines:0:5"
+      ],
+      "reasoning": "The Flask app exposes a small JSON endpoint consumed by a JavaScript page, which suggests some HTTP use, but REST methods and status codes are not explicitly shown.",
+      "confidence": "medium"
+    },
+    {
+      "requirement_id": "r-3",
+      "skill": "SQL and relational databases",
+      "importance": "required",
+      "status": "demonstrated",
+      "profile_evidence_ids": [
+        "p-4",
+        "p-8",
+        "p-11"
+      ],
+      "knowledge_chunk_ids": [
+        "be-system-design-primer:0:83",
+        "be-system-design-primer:0:101",
+        "db-sqlite-query-planner:0:1"
+      ],
+      "reasoning": "SQLite with hand-written SQL in a project, plus a Databases course covering the relational model, SQL and normalisation.",
+      "confidence": "high"
+    },
+    {
+      "requirement_id": "r-4",
+      "skill": "PostgreSQL",
+      "importance": "required",
+      "status": "partially_evidenced",
+      "profile_evidence_ids": [
+        "p-4",
+        "p-11"
+      ],
+      "knowledge_chunk_ids": [
+        "db-postgres-mvcc:1:19",
+        "db-postgres-mvcc:1:4",
+        "db-postgres-indexes:0:0"
+      ],
+      "reasoning": "SQL was written against SQLite, which is related, but no PostgreSQL use is shown.",
+      "confidence": "medium"
+    },
+    {
+      "requirement_id": "r-5",
+      "skill": "SQL query optimization and indexing",
+      "importance": "required",
+      "status": "not_yet_evidenced",
+      "profile_evidence_ids": [],
+      "knowledge_chunk_ids": [
+        "be-system-design-primer:0:92",
+        "be-system-design-primer:0:93",
+        "db-sqlite-query-planner:0:24"
+      ],
+      "reasoning": "No fact mentions query optimisation or indexing, though the Databases course may have touched on it.",
+      "confidence": "low"
+    },
+    {
+      "requirement_id": "r-6",
+      "skill": "Automated testing (unit and integration)",
+      "importance": "required",
+      "status": "demonstrated",
+      "profile_evidence_ids": [
+        "p-12",
+        "p-10"
+      ],
+      "knowledge_chunk_ids": [
+        "fund-pytest-getting-started:0:12",
+        "fund-pytest-getting-started:0:6"
+      ],
+      "reasoning": "Wrote JUnit tests for the search and loan modules, and the Software Engineering course included unit testing. Integration testing is not shown.",
+      "confidence": "medium"
+    },
+    {
+      "requirement_id": "r-7",
+      "skill": "Git and collaborative development",
+      "importance": "required",
+      "status": "demonstrated",
+      "profile_evidence_ids": [
+        "p-5",
+        "p-12"
+      ],
+      "knowledge_chunk_ids": [
+        "career-pro-git:3:8",
+        "career-pro-git:3:40"
+      ],
+      "reasoning": "Used Git branches and GitHub in a four-person team project.",
+      "confidence": "high"
+    },
+    {
+      "requirement_id": "r-8",
+      "skill": "Code review participation and pull requests",
+      "importance": "required",
+      "status": "demonstrated",
+      "profile_evidence_ids": [
+        "p-12"
+      ],
+      "knowledge_chunk_ids": [
+        "career-pro-git:3:1",
+        "career-pro-git:3:0",
+        "be-system-design-primer:0:9"
+      ],
+      "reasoning": "The team used Git branches and pull requests on GitHub. Reviewing others' code is implied but not stated.",
+      "confidence": "medium"
+    },
+    {
+      "requirement_id": "r-9",
+      "skill": "Data structures and algorithms",
+      "importance": "required",
+      "status": "demonstrated",
+      "profile_evidence_ids": [
+        "p-7",
+        "p-12"
+      ],
+      "knowledge_chunk_ids": [
+        "ip-tech-interview-handbook:2:8",
+        "ip-open-data-structures:0:0",
+        "ip-tech-interview-handbook:2:23"
+      ],
+      "reasoning": "Completed a Data Structures and Algorithms course and wrote search modules in a project.",
+      "confidence": "medium"
+    },
+    {
+      "requirement_id": "r-10",
+      "skill": "Bachelor's degree in CS or related field, or equivalent practical experience",
+      "importance": "required",
+      "status": "not_applicable",
+      "profile_evidence_ids": [],
+      "knowledge_chunk_ids": [],
+      "reasoning": "An eligibility requirement (who may apply), not a skill to study.",
+      "confidence": "high"
+    },
+    {
+      "requirement_id": "r-11",
+      "skill": "Docker packaging and deployment",
+      "importance": "required",
+      "status": "not_yet_evidenced",
+      "profile_evidence_ids": [],
+      "knowledge_chunk_ids": [
+        "be-twelve-factor:4:0",
+        "fund-fastapi-tutorial:0:19"
+      ],
+      "reasoning": "No fact mentions Docker or containerised deployment; the Flask app was deployed only on a laptop.",
+      "confidence": "medium"
+    },
+    {
+      "requirement_id": "r-12",
+      "skill": "Production debugging with logs and metrics",
+      "importance": "required",
+      "status": "partially_evidenced",
+      "profile_evidence_ids": [
+        "p-13"
+      ],
+      "knowledge_chunk_ids": [
+        "be-twelve-factor:10:1"
+      ],
+      "reasoning": "Debugging code with students shows general debugging skill, but no logs, metrics or production issues are shown.",
+      "confidence": "low"
+    },
+    {
+      "requirement_id": "r-13",
+      "skill": "Python web framework (FastAPI or Flask)",
+      "importance": "preferred",
+      "status": "demonstrated",
+      "profile_evidence_ids": [
+        "p-11"
+      ],
+      "knowledge_chunk_ids": [
+        "fund-fastapi-tutorial:0:13",
+        "fund-fastapi-tutorial:0:14"
+      ],
+      "reasoning": "Built a Flask web app with SQLite and a JSON endpoint.",
+      "confidence": "high"
+    },
+    {
+      "requirement_id": "r-14",
+      "skill": "Database transactions and concurrency",
+      "importance": "preferred",
+      "status": "partially_evidenced",
+      "profile_evidence_ids": [
+        "p-8"
+      ],
+      "knowledge_chunk_ids": [
+        "db-postgres-mvcc:1:25",
+        "db-postgres-mvcc:1:28"
+      ],
+      "reasoning": "The Databases course may cover transactions, but no fact explicitly shows transactions or concurrency.",
+      "confidence": "low"
+    },
+    {
+      "requirement_id": "r-15",
+      "skill": "Caching and basic system design",
+      "importance": "preferred",
+      "status": "not_yet_evidenced",
+      "profile_evidence_ids": [],
+      "knowledge_chunk_ids": [
+        "be-system-design-primer:0:102",
+        "be-system-design-primer:0:115"
+      ],
+      "reasoning": "No fact shows caching or system design work.",
+      "confidence": "low"
+    },
+    {
+      "requirement_id": "r-16",
+      "skill": "API security risks",
+      "importance": "preferred",
+      "status": "not_yet_evidenced",
+      "profile_evidence_ids": [],
+      "knowledge_chunk_ids": [
+        "be-owasp-api-top10:0:0",
+        "be-owasp-api-top10:0:3",
+        "be-system-design-primer:0:139"
+      ],
+      "reasoning": "No fact mentions API security.",
+      "confidence": "low"
+    },
+    {
+      "requirement_id": "r-17",
+      "skill": "Major cloud provider experience",
+      "importance": "preferred",
+      "status": "not_yet_evidenced",
+      "profile_evidence_ids": [],
+      "knowledge_chunk_ids": [
+        "be-system-design-primer:0:32"
+      ],
+      "reasoning": "No fact shows Docker or cloud provider use; the app ran only on a laptop.",
+      "confidence": "medium"
+    },
+    {
+      "requirement_id": "r-18",
+      "skill": "Monitoring and alerting for production services",
+      "importance": "preferred",
+      "status": "not_yet_evidenced",
+      "profile_evidence_ids": [],
+      "knowledge_chunk_ids": [
+        "be-twelve-factor:10:1"
+      ],
+      "reasoning": "No fact shows monitoring or alerting.",
+      "confidence": "medium"
+    }
+  ],
+  "roadmap": [
+    {
+      "order": 1,
+      "topic": "HTTP and REST API fundamentals",
+      "requirement_ids": [
+        "r-2"
+      ],
+      "why_it_matters": "Backend roles assume fluency with HTTP verbs, status codes and REST design. Everything else builds on it.",
+      "objective": "Explain HTTP verbs, idempotency, status codes and REST resource design, and apply them to an API.",
+      "resources": [
+        {
+          "chunk_id": "be-system-design-primer:0:133",
+          "title": "The System Design Primer",
+          "section": "Communication > Representational state transfer (REST)",
+          "source_url": "https://raw.githubusercontent.com/donnemartin/system-design-primer/master/README.md",
+          "score": 0.661
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:123",
+          "title": "The System Design Primer",
+          "section": "Communication > Hypertext transfer protocol (HTTP)",
+          "source_url": "https://raw.githubusercontent.com/donnemartin/system-design-primer/master/README.md",
+          "score": 0.646
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:5",
+          "title": "Azure REST API Guidelines (Microsoft)",
+          "section": "Microsoft Azure REST API Guidelines > Building Blocks: HTTP, REST, & JSON",
+          "source_url": "https://raw.githubusercontent.com/microsoft/api-guidelines/vNext/azure/Guidelines.md",
+          "score": 0.622
+        }
+      ],
+      "exercise": "Extend your Flask app (or build a small FastAPI app) into a CRUD REST API with GET/POST/PUT/PATCH/DELETE. Return correct status codes and error bodies. Write a table showing which verbs are idempotent and safe.",
+      "completion_criteria": "All five verbs work with correct status codes (200/201/204/400/404). Your table is written and tested with curl or an HTTP client.",
+      "effort_hours_estimate": 5.0,
+      "depends_on": []
+    },
+    {
+      "order": 2,
+      "topic": "SQL query optimization and indexing",
+      "requirement_ids": [
+        "r-5"
+      ],
+      "why_it_matters": "Slow queries are a common backend bottleneck, and indexing is a core SQL skill.",
+      "objective": "Use indexes, covering indexes and query plans to speed up queries, and describe the write-cost trade-off.",
+      "resources": [
+        {
+          "chunk_id": "be-system-design-primer:0:92",
+          "title": "The System Design Primer",
+          "section": "Database > Relational database management system (RDBMS)",
+          "source_url": "https://raw.githubusercontent.com/donnemartin/system-design-primer/master/README.md",
+          "score": 0.66
+        },
+        {
+          "chunk_id": "db-sqlite-query-planner:0:24",
+          "title": "SQLite: Query Planning",
+          "section": "2. Sorting > 2.3. Sorting By Covering Index",
+          "source_url": "https://www.sqlite.org/queryplanner.html",
+          "score": 0.616
+        }
+      ],
+      "exercise": "Load about 1M rows into SQLite. Run EXPLAIN QUERY PLAN on a slow filter/sort query. Add a single-column index, then a covering index, and compare timings and plans. Note the effect on insert speed.",
+      "completion_criteria": "You have a before/after timing table and plans showing a scan changing to an index or covering-index search. You can explain the write overhead.",
+      "effort_hours_estimate": 6.0,
+      "depends_on": []
+    },
+    {
+      "order": 3,
+      "topic": "PostgreSQL basics",
+      "requirement_ids": [
+        "r-4"
+      ],
+      "why_it_matters": "PostgreSQL is required, and your SQL experience so far is on SQLite.",
+      "objective": "Set up PostgreSQL, port a schema, and use its indexes and types.",
+      "resources": [],
+      "exercise": "Run PostgreSQL locally. Port your SQLite schema and data to it. Create B-tree indexes and compare EXPLAIN ANALYZE output with your SQLite results. Connect your REST API to it. Use the official PostgreSQL documentation you already have access to; the knowledge base has no source covering this topic.",
+      "completion_criteria": "The API reads and writes PostgreSQL. You have documented at least three differences from SQLite, and at least one index has been verified with EXPLAIN ANALYZE.",
+      "effort_hours_estimate": 6.0,
+      "depends_on": [
+        1,
+        2
+      ]
+    },
+    {
+      "order": 4,
+      "topic": "Docker packaging and deployment",
+      "requirement_ids": [
+        "r-11"
+      ],
+      "why_it_matters": "Containerised deployment is required, and your app has only run on a laptop.",
+      "objective": "Package the API and database in containers, keeping build, release and run stages separate and config in the environment.",
+      "resources": [],
+      "exercise": "Write a Dockerfile for the API and a docker-compose file with PostgreSQL. Pass config through environment variables. Build the image, run it locally, and write down the deploy steps. The knowledge base has no Docker source, so use Docker's official documentation.",
+      "completion_criteria": "`docker compose up` starts the API and database from a clean checkout. No secrets are baked into the image. The steps are in a README.",
+      "effort_hours_estimate": 7.0,
+      "depends_on": [
+        3
+      ]
+    },
+    {
+      "order": 5,
+      "topic": "Production debugging with logs",
+      "requirement_ids": [
+        "r-12"
+      ],
+      "why_it_matters": "Production debugging is required, and logs are the first tool you use when a live service misbehaves.",
+      "objective": "Emit structured logs as an event stream to stdout and diagnose an issue from them.",
+      "resources": [
+        {
+          "chunk_id": "be-twelve-factor:10:1",
+          "title": "The Twelve-Factor App",
+          "section": "XI. Logs > Treat logs as event streams",
+          "source_url": "https://12factor.net/logs",
+          "score": 0.502
+        }
+      ],
+      "exercise": "Add structured logging to stdout in the containerised API. Inject a bug or a slow query, then find the root cause using only the logs (for example with docker logs and grep).",
+      "completion_criteria": "You have a short write-up tracing the injected fault to its root cause from the logs.",
+      "effort_hours_estimate": 3.0,
+      "depends_on": [
+        4
+      ]
+    },
+    {
+      "order": 6,
+      "topic": "Metrics, monitoring and alerting",
+      "requirement_ids": [
+        "r-18"
+      ],
+      "why_it_matters": "Monitoring and alerting are preferred skills. They help you notice production problems before users report them.",
+      "objective": "Expose basic service metrics and define an alert rule on them.",
+      "resources": [],
+      "exercise": "Add a /metrics endpoint (request count, latency, errors) to the API. Generate load and an error spike, then define one alert rule, such as an error rate above a threshold. The knowledge base has no source for this topic, so use the documentation of the metrics library you choose.",
+      "completion_criteria": "Metrics reflect the load you generated. The alert rule is written down and triggers in a test.",
+      "effort_hours_estimate": 3.0,
+      "depends_on": [
+        5
+      ]
+    },
+    {
+      "order": 7,
+      "topic": "Database transactions and concurrency",
+      "requirement_ids": [
+        "r-14"
+      ],
+      "why_it_matters": "Correct concurrent writes are important in backend systems, and this is a preferred skill.",
+      "objective": "Explain isolation levels and handle serialization failures in PostgreSQL.",
+      "resources": [
+        {
+          "chunk_id": "db-postgres-mvcc:1:25",
+          "title": "PostgreSQL docs: Concurrency Control",
+          "section": "13.2. Transaction Isolation > 13.2.3. Serializable Isolation Level",
+          "source_url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "score": 0.681
+        },
+        {
+          "chunk_id": "db-postgres-mvcc:1:28",
+          "title": "PostgreSQL docs: Concurrency Control",
+          "section": "13.2. Transaction Isolation > 13.2.3. Serializable Isolation Level",
+          "source_url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+          "score": 0.656
+        }
+      ],
+      "exercise": "In two psql sessions, reproduce a lost update or write skew under Read Committed. Fix it with Serializable and retry logic on SQLSTATE 40001. Add a transactional endpoint to the API, such as a balance transfer.",
+      "completion_criteria": "You can demonstrate the anomaly and the fix. The endpoint retries on serialization failure and you can explain the trade-offs.",
+      "effort_hours_estimate": 5.0,
+      "depends_on": [
+        3
+      ]
+    },
+    {
+      "order": 8,
+      "topic": "API security risks",
+      "requirement_ids": [
+        "r-16"
+      ],
+      "why_it_matters": "Security risks in APIs are a preferred skill and a common interview topic.",
+      "objective": "Identify OWASP API Top 10 risks and mitigate the main ones.",
+      "resources": [
+        {
+          "chunk_id": "be-owasp-api-top10:0:0",
+          "title": "OWASP API Security Top 10",
+          "section": "OWASP Top 10 API Security Risks – 2023",
+          "source_url": "https://owasp.org/API-Security/editions/2023/en/0x11-t10/",
+          "score": 0.694
+        },
+        {
+          "chunk_id": "be-owasp-api-top10:0:3",
+          "title": "OWASP API Security Top 10",
+          "section": "OWASP Top 10 API Security Risks – 2023",
+          "source_url": "https://owasp.org/API-Security/editions/2023/en/0x11-t10/",
+          "score": 0.679
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:139",
+          "title": "The System Design Primer",
+          "section": "Security > Source(s) and further reading",
+          "source_url": "https://raw.githubusercontent.com/donnemartin/system-design-primer/master/README.md",
+          "score": 0.607
+        }
+      ],
+      "exercise": "Audit your API against the OWASP API Top 10. Fix broken object-level authorization (users must only access their own records) and add authentication. Add input validation to block mass assignment.",
+      "completion_criteria": "Tests show that user A cannot read or modify user B's objects. You have a checklist covering each of the 10 risks as fixed or not applicable.",
+      "effort_hours_estimate": 4.5,
+      "depends_on": [
+        1
+      ]
+    },
+    {
+      "order": 9,
+      "topic": "Caching and basic system design",
+      "requirement_ids": [
+        "r-15"
+      ],
+      "why_it_matters": "Caching and system design basics are preferred and show you can reason about scale.",
+      "objective": "Apply a cache-aside pattern and sketch a simple scalable design.",
+      "resources": [
+        {
+          "chunk_id": "be-system-design-primer:0:102",
+          "title": "The System Design Primer",
+          "section": "Cache",
+          "source_url": "https://raw.githubusercontent.com/donnemartin/system-design-primer/master/README.md",
+          "score": 0.666
+        },
+        {
+          "chunk_id": "be-system-design-primer:0:115",
+          "title": "The System Design Primer",
+          "section": "Cache > Source(s) and further reading",
+          "source_url": "https://raw.githubusercontent.com/donnemartin/system-design-primer/master/README.md",
+          "score": 0.605
+        }
+      ],
+      "exercise": "Add a cache (in-memory or Redis) in front of a read-heavy endpoint. Measure the hit rate and latency, and handle invalidation. Draw a one-page architecture diagram for scaling the app.",
+      "completion_criteria": "You have measured before/after latency and hit rate. Invalidation works on writes. The diagram shows where the cache and database sit.",
+      "effort_hours_estimate": 3.5,
+      "depends_on": [
+        1,
+        3
+      ]
+    },
+    {
+      "order": 10,
+      "topic": "Cloud provider deployment",
+      "requirement_ids": [
+        "r-17"
+      ],
+      "why_it_matters": "Experience with a major cloud provider is preferred. A deployed app is concrete evidence of it.",
+      "objective": "Deploy the containerised stack to a major cloud provider's managed service.",
+      "resources": [],
+      "exercise": "Deploy your container to a major cloud provider's managed container service, using managed PostgreSQL if the free tier allows. Check the logs in the provider console, review the cost, and tear everything down afterwards. The knowledge base has no deployment guide for this, so use your chosen provider's official documentation.",
+      "completion_criteria": "The API is reachable at a public URL with logs visible in the provider console. You have a short note on the services used and the costs, and the resources are torn down.",
+      "effort_hours_estimate": 4.0,
+      "depends_on": [
+        4,
+        5
+      ]
+    }
+  ],
+  "interview_questions": [
+    {
+      "requirement_id": "r-5",
+      "question": "Your SQLite search query over a course catalogue takes several seconds once the table reaches about 100,000 rows. How would you find out why it is slow, and what would you change?",
+      "what_a_good_answer_shows": "A strong answer uses EXPLAIN or EXPLAIN QUERY PLAN to spot a full table scan, proposes an index on the filtered or joined columns, weighs the write-cost and storage trade-off, and says it would re-measure to confirm the fix."
+    },
+    {
+      "requirement_id": "r-11",
+      "question": "Walk me through how you would package the Flask app and its SQLite database in a Docker container so someone else can run it. What goes in the Dockerfile, and what should stay out of the image?",
+      "what_a_good_answer_shows": "A strong answer covers a suitable base image, installing pinned dependencies, copying only needed code, running a production WSGI server instead of the dev server, using .dockerignore, and keeping the database file and configuration outside the image through a volume and environment variables."
+    },
+    {
+      "requirement_id": "r-2",
+      "question": "Your Flask JSON endpoint is called by a JavaScript page. If a client requests a record that doesn't exist, or sends a POST with malformed JSON, which HTTP status codes should the endpoint return and why? Which methods would you allow on that route?",
+      "what_a_good_answer_shows": "A strong answer distinguishes 404 for a missing resource, 400 for bad input, and 201 or 200 for success, explains that GET should be safe and POST creates or changes state, and returns 405 for unsupported methods."
+    },
+    {
+      "requirement_id": "r-4",
+      "question": "The app currently runs on SQLite. If you migrated it to PostgreSQL, what differences would you expect in your SQL and schema, and what would you check before switching?",
+      "what_a_good_answer_shows": "A strong answer names concrete differences such as strict column typing versus SQLite's flexible typing, auto-increment syntax, parameter placeholder style, case-sensitivity of LIKE, and date functions, and proposes testing the queries against a real Postgres instance before cutover."
+    },
+    {
+      "requirement_id": "r-12",
+      "question": "A user says the Flask app is intermittently slow, but you cannot reproduce it locally. What logs or metrics would you add, and how would you tell whether the delay comes from a database query or an external call?",
+      "what_a_good_answer_shows": "A strong answer proposes per-request timing with a request ID, timing around database calls and external calls separately, error-rate and latency percentile metrics, and structured logs, and explains how the breakdown isolates the slow component."
+    },
+    {
+      "requirement_id": "r-15",
+      "question": "The course search endpoint gets heavy traffic during registration week, and most results change only a few times a day. Design a caching approach: what would you cache, where would the cache live, how would you keep it fresh, and what could go wrong?",
+      "what_a_good_answer_shows": "A strong answer chooses read-heavy results to cache, sets a cache key and a TTL, invalidates or refreshes on writes, and discusses risks such as stale data, cache stampede, and memory limits."
+    },
+    {
+      "requirement_id": "r-16",
+      "question": "Your Flask endpoint accepts a search term from the browser and returns student-related records. What API security risks would you check for, and how would you mitigate each one?",
+      "what_a_good_answer_shows": "A strong answer addresses SQL injection through parameterised queries, authorisation checks so one user cannot fetch another's records, input validation, rate limiting, restricted CORS, and error messages that do not leak internal details."
+    },
+    {
+      "requirement_id": "r-17",
+      "question": "If you had to host the Flask app on a major cloud provider such as AWS, Azure, or GCP for a small group of users, which services would you consider, and what would you need to decide about the SQLite database?",
+      "what_a_good_answer_shows": "A strong answer compares a container or app hosting option with a managed database, explains secrets and configuration handling, and recognises that SQLite's file-based storage and concurrency limits matter on platforms with ephemeral disks."
+    },
+    {
+      "requirement_id": "r-18",
+      "question": "After deploying the app, how would you know it is down or degraded before users report it? Which signals would you alert on, and what would make an alert too noisy to be useful?",
+      "what_a_good_answer_shows": "A strong answer names health checks, error-rate and latency thresholds, and a clear owner or runbook for each alert, and explains how overly sensitive thresholds or duplicate alerts cause alert fatigue."
+    },
+    {
+      "requirement_id": "r-14",
+      "question": "In a loan or inventory system, two students try to borrow the last available copy of a book at the same moment. What could go wrong, and how would you prevent it in the database?",
+      "what_a_good_answer_shows": "A strong answer identifies the check-then-act race condition, proposes a transaction with an atomic conditional update or a constraint, and mentions isolation levels and rollback on failure."
+    }
+  ],
+  "unresolved_issues": [],
+  "revisions_used": 1,
+  "errors": [],
+  "node_log": [
+    "analyze_job",
+    "analyze_profile",
+    "retrieve_knowledge",
+    "analyze_gaps",
+    "interview_questions",
+    "plan_roadmap",
+    "evaluate",
+    "revise",
+    "evaluate",
+    "finalize"
+  ]
+}

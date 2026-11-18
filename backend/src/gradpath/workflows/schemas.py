@@ -193,7 +193,7 @@ class Critique(BaseModel):
 class CareerPrepResult(BaseModel):
     """What the workflow returns. `status` is honest about what happened:
     complete = the critic passed with no blocking issue; complete_with_limitations = the revision
-    limit was reached with issues left (listed in `unresolved_issues`); partial = a stage failed or
+    limit was reached with blocking issues left; partial = a stage failed or
     the critic never ran (see `errors`)."""
 
     status: Literal["complete", "complete_with_limitations", "partial"]
@@ -201,7 +201,7 @@ class CareerPrepResult(BaseModel):
     gaps: list[GapItem]
     roadmap: list[RoadmapItem]
     interview_questions: list[InterviewQuestion]
-    unresolved_issues: list[CritiqueIssue]
+    unresolved_issues: list[CritiqueIssue]  # all open issues; minor ones also on `complete`
     revisions_used: int
     errors: list[str]
     node_log: list[str]

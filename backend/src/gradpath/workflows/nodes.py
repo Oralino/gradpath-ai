@@ -130,7 +130,9 @@ def finalize(state: CareerPrepState) -> dict:
         gaps=state.get("gaps", []),
         roadmap=state.get("roadmap", []),
         interview_questions=state.get("interview_questions", []),
-        unresolved_issues=[] if critique is None or critique.ok else critique.issues,
+        # Minor issues stay visible on a complete result too (the first real run lost a
+        # no_resources warning this way).
+        unresolved_issues=[] if critique is None else critique.issues,
         revisions_used=state.get("revision_count", 0),
         errors=errors,
         # node_log is still being written by this step's own wrapper, so it's added in run_workflow

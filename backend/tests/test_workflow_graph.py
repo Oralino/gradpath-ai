@@ -261,3 +261,10 @@ def test_profile_total_size_is_capped():
     project = {"name": "p", "description": "d" * 1200, "technologies": ["t" * 200] * 15}
     with pytest.raises(ValidationError, match="profile is too long"):
         UserProfile.model_validate({"projects": [project] * 4})
+
+
+def test_minor_issues_are_kept_on_a_complete_result():
+    minor = Critique(passed=True, issues=[CritiqueIssue(code="z", message="m", severity="minor")])
+    result = run(replace(SKELETON, evaluate=lambda s: {"critique": minor}))
+    assert result.status == "complete"
+    assert [i.code for i in result.unresolved_issues] == ["z"]

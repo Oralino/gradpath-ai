@@ -87,3 +87,7 @@ defences for the profile and JD text; what reaches LangSmith.
   doesn't quote Pydantic input. Deferred (TASKS): the route uses the server's model credentials
   whatever `APP_MODE` says (live-mode ticket); LangGraph's own retry log line can include a
   Pydantic message; `--out` can write profile-derived text into a tracked folder.
+- Real run 2026-11-18 (Pro plan, Terminal panel, sample posting + profile, tracing off):
+  `complete` after 1 revision, 101 s, 18 requirements, 10 roadmap items, 10 questions; output
+  `evaluation/results/workflow-20261118-014953.json`, findings in `EVALUATION.md`. Fixed from it:
+  one citation per source section, minor issues kept on a complete result (217 tests).

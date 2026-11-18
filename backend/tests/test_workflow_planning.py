@@ -521,3 +521,17 @@ def test_revision_that_makes_the_plan_worse_is_rejected():
     assert revise(state, rt(smart=worse))["roadmap"] == current
     better = FakeChatModel(responses=[{"items": [draft(1, ["r-1"]), draft(2, ["r-3"], hours=2)]}])
     assert revise(state, rt(smart=better))["roadmap"][1].effort_hours_estimate == 2
+
+
+def test_two_chunks_of_one_section_are_cited_once():
+    first, second = ev("pg:1"), ev("pg:2")
+    second.source_url = first.source_url  # same page and section, different chunk
+    state = base_state(
+        gaps=[gap("r-1", "not_yet_evidenced", chunks=["pg:1", "pg:2"])],
+        knowledge=[
+            RequirementEvidence(requirement_id="r-1", insufficient=False, evidence=[first, second])
+        ],
+    )
+    smart = FakeChatModel(responses=[{"items": [draft(1, ["r-1"], chunks=["pg:1", "pg:2"])]}])
+    items = plan_roadmap(state, rt(smart=smart))["roadmap"]
+    assert [c.chunk_id for c in items[0].resources] == ["pg:1"]

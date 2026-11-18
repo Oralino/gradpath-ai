@@ -133,3 +133,36 @@ the source headings, so their wording is close to the sources (a known bias of h
 Precision@5 of 0.65 mostly reflects single-target questions whose top 5 includes neighbouring
 pages. With 31 covered questions, one question is about 3 recall points: differences smaller than
 that are noise. The weakest slices are `multi_source` (0.75) and `career` (0.83).
+
+### Workflow: first real run (2026-11-18, step 6 of T-003)
+One run, not an evaluation: it shows the workflow works end to end on real models and shows what
+to measure. Config: `LLM_PROVIDER=claude_code` (Pro plan; Haiku 5.5 fast, Sonnet 5.5 smart),
+`WORKFLOW_MAX_REVISIONS=1`, retrieval k=3 (max 2 per document), threshold 0.45, tracing off.
+Input: the fictional sample posting and profile (`evaluation/job_descriptions/`,
+`evaluation/profiles/`). Full output: `evaluation/results/workflow-20261118-014953.json`.
+
+| Measure | Result |
+|---|---|
+| Status | `complete` after 1 revision (the first plan was revised once; its critique isn't recorded) |
+| Time | 101 s end to end (CLI wall clock) |
+| Requirements extracted | 18 (17 studyable, 1 eligibility) |
+| Gaps | 7 demonstrated, 4 partially evidenced, 6 not yet evidenced, 1 not applicable |
+| Roadmap | 10 items (the cap), 47 h estimated against a 48 h budget (8 h x 6 weeks) |
+| Items with sources | 6 of 10; the 4 without are PostgreSQL, Docker, monitoring, cloud |
+| Interview questions | 10, each tied to a not-yet or partially evidenced requirement |
+| Nodes | job + profile -> retrieve -> gaps -> questions + roadmap -> evaluate -> revise -> evaluate -> finalize |
+
+What it showed:
+- **A false "no source" claim:** PostgreSQL (`r-4`) had three relevant chunks retrieved
+  (`db-postgres-indexes`, `db-postgres-mvcc`), yet Sonnet cited none and wrote that the knowledge
+  base has no source for it. The `no_resources` check flags this kind of item, but the result
+  dropped minor issues whenever the critic passed; fixed (minor issues are now kept).
+  Docker, monitoring and cloud really aren't covered (known corpus gaps), so those three are right.
+- **The same section cited twice** (two chunks of one section in items 7 and 8); fixed by citing
+  each section once.
+- **Generous "demonstrated" calls:** "Automated testing (unit and integration)" is demonstrated
+  although its own reasoning says integration testing isn't shown; data structures counts a
+  course plus "search modules". A calibration question for the workflow evaluation.
+- Roadmap exercises sometimes tell the student to use official documentation where the corpus
+  has nothing: honest, and no URL is invented, but it is outside the cited sources.
+- Claude Code under-reports tokens, so no cost figure (API mode needed).
