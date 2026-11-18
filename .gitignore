@@ -33,3 +33,11 @@ private/
 Thumbs.db
 .vscode/
 .idea/
+
+# Knowledge base: downloaded and generated text is not committed (reproducible via ingest)
+knowledge_base/raw/
+knowledge_base/processed/
+knowledge_base/manual/
+
+# Generated test reports
+backend/reports/
