@@ -41,9 +41,21 @@ Steps:
 
 ## Changes
 - Branch: `feat/t-001-rag-foundation`
-- PR:
-- Files touched:
-- Commits (hash, message):
+- PR: https://github.com/Oralino/gradpath-ai/pull/1
+- Files touched: `backend/` (new: providers, ingestion, retrieval, rag, jobs, api, safety, tests), `knowledge_base/source_manifest.csv`, `.gitignore`, `CLAUDE.md`, `README.md`, `brain/`
+- Commits (oldest first):
+  - `38caf07 feat: backend scaffold and LLM provider layer (T-001)`
+  - `623da05 feat: knowledge-base ingestion pipeline with free-tier embedding cache (T-001)`
+  - `f894394 feat: retrieval service with calibrated relevance threshold (T-001)`
+  - `2970e34 docs: milestones, walkthrough concepts and step 1-4 results (T-001)`
+  - `7425f05 feat: traditional RAG answers with verified citations and POST /api/chat (T-001)`
+  - `ba4f2c5 docs: RAG walkthrough, step 5 milestone and commands (T-001)`
+  - `92e1e5d docs: record real Pro-plan RAG answer and first eval case (T-001)`
+  - `ebec388 feat: job description analysis with verified quotes, batched search and cited notes (T-001)`
+  - `6e7c7e1 docs: job analysis walkthrough, step 6 results and corpus gaps (T-001)`
+  - `58b5a25 fix: weak-evidence coverage, cleaner heading ids and citation titles from the real job run (T-001)`
+  - `1118a9f fix: rate study-note evidence direct or partial so labels match the notes (T-001)`
+  - `747df3c fix: address Milestone 1 code review (keys, thread safety, escaping, cache, robots, API errors) (T-001)`
 
 ## Verification
 - Steps 1–2: `uv run pytest -q` 12 passed; `ruff check` clean.
