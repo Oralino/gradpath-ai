@@ -40,6 +40,7 @@ uv run python -m gradpath.ingestion.ingest [--dry-run]   # build the knowledge b
 uv run python -m gradpath.retrieval.probe                # real retrieval scores (threshold check)
 uv run python -m gradpath.rag.ask "question"             # one RAG answer from the terminal
 uv run python -m gradpath.jobs.cli <job_description_file> [--json]   # analyse a posting
+uv run python -m gradpath.workflows.cli <jd_file> <profile.json> [--correction TEXT] [--json] [--out FILE]   # full workflow
 uv run python -m gradpath.evaluation.retrieval_eval [--k 1,3,5,10]   # retrieval eval (1 Voyage call)
 uv run uvicorn gradpath.api.main:app --reload            # API on :8000 (docs at /docs)
 ```

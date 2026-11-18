@@ -27,6 +27,7 @@ from gradpath.workflows.state import CareerPrepState, WorkflowContext
 
 SEARCH_K = 3  # evidence chunks per requirement, as in jobs.analyze_job
 SEARCH_MAX_PER_DOCUMENT = 2
+MAX_RESPONSIBILITIES = 15  # model-written, returned to the client
 
 
 def _need(service, name: str):
@@ -52,7 +53,7 @@ def analyze_job(state: CareerPrepState, runtime: Runtime[WorkflowContext]) -> di
     job = JobSummary(
         title=extraction.title,
         seniority=extraction.seniority,
-        responsibilities=extraction.responsibilities,
+        responsibilities=[r[:300] for r in extraction.responsibilities[:MAX_RESPONSIBILITIES]],
         requirements=reqs,
     )
     return {"job": job}

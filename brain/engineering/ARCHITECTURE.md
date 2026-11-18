@@ -95,7 +95,7 @@ Deployed site:
 
 ## Tracing
 Built in Milestone 2 (`tracing.py`, ticket T-002). One function, `configure_tracing(settings)`, decides
-for the whole process; the API lifespan and the model-calling CLIs (`rag.ask`, `jobs.cli`,
+for the whole process; the API lifespan and the model-calling CLIs (`rag.ask`, `jobs.cli`, `workflows.cli`,
 `providers.smoke`) call it at start and `flush()` at exit.
 
 | Rule | Where |
@@ -134,7 +134,9 @@ probe-calibrated), optional metadata filters and per-document cap; `insufficient
 
 Traditional RAG (built): `rag.answer_question` -> `POST /api/chat`. Abstains without a model call
 when retrieval is insufficient; evidence in delimited untrusted blocks; Sonnet structured reply;
-citations verified against retrieved ids. API endpoints so far: `GET /api/health`, `POST /api/chat`.
+citations verified against retrieved ids. API endpoints so far: `GET /api/health`, `POST /api/chat`, `POST /api/jobs/analyze`,
+`POST /api/career/prepare` (the workflow; synchronous; body `WorkflowInput`; errors mapped to
+fixed messages, including `GraphRecursionError` -> 500).
 
 ## Security
 Retrieved content, uploads and JDs are untrusted data: delimited in prompts, never followed as

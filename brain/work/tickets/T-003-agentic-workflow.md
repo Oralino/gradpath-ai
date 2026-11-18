@@ -80,3 +80,10 @@ defences for the profile and JD text; what reaches LangSmith.
   empty roadmap could pass, corrections alone could mark everything demonstrated, the item cap
   ran before filtering, and items with no sources weren't flagged. Deferred to the API/frontend
   steps: length caps on model-written text, and rendering it as text, never HTML.
+- Step 6 (API + CLI): 15 new tests (215 total), ruff clean. code-reviewer: no exception text, model
+  reply or key in responses; the request can't set the limit; threading safe. Fixed: CLI prints
+  UTF-8 (Windows cp1252 would crash after a paid run), one run at a time (503 when busy), model
+  text truncated at 1,000 chars on every returned field, responsibilities capped, our error log
+  doesn't quote Pydantic input. Deferred (TASKS): the route uses the server's model credentials
+  whatever `APP_MODE` says (live-mode ticket); LangGraph's own retry log line can include a
+  Pydantic message; `--out` can write profile-derived text into a tracked folder.

@@ -21,6 +21,12 @@ Before any deploy (Milestones 7–8):
       `/api/jobs/analyze` (each call can start a Claude Code process and spend plan quota).
 - [ ] Enforce `APP_MODE` (demo vs live); the app must start and serve demo mode with no keys set
       (today the lifespan needs `VOYAGE_API_KEY`).
+- [ ] `POST /api/career/prepare` (like the other routes) uses the server's model credentials
+      whatever `APP_MODE` says; live mode must pass the visitor's key instead (T-003 review).
+- [ ] LangGraph's own "Retrying task" log line includes the exception text; for a Pydantic error
+      that quotes the model's reply. Lower that logger's level or filter it before deploy (T-003).
+- [ ] `workflows.cli --out` can write profile-derived text anywhere, including tracked folders
+      such as `demo_runs/`; demo recordings must use the sample profile only (T-003).
 - [ ] When live-mode key handling lands: the visitor-key tracing guard in `get_chat_model` checks
       once, when the model is built; re-check it covers how routes build models (T-002 review).
 Milestone 2 (tracing):

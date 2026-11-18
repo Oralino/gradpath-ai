@@ -8,7 +8,14 @@ reply fails at the node that produced it instead of several nodes later.
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 from gradpath.jobs.analyze import ExtractedRequirement, Seniority
 from gradpath.rag.answer import Citation
@@ -21,6 +28,20 @@ ShortText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1
 LongText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1200)]
 MAX_PROFILE_CHARS = 12_000  # about 3K tokens; the sample profile is ~1.6K characters
 MAX_JOB_DESCRIPTION_CHARS = 20_000  # same cap as POST /api/jobs/analyze
+MAX_MODEL_TEXT_CHARS = 1000
+
+
+def _truncate(value: object) -> object:
+    """Cut over-long model text instead of rejecting it: a long but valid reply shouldn't cost a
+    retry. Strings only; anything else is left for normal validation."""
+    if isinstance(value, str) and len(value) > MAX_MODEL_TEXT_CHARS:
+        return value[: MAX_MODEL_TEXT_CHARS - 1] + "…"
+    return value
+
+
+# Text written by a model and returned to the client: bounded so a runaway reply can't bloat
+# the response. The client must render it as text, never as HTML.
+ModelText = Annotated[str, BeforeValidator(_truncate)]
 
 
 # ---------- input ----------
@@ -96,10 +117,13 @@ class ProfileEvidence(BaseModel):
 class JobRequirement(ExtractedRequirement):
     id: str = Field(description="r-1, r-2, ... in extraction order")
     quote_verified: bool
+    # Model-written and returned to the client: bounded like the other model text.
+    skill: ModelText
+    source_quote: ModelText
 
 
 class JobSummary(BaseModel):
-    title: str
+    title: ModelText
     seniority: Seniority
     responsibilities: list[str]
     requirements: list[JobRequirement]
@@ -119,37 +143,37 @@ GapStatus = Literal["demonstrated", "partially_evidenced", "not_yet_evidenced", 
 
 class GapItem(BaseModel):
     requirement_id: str
-    skill: str
+    skill: ModelText
     importance: Literal["required", "preferred"]
     status: GapStatus
     profile_evidence_ids: list[str] = Field(default_factory=list)
     knowledge_chunk_ids: list[str] = Field(default_factory=list)
-    reasoning: str
+    reasoning: ModelText
     confidence: Literal["low", "medium", "high"]
 
 
 class RoadmapItem(BaseModel):
     order: int = Field(ge=1)
-    topic: str
+    topic: ModelText
     requirement_ids: list[str]
-    why_it_matters: str
-    objective: str
+    why_it_matters: ModelText
+    objective: ModelText
     resources: list[Citation] = Field(default_factory=list)
-    exercise: str
-    completion_criteria: str
+    exercise: ModelText
+    completion_criteria: ModelText
     effort_hours_estimate: float = Field(ge=0, description="An estimate, shown as one")
     depends_on: list[int] = Field(default_factory=list)
 
 
 class InterviewQuestion(BaseModel):
     requirement_id: str
-    question: str
-    what_a_good_answer_shows: str
+    question: ModelText
+    what_a_good_answer_shows: ModelText
 
 
 class CritiqueIssue(BaseModel):
     code: str = Field(description="Short machine name, e.g. missing_requirement, bad_citation")
-    message: str
+    message: ModelText
     severity: Literal["blocking", "minor"]
 
 

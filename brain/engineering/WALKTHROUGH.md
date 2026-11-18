@@ -407,6 +407,27 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   always fails at limits 0–3, a node that tries to reset the counter, and a route function broken
   on purpose so only the recursion limit can stop it.
 
+## `POST /api/career/prepare` and `workflows.cli`
+- **What it is:** the workflow behind one HTTP call (and a terminal runner that prints a readable
+  report or JSON). The request body is the same `WorkflowInput` the workflow validates, so the
+  API, the CLI and the tests share one set of limits; the revision limit is read from settings
+  and a request that tries to set it is refused (unknown field, 422).
+- **Decision: synchronous for now.** About 5 model calls, a few minutes on Claude Code. Rejected
+  for this milestone: a job id with status polling (needs storage; comes with the frontend).
+- **Errors never echo internals:** a malformed model reply twice -> 502 with a fixed message (the
+  reply, which can contain posting text, is logged server-side only); the step limit -> 500 with
+  a fixed message; anything else -> FastAPI's plain 500.
+- **Model-written text is truncated, not rejected,** at 1,000 characters per field: a long but
+  valid reply shouldn't cost a retry. The frontend must render it as text, never HTML.
+- **One run at a time:** a semaphore lets one workflow run per process; a second request gets
+  503 at once instead of queueing behind a multi-minute run (it would also tie up a worker
+  thread, start more Claude Code processes and share Voyage's 3-per-minute limit). Per-IP
+  limits and auth come before deploy.
+- **Logs don't quote model replies:** a Pydantic error's message contains the model's reply
+  (which can echo posting or profile text), so our handler logs only its type and error count.
+- **Likely question:** *"Why can't the user choose how many revisions?"* Each round is a paid model
+  call; letting a request set it would let one request spend the budget.
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.
