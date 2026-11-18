@@ -53,4 +53,7 @@ High-risk area: the workflow's fallback limits (code-reviewer + qa-checker whate
   wrong key, loop limit, time budget, failed parallel step, failed revise, stale issues, broken
   assembly, KeyboardInterrupt). code-reviewer found 6 issues, all fixed; qa-checker clean (lock,
   lint, format, 380 tests then, secrets, personal data, attribution, debug leftovers).
+- Step 6 (`POST /api/assist`, route log, `router.cli`): 18 tests (rules, model, needs input,
+  unsupported, injection, 422s, both caps, slots always released, errors and fallbacks in the log,
+  log off and rotation). code-reviewer: no bugs; 4 fixes; one known gap recorded in TASKS.
 - Security: threat model in `brain/engineering/SECURITY.md` (2026-11-18) from the owner's guides.

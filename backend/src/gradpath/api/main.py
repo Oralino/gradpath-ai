@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from langgraph.errors import GraphRecursionError
 
+from gradpath.api.assist import router as assist_router
 from gradpath.api.career import router as career_router
 from gradpath.api.chat import router as chat_router
 from gradpath.api.jobs import router as jobs_router
@@ -92,6 +93,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
     app.include_router(chat_router)
     app.include_router(jobs_router)
     app.include_router(career_router)
+    app.include_router(assist_router)
 
     @app.get("/api/health", tags=["meta"])
     def health() -> dict[str, str]:

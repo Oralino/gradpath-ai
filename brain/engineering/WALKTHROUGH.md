@@ -480,6 +480,22 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   decided free and instantly, and the routing evaluation will show whether the rules ever disagree
   with the labels.
 
+## `POST /api/assist` and the route log (`router/assist.py`, `api/assist.py`, `router/route_log.py`)
+- **What it does:** one endpoint for everything: a message plus an optional job description and
+  profile. The router decides; then RAG answers, the workflow runs, or a fixed message says what
+  is missing or not supported yet (nothing runs). The decision comes back with the result.
+- **Two caps:** the routing call and a RAG answer hold the chat cap (2 at a time); a workflow run
+  takes the career cap (1 at a time). Split into `decide` and `respond` so the API can hold the
+  right one for each part.
+- **Route log:** one JSON line per request in `logs/routes.jsonl` (gitignored): route, kind, who
+  decided, outcome, status, fallback reason, seconds. Never the message, the reason (model text
+  that may echo it) or the result. Writing can't fail a request. It feeds the routing numbers.
+- **Decision: keep `/api/chat` and `/api/career/prepare`.** Direct routes stay useful for tests and
+  for a frontend that already knows what it wants; `/api/assist` is the adaptive entry point.
+- **Likely question:** *"Why does the router not read the job description?"* It doesn't need to
+  (whether one is attached is enough), it keeps the routing call small, and attached text then
+  has no way to steer the route.
+
 ## Workflow fallback (`workflows/fallback.py`, `run_workflow` in `graph.py`, T-006)
 - **What it does:** when the workflow can't finish, the caller gets a result labelled
   `status: "fallback"` instead of an error: which stages finished and which didn't, why (stage

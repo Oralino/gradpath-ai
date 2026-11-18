@@ -11,6 +11,7 @@ import logging
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langsmith import traceable
 
 from gradpath.providers import with_structure
 from gradpath.router.rules import rule_kind
@@ -101,6 +102,7 @@ def decide(kind: Kind, reason: str, req: RouteRequest, decided_by: DecidedBy) ->
     )
 
 
+@traceable(name="route_request", run_type="chain")
 def route_request(req: RouteRequest, llm: BaseChatModel) -> RouteDecision:
     """Rules first; the fast model only for what the rules leave open; the default on failure."""
     hit = rule_kind(req)

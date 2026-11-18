@@ -24,6 +24,8 @@ The milestone plan and its story (what, why, what it does) live in [MILESTONES.m
 Before any deploy (Milestones 7–8):
 - [ ] Auth or passcode and per-IP rate limits on the model routes (each call can start a Claude
       Code process and spend plan quota). Concurrency caps done: `api/limits.py` (T-003).
+      Known gap (T-006): `/api/assist` spends its routing call before the career cap can answer
+      503 while a workflow is running; per-IP limits close it.
 - [ ] Enforce `APP_MODE` (demo vs live); the app must start and serve demo mode with no keys set
       (today the lifespan needs `VOYAGE_API_KEY`).
 - [ ] `POST /api/career/prepare` (like the other routes) uses the server's model credentials

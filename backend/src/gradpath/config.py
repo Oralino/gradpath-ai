@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     # Wall-clock budget for one workflow run (T-006, owner decision 2026-11-18: 300 s). Checked
     # between steps; past it, the run ends in a labelled fallback. A real run took ~100 s.
     workflow_time_budget_s: int = Field(default=300, ge=30, le=1800)
+    # Route log for POST /api/assist (T-006): one JSON line per request, no request text.
+    # Relative to the repo root; "" turns it off. `logs/` is gitignored.
+    route_log_path: str = "logs/routes.jsonl"
 
     app_mode: Literal["demo", "live"] = "demo"
 
