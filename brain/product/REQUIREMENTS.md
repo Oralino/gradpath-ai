@@ -54,7 +54,7 @@ read-only towards the web). Hiring predictions.
 | Topic | Decision |
 |---|---|
 | LLM | Claude. Locally through Claude Code on the owner's Pro plan; API mode with an Anthropic key |
-| Embeddings | Voyage AI (free tier) |
+| Embeddings | Voyage AI free tier, no payment method (3 requests / ~10K tokens per minute; 200M free tokens per model, not refreshed) |
 | Vector store | Qdrant: local embedded mode for development, Qdrant Cloud free tier when deployed |
 | Retrieval | Semantic first; hybrid (vector + keyword) and reranking added as measured experiments |
 | Frameworks | LangGraph for the workflow; LangChain for standard building blocks (owner wants LangChain experience); own code for retrieval logic, routing, fallback, evaluation |
@@ -62,11 +62,12 @@ read-only towards the web). Hiring predictions.
 | Backend / UI | FastAPI + Next.js (Tailwind). No Streamlit prototype |
 | Users | Single user, no auth; multi-user later |
 | Deployment | Required for the MVP: Vercel (frontend), Render (backend), Qdrant Cloud free |
-| Online modes | Demo mode (recorded runs, no cost) by default; live mode with the visitor's own Anthropic key, or the owner's key set on the server later |
-| API spend | No API cost by default: local runs use the Pro plan, the deployed demo makes no model calls |
+| Online modes | Demo mode (recorded runs, no cost) by default; live mode only with the visitor's own Anthropic key (the owner will not set a paid server key) |
+| Cost (owner, 2026-11-17) | **Zero spend, always.** Free tiers only and no payment method on any service (Voyage, LangSmith, Qdrant Cloud, Vercel, Render). Local runs use the existing Pro plan; the deployed demo makes no model calls. When a choice exists, pick the free option and design around free-tier limits |
 | Timeline | No hard date. The spec's four-week plan is a guide |
 | Knowledge base | 30–50 documents gathered by both the owner and Claude; the owner approves sources |
 | Python tooling | uv, Python 3.13 |
+| Models | Claude Haiku 5.5 for routing and extraction; Claude Sonnet 5.5 for answers, gap analysis and roadmap. Configurable per step |
 | Git | GitHub repo, branch + PR to `main`, Conventional Commits with the ticket ID |
 
 ## Acceptance criteria
@@ -88,8 +89,6 @@ MVP:
 - [ ] No personal data or secrets in the repo, logs, recordings or traces from visitors.
 
 ## TBD
-- Which Claude models each step uses (proposal: Haiku for routing and extraction, Sonnet for gap
-  analysis and roadmap); decided in Milestone 1 against Pro-plan limits.
 - Whether live mode on the deployed site uses the owner's Voyage key with a rate limit, or asks the
   visitor for a Voyage key too (proposal: owner's key, rate-limited).
 - The knowledge-base document list.
