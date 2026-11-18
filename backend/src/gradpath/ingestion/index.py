@@ -1,14 +1,26 @@
 """Qdrant storage: client factory and a full, idempotent index rebuild."""
 
+import logging
 from collections.abc import Callable
-from uuid import NAMESPACE_URL, uuid5
+from datetime import UTC, datetime
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import (
+    CreateAlias,
+    CreateAliasOperation,
+    DeleteAlias,
+    DeleteAliasOperation,
+    Distance,
+    PointStruct,
+    VectorParams,
+)
 
 from gradpath.config import REPO_ROOT, Settings
+
+log = logging.getLogger(__name__)
 
 ADD_BATCH = 64
 
@@ -33,31 +45,54 @@ def rebuild_index(
     embeddings: Embeddings,
     progress: Callable[[int, int], None] | None = None,
 ) -> int:
-    """Embed everything first, then drop/recreate `collection` and upsert; returns the chunk count.
+    """Embed everything, build a new physical collection, then switch the alias `collection` to it.
 
-    Called by ingest.py. Embedding before touching Qdrant means a failed run leaves the existing
-    collection intact. Points use QdrantVectorStore's default payload layout (page_content +
-    metadata) so retrieval can read them through it; ids come from chunk_id (deterministic).
+    Called by ingest.py; retrieval reads `collection` as an alias, so readers never see a half-built
+    index. Any failure before the switch deletes the new collection and re-raises, leaving the old
+    index in place. Old physical collections are deleted after the switch; an old-layout real
+    collection named `collection` is deleted before it (an alias cannot share its name).
+    Points use QdrantVectorStore's default payload layout (page_content + metadata); ids come from
+    chunk_id (deterministic).
     """
     if not documents:
         raise ValueError("no documents to index")
     vectors = embeddings.embed_documents([d.page_content for d in documents])
-    if client.collection_exists(collection):
-        client.delete_collection(collection)
+    stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+    new = f"{collection}_{stamp}{uuid4().hex[:8]}"
     client.create_collection(
-        collection, vectors_config=VectorParams(size=len(vectors[0]), distance=Distance.COSINE)
+        new, vectors_config=VectorParams(size=len(vectors[0]), distance=Distance.COSINE)
     )
-    for start in range(0, len(documents), ADD_BATCH):
-        end = start + ADD_BATCH
-        points = [
-            PointStruct(
-                id=point_id(d.metadata["chunk_id"]),
-                vector=v,
-                payload={"page_content": d.page_content, "metadata": d.metadata},
+    try:
+        for start in range(0, len(documents), ADD_BATCH):
+            end = start + ADD_BATCH
+            points = [
+                PointStruct(
+                    id=point_id(d.metadata["chunk_id"]),
+                    vector=v,
+                    payload={"page_content": d.page_content, "metadata": d.metadata},
+                )
+                for d, v in zip(documents[start:end], vectors[start:end], strict=True)
+            ]
+            client.upsert(new, points=points)
+            if progress:
+                progress(start + len(points), len(documents))
+        aliases = client.get_aliases().aliases
+        old = [a.collection_name for a in aliases if a.alias_name == collection]
+        operations: list = []
+        if old:
+            operations.append(DeleteAliasOperation(delete_alias=DeleteAlias(alias_name=collection)))
+        elif client.collection_exists(collection):
+            log.info("migrating: deleting old real collection %s for the alias", collection)
+            client.delete_collection(collection)
+        operations.append(
+            CreateAliasOperation(
+                create_alias=CreateAlias(collection_name=new, alias_name=collection)
             )
-            for d, v in zip(documents[start:end], vectors[start:end], strict=True)
-        ]
-        client.upsert(collection, points=points)
-        if progress:
-            progress(start + len(points), len(documents))
+        )
+        client.update_collection_aliases(change_aliases_operations=operations)
+    except Exception:
+        client.delete_collection(new)
+        raise
+    for name in old:
+        client.delete_collection(name)
     return len(documents)

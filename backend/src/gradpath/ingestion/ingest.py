@@ -15,6 +15,8 @@ from gradpath.ingestion.fetch import Politeness, fetch_source, load_manual, make
 from gradpath.ingestion.index import get_qdrant_client, rebuild_index
 from gradpath.ingestion.manifest import SourceEntry, load_manifest, select_ingestible
 
+log = logging.getLogger(__name__)
+
 
 def process_entry(
     entry: SourceEntry,
@@ -26,7 +28,8 @@ def process_entry(
 ) -> tuple[int, list[Document]]:
     """Fetch (or load manual files), clean and chunk one document; writes its processed JSONL.
 
-    Returns (page_count, chunks). A document with no pages writes nothing.
+    Returns (page_count, chunks). With no chunks it writes nothing
+    and removes any stale processed file.
     """
     if entry.manual:
         pages = load_manual(entry, kb / "manual")
@@ -46,8 +49,14 @@ def process_entry(
             settings.chunk_overlap,
         )
         chunks += page_chunks
+    processed = kb / "processed" / f"{entry.document_id}.jsonl"
     if chunks:
-        write_processed(kb / "processed" / f"{entry.document_id}.jsonl", chunks)
+        write_processed(processed, chunks)
+    else:
+        # a stale file from an earlier run would otherwise be indexed by run()
+        if processed.exists():
+            log.warning("%s: no chunks; deleting stale %s", entry.document_id, processed.name)
+        processed.unlink(missing_ok=True)
     return len(pages), chunks
 
 

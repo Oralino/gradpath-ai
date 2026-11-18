@@ -8,6 +8,7 @@ import httpx
 import pytest
 from langchain_core.embeddings import DeterministicFakeEmbedding, Embeddings
 from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams
 from voyageai.error import RateLimitError
 
 from gradpath.config import Settings
@@ -21,6 +22,7 @@ from gradpath.ingestion.embed import (
 )
 from gradpath.ingestion.fetch import USER_AGENT, Politeness, fetch_source, load_manual
 from gradpath.ingestion.index import rebuild_index
+from gradpath.ingestion.ingest import process_entry
 from gradpath.ingestion.manifest import SourceEntry, load_manifest, select_ingestible
 
 HEADER = (
@@ -119,6 +121,77 @@ def test_fetch_respects_robots(tmp_path: Path):
 def test_fetch_skips_non_200(tmp_path: Path):
     client, _ = make_site(status=403)
     assert fetch_source(entry(), tmp_path, client, politeness=polite()) == []
+
+
+def make_redirect_site(routes: dict, robots: dict | None = None):
+    """MockTransport: routes maps 'host/path' to (status, location) or a Response."""
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        if request.url.path == "/robots.txt":
+            text = (robots or {}).get(request.url.host)
+            return httpx.Response(404 if text is None else 200, text=text or "")
+        route = routes[f"{request.url.host}{request.url.path}"]
+        if isinstance(route, httpx.Response):
+            return route
+        status, location = route
+        return httpx.Response(status, headers={"location": location})
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(handler), headers={"User-Agent": USER_AGENT}
+    )
+    return client, seen
+
+
+OK_HTML = httpx.Response(
+    200, text="<html><body>hi</body></html>", headers={"content-type": "text/html; charset=utf-8"}
+)
+
+
+def test_fetch_follows_same_host_redirect(tmp_path: Path):
+    client, seen = make_redirect_site({"example.org/a": (301, "/b"), "example.org/b": OK_HTML})
+    pages = fetch_source(entry(), tmp_path, client, politeness=polite())
+    assert len(pages) == 1 and pages[0].url == "https://example.org/a"
+    assert seen[-1] == "https://example.org/b"
+
+
+def test_fetch_skips_redirect_to_robots_disallowed_host(tmp_path: Path):
+    client, seen = make_redirect_site(
+        {"example.org/a": (302, "https://other.org/x"), "other.org/x": OK_HTML},
+        robots={"other.org": "User-agent: *\nDisallow: /\n"},
+    )
+    assert fetch_source(entry(), tmp_path, client, politeness=polite()) == []
+    assert "https://other.org/x" not in seen
+
+
+def test_fetch_skips_too_many_redirects(tmp_path: Path):
+    routes = {f"example.org/{n}": (302, f"/{n + 1}") for n in range(10)}
+    routes["example.org/a"] = (302, "/1")
+    client, seen = make_redirect_site(routes)
+    assert fetch_source(entry(), tmp_path, client, politeness=polite()) == []
+    assert len([u for u in seen if not u.endswith("robots.txt")]) == 6  # first GET + 5 hops
+
+
+def test_fetch_skips_pdf_content_type(tmp_path: Path):
+    pdf = httpx.Response(200, content=b"%PDF-1.4", headers={"content-type": "application/pdf"})
+    client, _ = make_redirect_site({"example.org/a": pdf})
+    assert fetch_source(entry(), tmp_path, client, politeness=polite()) == []
+
+
+def test_fetch_accepts_missing_content_type(tmp_path: Path):
+    client, _ = make_redirect_site({"example.org/a": httpx.Response(200, content=b"<p>x</p>")})
+    assert len(fetch_source(entry(), tmp_path, client, politeness=polite())) == 1
+
+
+def test_zero_chunks_delete_stale_processed_file(tmp_path: Path):
+    processed = tmp_path / "processed"
+    processed.mkdir()
+    stale = processed / "doc-a.jsonl"
+    stale.write_text("{}\n", encoding="utf-8")
+    e = entry(fetch_urls=[], manual=True)  # manual document with no file in kb/manual -> no chunks
+    pages, chunks = process_entry(e, tmp_path, Settings(_env_file=None), None, polite(), False)
+    assert (pages, chunks) == (0, []) and not stale.exists()
 
 
 def test_politeness_spaces_requests_to_one_host():
@@ -303,6 +376,10 @@ def test_build_embeddings_needs_key():
 # --- index ------------------------------------------------------------------------------------
 
 
+def physical_collections(client: QdrantClient) -> list[str]:
+    return [c.name for c in client.get_collections().collections]
+
+
 def test_rebuild_index_is_idempotent():
     client = QdrantClient(":memory:")
     docs = make_chunks()
@@ -313,6 +390,19 @@ def test_rebuild_index_is_idempotent():
     assert client.count("kb").count == len(docs)  # rebuilt, not doubled
     point = client.scroll("kb", limit=1, with_payload=True)[0][0]
     assert point.payload["metadata"]["document_id"] == "doc-a"
+
+
+def test_two_rebuilds_leave_one_physical_collection_and_the_alias():
+    client = QdrantClient(":memory:")
+    docs = make_chunks()
+    emb = DeterministicFakeEmbedding(size=8)
+    rebuild_index(client, "kb", docs, emb)
+    rebuild_index(client, "kb", docs, emb)
+    names = physical_collections(client)
+    assert len(names) == 1 and names[0].startswith("kb_")
+    assert [(a.alias_name, a.collection_name) for a in client.get_aliases().aliases] == [
+        ("kb", names[0])
+    ]
 
 
 class Boom(Embeddings):
@@ -329,6 +419,34 @@ def test_rebuild_failure_keeps_existing_collection():
     rebuild_index(client, "kb", docs, DeterministicFakeEmbedding(size=8))
     with pytest.raises(RuntimeError):
         rebuild_index(client, "kb", docs[:2], Boom())
+    assert client.count("kb").count == len(docs)
+
+
+def test_upsert_failure_keeps_old_index_and_leaves_no_collection(monkeypatch):
+    client = QdrantClient(":memory:")
+    docs = make_chunks()
+    emb = DeterministicFakeEmbedding(size=8)
+    rebuild_index(client, "kb", docs, emb)
+    before = physical_collections(client)
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("upsert failed")
+
+    monkeypatch.setattr(client, "upsert", fail)
+    with pytest.raises(RuntimeError, match="upsert failed"):
+        rebuild_index(client, "kb", docs[:2], emb)
+    assert physical_collections(client) == before
+    assert client.count("kb").count == len(docs)
+
+
+def test_rebuild_migrates_old_real_collection_to_alias():
+    client = QdrantClient(":memory:")
+    docs = make_chunks()
+    emb = DeterministicFakeEmbedding(size=8)
+    client.create_collection("kb", vectors_config=VectorParams(size=8, distance=Distance.COSINE))
+    rebuild_index(client, "kb", docs, emb)
+    names = physical_collections(client)
+    assert "kb" not in names and len(names) == 1
     assert client.count("kb").count == len(docs)
 
 
