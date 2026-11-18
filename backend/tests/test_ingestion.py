@@ -184,14 +184,50 @@ def test_fetch_accepts_missing_content_type(tmp_path: Path):
     assert len(fetch_source(entry(), tmp_path, client, politeness=polite())) == 1
 
 
-def test_zero_chunks_delete_stale_processed_file(tmp_path: Path):
+def stale_setup(tmp_path: Path) -> Path:
     processed = tmp_path / "processed"
     processed.mkdir()
     stale = processed / "doc-a.jsonl"
     stale.write_text("{}\n", encoding="utf-8")
-    e = entry(fetch_urls=[], manual=True)  # manual document with no file in kb/manual -> no chunks
+    return stale
+
+
+def test_pages_without_chunks_delete_stale_processed_file(tmp_path: Path):
+    stale = stale_setup(tmp_path)
+    (tmp_path / "manual").mkdir()
+    (tmp_path / "manual" / "doc-a.html").write_text("<html></html>", encoding="utf-8")
+    e = entry(fetch_urls=[], manual=True)
     pages, chunks = process_entry(e, tmp_path, Settings(_env_file=None), None, polite(), False)
-    assert (pages, chunks) == (0, []) and not stale.exists()
+    assert (pages, chunks) == (1, []) and not stale.exists()
+
+
+def test_zero_pages_keep_last_good_processed_file(tmp_path: Path):
+    stale = stale_setup(tmp_path)
+    e = entry(fetch_urls=[], manual=True)  # manual document with no file -> no pages
+    pages, chunks = process_entry(e, tmp_path, Settings(_env_file=None), None, polite(), False)
+    assert (pages, chunks) == (0, []) and stale.exists()
+
+
+def test_robots_redirect_is_followed_and_honoured(tmp_path: Path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(301, headers={"location": "/real-robots.txt"})
+        if request.url.path == "/real-robots.txt":
+            return httpx.Response(200, text="User-agent: *\nDisallow: /a\n")
+        return OK_HTML
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    assert fetch_source(entry(), tmp_path, client, politeness=polite()) == []
+
+
+def test_robots_unresolved_redirect_chain_disallows(tmp_path: Path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.startswith("/robots") or request.url.path.startswith("/loop"):
+            return httpx.Response(302, headers={"location": "/loop"})
+        return OK_HTML
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    assert fetch_source(entry(), tmp_path, client, politeness=polite()) == []
 
 
 def test_politeness_spaces_requests_to_one_host():
@@ -650,3 +686,57 @@ def test_manifest_rejects_path_traversal_ids():
     with pytest.raises(ValueError, match="document_id"):
         entry(document_id="a/b")
     assert entry(document_id="fund-mdn.http_2").document_id == "fund-mdn.http_2"
+
+
+def test_alias_failure_after_migration_keeps_new_collection(monkeypatch):
+    client = QdrantClient(":memory:")
+    docs = make_chunks()
+    emb = DeterministicFakeEmbedding(size=8)
+    client.create_collection("kb", vectors_config=VectorParams(size=8, distance=Distance.COSINE))
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("alias failed")
+
+    monkeypatch.setattr(client, "update_collection_aliases", fail)
+    with pytest.raises(RuntimeError, match="alias failed"):
+        rebuild_index(client, "kb", docs, emb)
+    names = physical_collections(client)
+    assert len(names) == 1 and names[0].startswith("kb_")  # new index kept for manual recovery
+    assert client.count(names[0]).count == len(docs)
+
+
+def test_interrupt_during_upsert_removes_half_built_collection(monkeypatch):
+    client = QdrantClient(":memory:")
+    docs = make_chunks()
+    emb = DeterministicFakeEmbedding(size=8)
+    rebuild_index(client, "kb", docs, emb)
+    before = physical_collections(client)
+
+    def interrupt(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(client, "upsert", interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        rebuild_index(client, "kb", docs, emb)
+    assert physical_collections(client) == before
+
+
+def test_rebuild_sweeps_orphans_and_survives_old_delete_failure(monkeypatch):
+    client = QdrantClient(":memory:")
+    docs = make_chunks()
+    emb = DeterministicFakeEmbedding(size=8)
+    client.create_collection(
+        "kb_orphan", vectors_config=VectorParams(size=8, distance=Distance.COSINE)
+    )
+    rebuild_index(client, "kb", docs, emb)
+    assert len(physical_collections(client)) == 1  # orphan swept
+
+    real_delete = client.delete_collection
+
+    def flaky(name, *a, **kw):
+        raise RuntimeError("delete failed")
+
+    monkeypatch.setattr(client, "delete_collection", flaky)
+    assert rebuild_index(client, "kb", docs, emb) == len(docs)  # logged, not raised
+    monkeypatch.setattr(client, "delete_collection", real_delete)
+    assert client.count("kb").count == len(docs)

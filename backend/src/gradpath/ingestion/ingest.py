@@ -28,13 +28,14 @@ def process_entry(
 ) -> tuple[int, list[Document]]:
     """Fetch (or load manual files), clean and chunk one document; writes its processed JSONL.
 
-    Returns (page_count, chunks). With no chunks it writes nothing
-    and removes any stale processed file.
+    Returns (page_count, chunks). Pages without chunks remove a stale processed file; no pages at
+    all (fetch failure) keep the last good one.
     """
     if entry.manual:
         pages = load_manual(entry, kb / "manual")
     else:
         pages = fetch_source(entry, kb / "raw", client, refresh, politeness)
+    processed = kb / "processed" / f"{entry.document_id}.jsonl"
     chunks: list[Document] = []
     for page in pages:
         raw = page.path.read_text(encoding="utf-8", errors="replace")
@@ -49,14 +50,15 @@ def process_entry(
             settings.chunk_overlap,
         )
         chunks += page_chunks
-    processed = kb / "processed" / f"{entry.document_id}.jsonl"
     if chunks:
         write_processed(processed, chunks)
-    else:
-        # a stale file from an earlier run would otherwise be indexed by run()
+    elif pages:
+        # pages loaded but empty: a stale file would otherwise be indexed by run()
         if processed.exists():
             log.warning("%s: no chunks; deleting stale %s", entry.document_id, processed.name)
         processed.unlink(missing_ok=True)
+    elif processed.exists():
+        log.warning("%s: no pages fetched; keeping existing %s", entry.document_id, processed.name)
     return len(pages), chunks
 
 

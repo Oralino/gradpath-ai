@@ -48,9 +48,10 @@ def rebuild_index(
     """Embed everything, build a new physical collection, then switch the alias `collection` to it.
 
     Called by ingest.py; retrieval reads `collection` as an alias, so readers never see a half-built
-    index. Any failure before the switch deletes the new collection and re-raises, leaving the old
-    index in place. Old physical collections are deleted after the switch; an old-layout real
-    collection named `collection` is deleted before it (an alias cannot share its name).
+    index. Any failure or interrupt before the switch deletes the new collection, leaving the old
+    index in place. Old collections and orphan `{collection}_*` leftovers are deleted after the
+    switch (errors logged). An old-layout real collection named `collection` is deleted before it
+    (an alias cannot share its name); if the alias call then fails twice, `new` is kept and logged.
     Points use QdrantVectorStore's default payload layout (page_content + metadata); ids come from
     chunk_id (deterministic).
     """
@@ -62,6 +63,8 @@ def rebuild_index(
     client.create_collection(
         new, vectors_config=VectorParams(size=len(vectors[0]), distance=Distance.COSINE)
     )
+    switched = migrated = False
+    old: list[str] = []
     try:
         for start in range(0, len(documents), ADD_BATCH):
             end = start + ADD_BATCH
@@ -84,15 +87,53 @@ def rebuild_index(
         elif client.collection_exists(collection):
             log.info("migrating: deleting old real collection %s for the alias", collection)
             client.delete_collection(collection)
+            migrated = True
         operations.append(
             CreateAliasOperation(
                 create_alias=CreateAlias(collection_name=new, alias_name=collection)
             )
         )
-        client.update_collection_aliases(change_aliases_operations=operations)
-    except Exception:
-        client.delete_collection(new)
-        raise
+        try:
+            client.update_collection_aliases(change_aliases_operations=operations)
+        except Exception:
+            if not migrated:
+                raise
+            # the old index is already gone: retry once, and never delete `new` (it is all we have)
+            client.update_collection_aliases(change_aliases_operations=operations[-1:])
+        switched = True
+    finally:
+        if not switched:
+            if migrated:
+                log.error(
+                    "alias %s was not created; the new index is collection %s", collection, new
+                )
+            else:
+                _drop(client, new)
     for name in old:
-        client.delete_collection(name)
+        _drop(client, name)
+    _sweep_orphans(client, collection, new)
     return len(documents)
+
+
+def _drop(client: QdrantClient, name: str) -> None:
+    """Delete a collection, logging instead of raising (cleanup must not hide the real error)."""
+    try:
+        client.delete_collection(name)
+    except Exception as exc:
+        log.warning("could not delete collection %s: %s", name, exc)
+
+
+def _sweep_orphans(client: QdrantClient, collection: str, keep: str) -> None:
+    """Delete `{collection}_*` collections other than `keep`: leftovers of interrupted rebuilds.
+
+    Called by rebuild_index after a successful switch; failures are logged only.
+    """
+    try:
+        names = [c.name for c in client.get_collections().collections]
+    except Exception as exc:
+        log.warning("could not list collections for the orphan sweep: %s", exc)
+        return
+    for name in names:
+        if name.startswith(f"{collection}_") and name != keep:
+            log.info("deleting orphan collection %s", name)
+            _drop(client, name)

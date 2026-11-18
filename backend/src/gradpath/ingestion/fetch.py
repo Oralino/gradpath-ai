@@ -83,11 +83,24 @@ class Politeness:
                 self._sleep(gap)
         self._last[host] = self._clock()
 
+    def _get_robots(self, url: str, client: httpx.Client) -> httpx.Response | None:
+        """GET robots.txt following up to MAX_REDIRECTS redirects by hand (the client does not);
+        None if the chain does not end in a non-redirect response. Called by `allowed`.
+        """
+        for _ in range(MAX_REDIRECTS + 1):
+            resp = client.get(url)
+            location = resp.headers.get("location")
+            if resp.status_code not in REDIRECT_STATUSES or not location:
+                return resp
+            url = urljoin(url, location)
+            self.wait(urlparse(url).netloc)
+        return None
+
     def allowed(self, url: str, client: httpx.Client) -> bool:
         """Check robots.txt for the URL's host (cached per host for the run), per RFC 9309.
 
-        200 -> parse the rules; 4xx (incl. 404) -> allow all; 5xx or a network error -> disallow
-        all (the site may be hiding rules), so ingest.py skips the URL with a warning.
+        200 -> parse the rules; 4xx (incl. 404) -> allow all; 5xx, an unresolved redirect chain or
+        a network error -> disallow all (the site may be hiding rules), so ingest.py skips the URL.
         """
         parts = urlparse(url)
         host = parts.netloc
@@ -95,8 +108,11 @@ class Politeness:
             rules: urllib.robotparser.RobotFileParser | bool
             try:
                 self.wait(host)
-                resp = client.get(f"{parts.scheme}://{host}/robots.txt")
-                if resp.status_code == 200:
+                resp = self._get_robots(f"{parts.scheme}://{host}/robots.txt", client)
+                if resp is None:
+                    log.warning("robots.txt for %s redirects without resolving; skipping", host)
+                    rules = False
+                elif resp.status_code == 200:
                     rules = urllib.robotparser.RobotFileParser()
                     rules.parse(resp.text.splitlines())
                 else:
