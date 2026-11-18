@@ -53,7 +53,7 @@ defences for the profile and JD text; what reaches LangSmith.
 
 ## Changes
 - Branch: `feat/t-003-agentic-workflow`
-- PR:
+- PR: https://github.com/Oralino/gradpath-ai/pull/3
 - Files touched: `backend/src/gradpath/workflows/` (new: schemas, state, prompting, nodes, gaps,
   roadmap, critic, graph, cli), `api/career.py`, `api/limits.py` (new), `api/main.py`, `api/chat.py`,
   `api/jobs.py`, `evaluation/workflow_eval.py` (new), `jobs/analyze.py`, `safety.py`, `config.py`,

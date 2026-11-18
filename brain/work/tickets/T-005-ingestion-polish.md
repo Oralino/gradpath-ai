@@ -29,6 +29,7 @@ Done in parallel with T-003 step 7 by `engineer`; tests only, no re-ingest (no V
 
 ## Changes
 - Branch: `feat/t-003-agentic-workflow` (shared branch, separate commit)
+- PR: https://github.com/Oralino/gradpath-ai/pull/3
 - Files touched: `backend/src/gradpath/ingestion/fetch.py`, `ingest.py`, `index.py`,
   `backend/tests/test_ingestion.py`
 - Commits (oldest first):
