@@ -50,10 +50,18 @@ def process_entry(
             settings.chunk_overlap,
         )
         chunks += page_chunks
-    if chunks:
+    partial = not entry.manual and len(pages) < len(entry.fetch_urls)
+    if partial and processed.exists():
+        # Some pages failed this time: keep the last complete file rather than shrink or
+        # delete it.
+        log.warning(
+            "%s: only %d of %d pages fetched; keeping existing %s",
+            entry.document_id, len(pages), len(entry.fetch_urls), processed.name,
+        )  # fmt: skip
+    elif chunks:
         write_processed(processed, chunks)
     elif pages:
-        # pages loaded but empty: a stale file would otherwise be indexed by run()
+        # every page loaded but none had content: a stale file would otherwise be indexed
         if processed.exists():
             log.warning("%s: no chunks; deleting stale %s", entry.document_id, processed.name)
         processed.unlink(missing_ok=True)

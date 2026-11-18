@@ -1,6 +1,7 @@
 """Qdrant storage: client factory and a full, idempotent index rebuild."""
 
 import logging
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from uuid import NAMESPACE_URL, uuid4, uuid5
@@ -86,8 +87,8 @@ def rebuild_index(
             operations.append(DeleteAliasOperation(delete_alias=DeleteAlias(alias_name=collection)))
         elif client.collection_exists(collection):
             log.info("migrating: deleting old real collection %s for the alias", collection)
+            migrated = True  # set first: once the delete starts, `new` must never be dropped
             client.delete_collection(collection)
-            migrated = True
         operations.append(
             CreateAliasOperation(
                 create_alias=CreateAlias(collection_name=new, alias_name=collection)
@@ -134,6 +135,7 @@ def _sweep_orphans(client: QdrantClient, collection: str, keep: str) -> None:
         log.warning("could not list collections for the orphan sweep: %s", exc)
         return
     for name in names:
-        if name.startswith(f"{collection}_") and name != keep:
+        # Only names this function creates: <collection>_<14-digit UTC stamp><8 hex>.
+        if re.fullmatch(rf"{re.escape(collection)}_\d{{14}}[0-9a-f]{{8}}", name) and name != keep:
             log.info("deleting orphan collection %s", name)
             _drop(client, name)

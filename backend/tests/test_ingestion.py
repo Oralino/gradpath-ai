@@ -726,7 +726,7 @@ def test_rebuild_sweeps_orphans_and_survives_old_delete_failure(monkeypatch):
     docs = make_chunks()
     emb = DeterministicFakeEmbedding(size=8)
     client.create_collection(
-        "kb_orphan", vectors_config=VectorParams(size=8, distance=Distance.COSINE)
+        "kb_20260101000000deadbeef", vectors_config=VectorParams(size=8, distance=Distance.COSINE)
     )
     rebuild_index(client, "kb", docs, emb)
     assert len(physical_collections(client)) == 1  # orphan swept
@@ -740,3 +740,36 @@ def test_rebuild_sweeps_orphans_and_survives_old_delete_failure(monkeypatch):
     assert rebuild_index(client, "kb", docs, emb) == len(docs)  # logged, not raised
     monkeypatch.setattr(client, "delete_collection", real_delete)
     assert client.count("kb").count == len(docs)
+
+
+def test_orphan_sweep_only_deletes_rebuild_collections():
+    from gradpath.ingestion.index import _sweep_orphans
+
+    client = QdrantClient(":memory:")
+    for name in ("kb_20261118010101abcdef12", "kb_test", "kb_20261118020202deadbeef"):
+        client.create_collection(
+            name, vectors_config=VectorParams(size=2, distance=Distance.COSINE)
+        )
+    _sweep_orphans(client, "kb", keep="kb_20261118020202deadbeef")
+    names = {c.name for c in client.get_collections().collections}
+    assert names == {"kb_test", "kb_20261118020202deadbeef"}
+
+
+def test_robots_redirect_without_location_disallows(tmp_path: Path):
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(302)  # no Location header
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    assert Politeness(sleep=lambda s: None).allowed("https://example.org/page", client) is False
+
+
+def test_partial_fetch_keeps_last_complete_processed_file(tmp_path: Path):
+    stale = stale_setup(tmp_path)
+    html = b"<html><body><h1>Title</h1><p>" + b"enough text to chunk " * 20 + b"</p></body></html>"
+    client, _ = make_redirect_site(
+        {"example.org/a": httpx.Response(200, content=html), "example.org/b": httpx.Response(404)}
+    )
+    e = entry(fetch_urls=["https://example.org/a", "https://example.org/b"])
+    pages, chunks = process_entry(e, tmp_path, Settings(_env_file=None), client, polite(), False)
+    assert pages == 1 and chunks and stale.read_text(encoding="utf-8") == "{}\n"

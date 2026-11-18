@@ -90,8 +90,11 @@ class Politeness:
         for _ in range(MAX_REDIRECTS + 1):
             resp = client.get(url)
             location = resp.headers.get("location")
-            if resp.status_code not in REDIRECT_STATUSES or not location:
+            if resp.status_code not in REDIRECT_STATUSES:
                 return resp
+            if not location:
+                return None  # a redirect with nowhere to go: treated as disallow
+
             url = urljoin(url, location)
             self.wait(urlparse(url).netloc)
         return None
