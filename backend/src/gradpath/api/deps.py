@@ -19,3 +19,8 @@ def get_retrieval(request: Request) -> RetrievalService:
 def get_answer_model() -> BaseChatModel:
     """The "smart" tier model (Sonnet by default) for writing grounded answers."""
     return get_chat_model("smart")
+
+
+def get_extraction_model() -> BaseChatModel:
+    """The "fast" tier model (Haiku by default) for extraction and routing."""
+    return get_chat_model("fast")

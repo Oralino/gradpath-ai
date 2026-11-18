@@ -99,6 +99,7 @@ class RetrievalService:
         k: int = 5,
         min_score: float = 0.35,
     ):
+        self.embeddings = embeddings
         self.store = QdrantVectorStore(
             client=client, collection_name=collection, embedding=embeddings
         )
@@ -114,11 +115,47 @@ class RetrievalService:
         max_per_document: int | None = None,
     ) -> RetrievalResult:
         """Return up to `k` evidence chunks for `query` that clear `min_score`."""
+        vector = self.embeddings.embed_query(query)
+        return self._search_vector(query, vector, k, filters, max_per_document)
+
+    def search_many(
+        self,
+        queries: list[str],
+        *,
+        k: int | None = None,
+        filters: dict[FilterKey, str | list[str]] | None = None,
+        max_per_document: int | None = None,
+    ) -> list[RetrievalResult]:
+        """`search` for several queries, embedding them in one batch (job analysis uses this).
+
+        On Voyage's free tier (3 requests a minute) this turns N requests into one.
+        """
+        if not queries:
+            return []
+        batch_fn = getattr(self.embeddings, "embed_queries", None)
+        if batch_fn is None:
+            vectors = [self.embeddings.embed_query(q) for q in queries]
+        else:
+            vectors = batch_fn(queries)
+        return [
+            self._search_vector(q, v, k, filters, max_per_document)
+            for q, v in zip(queries, vectors, strict=True)
+        ]
+
+    def _search_vector(
+        self,
+        query: str,
+        vector: list[float],
+        k: int | None,
+        filters: dict[FilterKey, str | list[str]] | None,
+        max_per_document: int | None,
+    ) -> RetrievalResult:
+        """Nearest chunks to `vector`, thresholded and optionally capped per document."""
         k = k or self.k
         # Over-fetch when capping per document, so the cap doesn't leave the result short.
         fetch_k = k * 3 if max_per_document else k
-        hits = self.store.similarity_search_with_score(
-            query, k=fetch_k, filter=build_filter(filters)
+        hits = self.store.similarity_search_with_score_by_vector(
+            vector, k=fetch_k, filter=build_filter(filters)
         )
         ranked = [to_evidence(doc, score) for doc, score in hits]
         best = ranked[0].score if ranked else None

@@ -9,6 +9,7 @@ from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 
+import voyageai
 from langchain_core.embeddings import Embeddings
 from langchain_voyageai import VoyageAIEmbeddings
 from voyageai.error import RateLimitError
@@ -111,6 +112,20 @@ class ThrottledEmbeddings(Embeddings):
         # Queries count against the same rpm/tpm limits, so they use the shared window too.
         return self._call(self.inner.embed_query, text, estimate_tokens(text))
 
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        """Embed many queries in as few requests as possible (used by RetrievalService.search_many).
+
+        Uses the inner model's batched `embed_queries` when it has one (one request per token-budget
+        batch instead of one per query: 20 queries = 1 request, not 7 minutes at 3 RPM).
+        """
+        batch_fn = getattr(self.inner, "embed_queries", None)
+        if batch_fn is None:
+            return [self.embed_query(t) for t in texts]
+        vectors: list[list[float]] = []
+        for batch in self._batches(texts):
+            vectors.extend(self._call(batch_fn, batch, sum(estimate_tokens(t) for t in batch)))
+        return vectors
+
 
 class CachedEmbeddings(Embeddings):
     """On-disk vector cache in front of `inner` so already-paid embeddings are never re-bought.
@@ -155,12 +170,29 @@ class CachedEmbeddings(Embeddings):
     def embed_query(self, text: str) -> list[float]:
         return self.inner.embed_query(text)
 
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        """Queries are not cached; pass the batch through (or fall back to one at a time)."""
+        batch_fn = getattr(self.inner, "embed_queries", None)
+        return batch_fn(texts) if batch_fn else [self.inner.embed_query(t) for t in texts]
+
+
+class VoyageEmbeddings(VoyageAIEmbeddings):
+    """`VoyageAIEmbeddings` plus `embed_queries`: many queries in one request.
+
+    LangChain's class embeds queries one request at a time; the public `voyageai.Client.embed`
+    accepts a list with `input_type="query"`, which matters on the 3-requests-a-minute free tier.
+    """
+
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        client = voyageai.Client(api_key=self.voyage_api_key.get_secret_value())
+        return client.embed(texts, model=self.model, input_type="query").embeddings
+
 
 def build_embeddings(settings: Settings, cache_dir: Path) -> CachedEmbeddings:
     """Cache(Throttle(Voyage)); raises without a key (called by ingest.py)."""
     if settings.voyage_api_key is None:
         raise RuntimeError("VOYAGE_API_KEY is not set; add it to .env to embed and index.")
-    inner = VoyageAIEmbeddings(
+    inner = VoyageEmbeddings(
         model=settings.embed_model,
         voyage_api_key=settings.voyage_api_key,
         batch_size=MAX_TEXTS_PER_REQUEST,

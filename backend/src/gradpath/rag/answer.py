@@ -5,7 +5,6 @@ workflow. Retrieval is `retrieval.RetrievalService`; the model comes from `provi
 """
 
 import logging
-import re
 from typing import Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -14,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from gradpath.providers import with_structure
 from gradpath.retrieval import Evidence, RetrievalService
+from gradpath.safety import neutralise_tags
 
 log = logging.getLogger(__name__)
 
@@ -35,10 +35,6 @@ Rules:
 - If the evidence does not answer the question, set `insufficient_evidence` to true and leave
   `answer` empty. A partial answer is fine if you say what the evidence does not cover.
 - Write a clear, concise answer (a short paragraph or a few bullet points) for a student."""
-
-# Tag names we use as delimiters; any occurrence inside retrieved text is neutralised so a document
-# cannot close its own block or open a fake one (prompt-injection defence).
-_DELIMITER = re.compile(r"<(/?)\s*(evidence|question)\b", re.IGNORECASE)
 
 
 class ModelAnswer(BaseModel):
@@ -71,8 +67,8 @@ class ChatAnswer(BaseModel):
 
 
 def neutralise(text: str) -> str:
-    """Turn `<evidence`, `</question` etc. inside untrusted text into harmless `&lt;...`."""
-    return _DELIMITER.sub(lambda m: f"&lt;{m.group(1)}{m.group(2)}", text)
+    """Neutralise our delimiter tags inside untrusted text (see `safety.neutralise_tags`)."""
+    return neutralise_tags(text, ("evidence", "question"))
 
 
 def format_evidence(evidence: list[Evidence]) -> str:

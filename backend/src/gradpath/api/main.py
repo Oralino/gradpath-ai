@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from gradpath.api.chat import router as chat_router
+from gradpath.api.jobs import router as jobs_router
 from gradpath.config import get_settings
 from gradpath.retrieval import get_retrieval_service
 
@@ -34,6 +35,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
         lifespan=lifespan if use_lifespan else None,
     )
     app.include_router(chat_router)
+    app.include_router(jobs_router)
 
     @app.get("/api/health", tags=["meta"])
     def health() -> dict[str, str]:

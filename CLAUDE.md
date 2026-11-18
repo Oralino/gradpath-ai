@@ -39,6 +39,7 @@ uv run python -m gradpath.providers.smoke   # manual: one real call through LLM_
 uv run python -m gradpath.ingestion.ingest [--dry-run]   # build the knowledge base index
 uv run python -m gradpath.retrieval.probe                # real retrieval scores (threshold check)
 uv run python -m gradpath.rag.ask "question"             # one RAG answer from the terminal
+uv run python -m gradpath.jobs.cli <job_description_file> [--json]   # analyse a posting
 uv run uvicorn gradpath.api.main:app --reload            # API on :8000 (docs at /docs)
 ```
 - Local Qdrant allows one process at a time: stop the API before running ingest, probe or ask.
