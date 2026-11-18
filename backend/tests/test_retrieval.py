@@ -1,62 +1,14 @@
 """Retrieval service tests: in-memory Qdrant, keyword embeddings (no Voyage, no network)."""
 
-import math
-
 import pytest
-from langchain_core.documents import Document
-from langchain_core.embeddings import Embeddings
-from qdrant_client import QdrantClient
 
-from gradpath.ingestion.index import rebuild_index
 from gradpath.retrieval import Evidence, RetrievalService
 from gradpath.retrieval.service import build_filter, cap_per_document
 
-VOCAB = ["sql", "index", "http", "status", "git", "branch"]
-
-
-class KeywordEmbeddings(Embeddings):
-    """Bag-of-keywords vectors, so cosine scores are predictable in tests."""
-
-    def _vec(self, text: str) -> list[float]:
-        words = text.lower().split()
-        v = [float(words.count(w)) for w in VOCAB] + [0.01]  # tiny constant: never a zero vector
-        norm = math.sqrt(sum(x * x for x in v))
-        return [x / norm for x in v]
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return [self._vec(t) for t in texts]
-
-    def embed_query(self, text: str) -> list[float]:
-        return self._vec(text)
-
-
-def doc(chunk_id: str, text: str, document_id: str, collection: str) -> Document:
-    return Document(
-        page_content=text,
-        metadata={
-            "chunk_id": chunk_id,
-            "document_id": document_id,
-            "title": document_id.title(),
-            "section": "Intro > Basics",
-            "source_url": f"https://example.org/{document_id}",
-            "collection": collection,
-        },
-    )
-
 
 @pytest.fixture
-def service() -> RetrievalService:
-    client = QdrantClient(":memory:")
-    docs = [
-        doc("pg:0:0", "sql index index", "pg", "backend_engineering"),
-        doc("pg:0:1", "sql index", "pg", "backend_engineering"),
-        doc("pg:0:2", "sql sql index", "pg", "backend_engineering"),
-        doc("sqlite:0:0", "index sql", "sqlite", "backend_engineering"),
-        doc("mdn:0:0", "http status status", "mdn", "technical_fundamentals"),
-        doc("git:0:0", "git branch branch", "git", "career_resources"),
-    ]
-    rebuild_index(client, "kb", docs, KeywordEmbeddings())
-    return RetrievalService(client, "kb", KeywordEmbeddings(), k=3, min_score=0.5)
+def service(kb_service: RetrievalService) -> RetrievalService:
+    return kb_service
 
 
 def test_search_returns_scored_citable_evidence(service):
