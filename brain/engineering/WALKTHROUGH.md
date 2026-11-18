@@ -162,6 +162,28 @@ routing quality are measured, not assumed.
 - **Q: "Why skip the LLM when retrieval finds nothing?"** It costs nothing and removes the chance
   of a confident made-up answer; abstaining is a feature, measured later in the evaluation.
 
+## Job-description analysis (`jobs/analyze.py`, `POST /api/jobs/analyze`)
+- **Flow:** Haiku extracts a validated `JobExtraction` (title, seniority, responsibilities,
+  requirements with skill, category, required/preferred, explicit/inferred, exact quote) -> code
+  verifies each quote is really in the posting -> one batched search for every studyable
+  requirement -> Sonnet writes a 2-4 sentence study note per covered requirement, citing only that
+  requirement's evidence -> code drops notes with no valid citation.
+- **Coverage labels:** `covered` (evidence above the threshold), `not_covered` (the knowledge base
+  has nothing: say so, don't invent), `not_applicable` (eligibility: degree, clearance,
+  authorization, years of experience are not things to study).
+- **Why two models:** extraction is simple and frequent (Haiku: fast, cheap); writing study notes
+  needs judgement (Sonnet). Both are config settings.
+- **Free-tier engineering:** `search_many` embeds all requirement queries in one Voyage request
+  (`VoyageEmbeddings.embed_queries`, public `voyageai.Client.embed(..., input_type="query")`),
+  still counted by the rate limiter. 8 requirements took 1.5 s instead of ~3 minutes.
+- **Untrusted posting:** wrapped in `<job_description>`; its own tags are neutralised by the shared
+  `safety.neutralise_tags` (also used by the RAG path). A test posting that tries to close the block
+  and "ignore previous instructions" stays inside it.
+- **Q: "How do you know the extracted requirements are real?"** Every requirement carries the exact
+  words from the posting, and code checks them; unverified quotes are flagged, not hidden.
+- **Q: "Why not one big prompt?"** Separate, validated steps can be tested, measured and retried
+  independently, and they map directly onto LangGraph nodes in Milestone 3.
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.

@@ -65,3 +65,7 @@ Steps:
   1.5), and it stated what the evidence did not cover (index costs, index types, multi-column
   indexes) instead of using outside knowledge. Recall gap noted: `db-postgres-indexes` page
   `indexes-multicolumn` exists but was not in the top 5; add as a Milestone 2 eval case.
+- Step 6: `jobs/` + `POST /api/jobs/analyze` + `jobs.cli`; 64 tests passed. Real batched search of
+  8 InterImage-style requirements: 1 Voyage request, 1.5 s; covered: REST/microservices, Git,
+  Python, Agile/code review; not covered: Docker/Kubernetes, CI/CD, LangChain/vector databases
+  (corpus gaps), clearance (eligibility).

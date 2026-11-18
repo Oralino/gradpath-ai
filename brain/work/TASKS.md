@@ -7,7 +7,8 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 - [ ] [T-001 Milestone 1: RAG foundation](tickets/T-001-rag-foundation.md)
 
 ## Before Milestone 1
-- [ ] **(owner + Claude)** Fill gaps: behavioral interviews (STAR), caching, message queues.
+- [ ] **(owner + Claude)** Fill corpus gaps: behavioral interviews (STAR), caching, message queues,
+      Docker/Kubernetes, CI/CD, LLM/RAG tooling (LangChain, vector databases).
 - [ ] More new-grad backend job descriptions in `private/job_descriptions/` (one so far).
 
 ## Milestones
