@@ -2,6 +2,10 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-18
+- [T-008 Tag neutraliser misses invisible and fullwidth variants](tickets/T-008-tag-neutraliser-unicode.md):
+  untrusted text normalised (NFKC, format characters removed); look-alike openers neutralised.
+- [T-007 Ingestion redirects could reach any host](tickets/T-007-ingestion-url-allowlist.md):
+  https manifest hosts only; private, numeric and localhost hosts refused.
 - [T-003 Milestone 3: agentic workflow](tickets/T-003-agentic-workflow.md): LangGraph workflow
   (job + profile -> gaps -> roadmap + questions -> critic, bounded revision), `POST
   /api/career/prepare`, workflow CLI and evaluation (4/4 cases), concurrency caps; 251 tests. Merged as `e100ccb`.

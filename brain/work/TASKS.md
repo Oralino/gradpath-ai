@@ -7,9 +7,8 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 - [ ] [T-006 Milestone 4: router + fallback](tickets/T-006-router-fallback.md) (in progress).
 
 Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
-- [ ] T-007 (proposed): ingestion redirects: https only, same or manifest host only, no private IPs
-      (SSRF and knowledge-base poisoning).
-- [ ] T-008 (proposed): `safety.neutralise_tags` misses zero-width and fullwidth tag variants.
+- [x] [T-007](tickets/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.
+- [x] [T-008](tickets/T-008-tag-neutraliser-unicode.md): tag neutraliser handles invisible and look-alike characters.
 - [ ] Add `uvx pip-audit` to the release checks (dependency vulnerabilities).
 - [ ] **(owner)** Two-factor authentication on GitHub, Anthropic, Voyage and LangSmith.
 
