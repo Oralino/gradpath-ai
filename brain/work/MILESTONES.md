@@ -12,7 +12,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 0 | Project setup | ✅ | Decide the plan, stack and rules before coding | Public repo, `brain/` docs, licence-checked sources |
 | 1 | RAG foundation | ✅ | Load sources, answer with citations, analyse a job description | Cited answers, "not covered" answers, 40+ tests |
 | 2 | Retrieval evaluation + tracing | ✅ | Measure search quality | Recall@5 0.97, MRR 0.98, threshold checked, LangSmith traces, CI |
-| 3 | Agentic workflow | ⏳ | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop |
+| 3 | Agentic workflow | 🔨 | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop |
 | 4 | Router + fallback | ⏳ | Pick the cheapest path that works | Routing accuracy, labelled partial answers |
 | 5 | Hybrid retrieval + reranking | ⏳ | Improve search for exact terms | Before/after metrics vs semantic-only |
 | 6 | Frontend | ⏳ | Make it usable | Next.js app designed from `DESIGN.md` |
@@ -129,12 +129,28 @@ and analyses a job description, or says when it doesn't know.
 
 ---
 
-## Milestones 2–8: what's next
+## Milestone 3: Agentic workflow (LangGraph) 🔨
+*Ticket: `tickets/T-003-agentic-workflow.md`*
+
+**Goal:** job description + profile -> requirements -> gap analysis -> prioritised roadmap ->
+critic, with a bounded revision loop, as a LangGraph workflow behind `POST /api/career/prepare`.
+
+| Step | Status | What we built | Why | Result |
+|---|---|---|---|---|
+| 1. Ticket + housekeeping | ✅ | T-003, branch, Milestone 2 marked merged | Clean start | Pushed |
+| 2. Explain LangGraph + plan | 🔨 | Node plan, state schema, revision loop | The owner approves the design before code | Awaiting go-ahead |
+
+### Problems we hit and how we solved them
+
+| Problem | What we did | Why it's worth mentioning |
+|---|---|---|
+
+---
+
+## Milestones 4–8: what's next
 
 | # | Milestone | What it will do | Why it matters |
 |---|---|---|---|
-| 2 | Retrieval evaluation + tracing | Label 30–50 questions with their correct sources; measure Recall@K, Precision@K, MRR; turn on LangSmith | Measured quality makes the project credible and gives a baseline for every experiment |
-| 3 | Agentic workflow (LangGraph) | Analyse job and profile in parallel -> retrieve -> gap analysis -> roadmap -> critic, with a bounded revision loop; `POST /api/career/prepare` | The main feature needs several dependent steps, which one prompt can't do reliably |
 | 4 | Router + fallback | Choose RAG or the workflow per request and record why; labelled partial answers on failure; measure routing accuracy | Use the cheapest path that works; never present a partial answer as complete |
 | 5 | Hybrid retrieval + reranking | Add keyword search and reranking; keep them only if the evaluation shows they help | Exact terms ("MVCC", "404") are where semantic search is weakest |
 | 6 | Frontend | `DESIGN.md` first, then Next.js: inputs, requirements, gaps, roadmap with citations, status and errors | Makes the system usable and demoable |

@@ -2,7 +2,7 @@
 Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 - **Type:** feature
-- **Status:** done (PR open)
+- **Status:** done (merged, 93f1b79)
 - **Opened:** 2026-11-17 · **Closed:** 2026-11-18
 - **GitHub Issue:** none
 
@@ -47,8 +47,22 @@ Steps:
 ## Changes
 - Branch: `feat/t-002-retrieval-evaluation`
 - PR: https://github.com/Oralino/gradpath-ai/pull/2
-- Files touched:
-- Commits (hash, message):
+- Merged: `93f1b79 Merge Milestone 2: retrieval evaluation, tracing and CI (T-002)` (2026-11-18)
+- Files touched: `backend/src/gradpath/evaluation/` (new), `tracing.py` (new),
+  `retrieval/service.py`, `providers/` (factory, claude_code, smoke), `rag/`, `jobs/`, `api/main.py`,
+  `config.py`, `backend/tests/` (test_evaluation, test_tracing, conftest),
+  `evaluation/retrieval_questions.jsonl`, `evaluation/results/`, `.github/workflows/ci.yml`,
+  `.env.example`, `CLAUDE.md`, `brain/`
+- Commits (oldest first):
+  - `3d85d40 docs: open T-002 and record the Milestone 1 merge (T-002)`
+  - `b57c745 feat: add labelled retrieval question set v1 (T-002)`
+  - `630eb06 fix: relabel the CORS question as partly covered, dataset v1.1 (T-002)`
+  - `a9cc871 feat: add retrieval eval runner and record the first baseline (T-002)`
+  - `06eb78d feat: add explicit LangSmith tracing rules with redaction and traced steps (T-002)`
+  - `5daa079 docs: record the first real LangSmith trace (T-002)`
+  - `919814f ci: lint and test the backend on GitHub Actions (T-002)`
+  - `68e6bda docs: record CI and finish the Milestone 2 story (T-002)`
+  - `c7d2fff docs: link the Milestone 2 PR in T-002 (T-002)`
 
 ## Verification
 - 103 tests pass (14 new in `tests/test_evaluation.py`); ruff lint and format clean.
