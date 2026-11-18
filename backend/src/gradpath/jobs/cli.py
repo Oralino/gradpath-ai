@@ -12,7 +12,7 @@ from gradpath.jobs import analyze_job
 from gradpath.providers import get_chat_model
 from gradpath.retrieval import get_retrieval_service
 
-MARK = {"covered": "✓", "not_covered": "✗", "not_applicable": "–"}
+MARK = {"covered": "✓", "weak_evidence": "~", "not_covered": "✗", "not_applicable": "–"}
 
 
 def main() -> None:
@@ -45,7 +45,7 @@ def main() -> None:
             where = f"{c.title} > {c.section}" if c.section else c.title
             used = "*" if c.chunk_id in r.note_citations else " "
             print(f"   {used} {where}  ({c.score})")
-    print("\n✓ covered by the knowledge base   ✗ not covered   – eligibility (not studied)")
+    print("\n✓ covered   ~ weak evidence only   ✗ not covered   – eligibility (not studied)")
     print("* = cited in the study note")
 
 

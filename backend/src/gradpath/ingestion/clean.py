@@ -4,6 +4,7 @@ import re
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
+HEADING_ID_RE = re.compile(r"\s*\{#[\w.-]+\}\s*$")
 ANCHOR_GLYPHS = {"¶", "#", "§", "🔗"}
 DROP_TAGS = ["script", "style", "nav", "header", "footer", "aside", "form", "svg", "noscript"]
 NOISE_RE = re.compile(
@@ -131,6 +132,8 @@ def clean_markdown(md: str) -> tuple[str, str]:
             in_fence = not in_fence
         elif not in_fence and MDX_LINE_RE.match(line):
             continue
+        elif not in_fence and line.lstrip().startswith("#"):
+            line = HEADING_ID_RE.sub("", line)  # "## Title {#title-id}" -> "## Title"
         lines.append(line)
     text = _collapse("\n".join(lines))
     match = re.search(r"^#\s+(.+)$", text, re.M)

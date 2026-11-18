@@ -397,3 +397,12 @@ def test_heading_permalink_anchors_are_removed():
     assert "## 9.4. Random Remarks" in text and "¶" not in text
     assert "### 11.1. Introduction" in text and "Introduction #" not in text
     assert "the docs" in text  # ordinary links keep their text
+
+
+def test_markdown_heading_ids_are_removed():
+    from gradpath.ingestion.clean import clean_markdown
+
+    md = "## Pick a language {#pick-programming-language}\nBody {#not-a-heading}"
+    _, text = clean_markdown(md)
+    assert "## Pick a language" in text and "{#pick" not in text
+    assert "Body {#not-a-heading}" in text  # only headings are touched

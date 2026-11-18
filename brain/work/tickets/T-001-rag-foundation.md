@@ -69,3 +69,10 @@ Steps:
   8 InterImage-style requirements: 1 Voyage request, 1.5 s; covered: REST/microservices, Git,
   Python, Agile/code review; not covered: Docker/Kubernetes, CI/CD, LangChain/vector databases
   (corpus gaps), clearance (eligibility).
+- Step 6, real run (owner's terminal, Haiku + Sonnet via Pro plan): InterImage posting -> 20
+  requirements, 9 covered, 8 not covered, 3 not applicable (degree, project experience, TS
+  clearance), 7 study notes, 0 unverified quotes. Notes stayed grounded ("Go is not covered",
+  "does not mention GitLab or GitHub"). Fixes from the run: `weak_evidence` coverage when no valid
+  note (AWS/Azure, Vector databases had only weak matches), Markdown heading ids `{#...}` stripped,
+  repeated document title dropped from citation sections. Re-ingest: 949 cache hits, 7 misses.
+  Suite: 66 passed.

@@ -66,12 +66,15 @@ def result(kb_service):
 def test_coverage_per_requirement(result):
     out, _, _ = result
     by_skill = {r.skill: r for r in out.requirements}
-    assert by_skill["sql index"].coverage == "covered"
-    assert by_skill["http status"].coverage == "covered"
+    assert by_skill["sql index"].coverage == "covered"  # evidence + a cited note
+    # Evidence cleared the threshold but no valid note came back: not claimed as covered.
+    assert by_skill["http status"].coverage == "weak_evidence"
+    assert by_skill["git branch"].coverage == "weak_evidence"
     assert by_skill["kubernetes"].coverage == "not_covered"
     assert by_skill["kubernetes"].sources == []
     assert by_skill["Bachelor's degree"].coverage == "not_applicable"
-    assert out.stats["covered"] == 3 and out.stats["not_covered"] == 1
+    assert out.stats["covered"] == 1 and out.stats["weak_evidence"] == 2
+    assert out.stats["not_covered"] == 1
 
 
 def test_study_notes_keep_only_valid_citations(result):
@@ -169,3 +172,13 @@ def test_api_jobs_analyze(kb_service):
     assert (
         client.post("/api/jobs/analyze", json={"job_description": "too short"}).status_code == 422
     )
+
+
+def test_citation_section_drops_repeated_title():
+    from gradpath.rag.answer import display_section
+
+    assert (
+        display_section("The System Design Primer", "The System Design Primer > Cache") == "Cache"
+    )
+    assert display_section("Pro Git", "3.2 Branching > Merging") == "3.2 Branching > Merging"
+    assert display_section("Primer", "") == ""

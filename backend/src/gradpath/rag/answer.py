@@ -89,11 +89,20 @@ def build_messages(question: str, evidence: list[Evidence]) -> list:
     return [SystemMessage(SYSTEM_PROMPT), HumanMessage(user)]
 
 
+def display_section(title: str, section: str) -> str:
+    """Drop a leading heading that just repeats the document title ("Primer > Primer > X")."""
+    parts = [p for p in section.split(" > ") if p]
+    if parts and parts[0].strip().lower() == title.strip().lower():
+        parts = parts[1:]
+    return " > ".join(parts)
+
+
 def to_citation(e: Evidence) -> Citation:
+    """Evidence -> Citation for API responses (used by the RAG and job-analysis paths)."""
     return Citation(
         chunk_id=e.chunk_id,
         title=e.title,
-        section=e.section,
+        section=display_section(e.title, e.section),
         source_url=e.source_url,
         score=round(e.score, 3),
     )

@@ -158,7 +158,7 @@ def _render_notes_prompt(
 
 class AnalyzedRequirement(ExtractedRequirement):
     quote_verified: bool = Field(description="The source quote was found in the posting.")
-    coverage: Literal["covered", "not_covered", "not_applicable"]
+    coverage: Literal["covered", "weak_evidence", "not_covered", "not_applicable"]
     best_score: float | None = None
     sources: list[Citation] = Field(default_factory=list)
     study_note: str | None = None
@@ -185,8 +185,9 @@ def analyze_job(
     """Extract (Haiku) -> verify quotes -> search per requirement (one batched embedding call) ->
     cited study notes (Sonnet, only for covered requirements) -> verify note citations.
 
-    Requirements nothing in the knowledge base supports are marked `not_covered` instead of
-    getting an invented note; eligibility items (degree, clearance) are `not_applicable`.
+    Coverage: `covered` = relevant evidence AND a cited study note; `weak_evidence` = something
+    cleared the threshold but the notes model found it unhelpful; `not_covered` = nothing relevant
+    (no invented note); `not_applicable` = eligibility items (degree, clearance).
     """
     extraction = extract_requirements(job_description, fast_llm)
     reqs = extraction.requirements
@@ -230,6 +231,10 @@ def analyze_job(
                 item.note_citations = valid
             else:
                 log.warning("dropped note for requirement %d: no valid citation", i)
+        # Evidence cleared the threshold but the notes model found nothing usable in it (or its
+        # note had no valid citation): don't claim the requirement is covered.
+        if item.coverage == "covered" and item.study_note is None:
+            item.coverage = "weak_evidence"
         if not item.quote_verified:
             log.warning("quote not found in posting for %r", r.skill)
         analyzed.append(item)
@@ -237,6 +242,7 @@ def analyze_job(
     stats = {
         "requirements": len(analyzed),
         "covered": sum(a.coverage == "covered" for a in analyzed),
+        "weak_evidence": sum(a.coverage == "weak_evidence" for a in analyzed),
         "not_covered": sum(a.coverage == "not_covered" for a in analyzed),
         "not_applicable": sum(a.coverage == "not_applicable" for a in analyzed),
         "with_study_note": sum(a.study_note is not None for a in analyzed),
