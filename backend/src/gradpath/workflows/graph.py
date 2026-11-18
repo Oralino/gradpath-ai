@@ -18,10 +18,14 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, fields
 from typing import Literal
 
+from langchain_core.exceptions import OutputParserException
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import RetryPolicy
+from pydantic import ValidationError
 
 from gradpath.config import MAX_REVISIONS_CAP
+from gradpath.providers import ClaudeCodeError
 from gradpath.workflows import nodes
 from gradpath.workflows.schemas import CareerPrepResult, UserProfile, WorkflowInput
 from gradpath.workflows.state import CareerPrepState, WorkflowContext
@@ -35,17 +39,41 @@ PROTECTED = frozenset(
 
 @dataclass(frozen=True)
 class NodeSet:
-    """One implementation per node. Defaults are the step-4 placeholders; tests pass their own."""
+    """One implementation per node. Defaults are the real nodes where built, placeholders
+    elsewhere; tests pass their own."""
 
-    analyze_job: Callable = nodes.stub_analyze_job
+    analyze_job: Callable = nodes.analyze_job
     analyze_profile: Callable = nodes.analyze_profile
-    retrieve_knowledge: Callable = nodes.stub_retrieve_knowledge
+    retrieve_knowledge: Callable = nodes.retrieve_knowledge
     analyze_gaps: Callable = nodes.stub_analyze_gaps
     plan_roadmap: Callable = nodes.stub_plan_roadmap
     interview_questions: Callable = nodes.stub_interview_questions
     evaluate: Callable = nodes.stub_evaluate
     revise: Callable = nodes.stub_revise
     finalize: Callable = nodes.finalize
+
+
+# Nodes that call a model. Each gets ONE retry (max_attempts=2), and only for an allow-list of
+# errors: a model reply that fails validation, or a Claude Code call that errors. LangGraph's
+# default would skip the first (ValidationError is a ValueError) yet retry almost anything else,
+# including an API 401 from a bad visitor key. Network errors are not on the list: the Anthropic
+# SDK already retries those itself (max_retries=2 in providers.factory), so retrying here too
+# would multiply requests. A second failure propagates (fallback is Milestone 4).
+MODEL_NODES = frozenset(
+    {"analyze_job", "analyze_gaps", "plan_roadmap", "interview_questions", "evaluate", "revise"}
+)
+MODEL_ATTEMPTS = 2
+RETRYABLE = (ValidationError, OutputParserException, ClaudeCodeError)
+
+
+def _retry_on(exc: Exception) -> bool:
+    """True only for RETRYABLE errors. Our guard errors (protected keys, non-dict returns) are
+    plain ValueError/TypeError, so they're never retried. Known cost: a ValidationError from our
+    own construction code (a bug, not bad model output) also gets one retry."""
+    return isinstance(exc, RETRYABLE)
+
+
+MODEL_RETRY = RetryPolicy(max_attempts=MODEL_ATTEMPTS, initial_interval=1.0, retry_on=_retry_on)
 
 
 def _wrap(name: str, fn: Callable) -> Callable:
@@ -95,7 +123,8 @@ def build_graph(impl: NodeSet | None = None) -> CompiledStateGraph:
     impl = impl or NodeSet()
     graph = StateGraph(CareerPrepState, context_schema=WorkflowContext)
     for f in fields(NodeSet):
-        graph.add_node(f.name, _wrap(f.name, getattr(impl, f.name)))
+        retry = MODEL_RETRY if f.name in MODEL_NODES else None
+        graph.add_node(f.name, _wrap(f.name, getattr(impl, f.name)), retry_policy=retry)
 
     graph.add_edge(START, "analyze_job")
     graph.add_edge(START, "analyze_profile")

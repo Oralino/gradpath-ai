@@ -1,19 +1,86 @@
 """Workflow nodes. Each takes the state (and, when it needs services, the runtime) and returns only
 the keys it changed.
 
-Step 4 (skeleton): `analyze_profile` and `finalize` are real (pure code, no model). The others are
-placeholders (`stub_*`) that return valid, empty outputs without calling any model or Voyage; step
-5 replaces them one by one. `graph.build_graph` wires whichever implementations it is given.
+Real so far: `analyze_job`, `retrieve_knowledge` (step 5a), `analyze_profile`, `finalize`. The
+others are placeholders (`stub_*`) that return valid, empty outputs without calling any model or
+Voyage; step 5 replaces them one by one. `graph.build_graph` wires whichever implementations it is
+given. Nodes that need services take a parameter named `runtime` (LangGraph's `Runtime`) and read
+them from `runtime.context` (`WorkflowContext`).
 """
 
+from langgraph.runtime import Runtime
+
+from gradpath.jobs.analyze import (
+    NOT_STUDYABLE,
+    clean_requirements,
+    extract_requirements,
+    quote_in_text,
+)
 from gradpath.workflows.schemas import (
     CareerPrepResult,
     Critique,
+    JobRequirement,
     JobSummary,
     ProfileEvidence,
+    RequirementEvidence,
     UserProfile,
 )
-from gradpath.workflows.state import CareerPrepState
+from gradpath.workflows.state import CareerPrepState, WorkflowContext
+
+SEARCH_K = 3  # evidence chunks per requirement, as in jobs.analyze_job
+SEARCH_MAX_PER_DOCUMENT = 2
+
+
+def _need(service, name: str):
+    """Fail with a clear message when a node runs without a service it needs."""
+    if service is None:
+        raise RuntimeError(f"WorkflowContext.{name} is not set")
+    return service
+
+
+def analyze_job(state: CareerPrepState, runtime: Runtime[WorkflowContext]) -> dict:
+    """Haiku extracts requirements from the (untrusted) posting; each gets an id (r-1, r-2, ...)
+    and its quote is checked against the posting in code. Reuses `jobs.analyze`'s extraction, so
+    the endpoint and the workflow extract the same way. Feeds `retrieve_knowledge` and gaps."""
+    llm = _need(runtime.context.fast_llm, "fast_llm")
+    jd = state["job_description"]
+    extraction = extract_requirements(jd, llm)
+    reqs = [
+        JobRequirement(
+            **r.model_dump(), id=f"r-{i}", quote_verified=quote_in_text(r.source_quote, jd)
+        )
+        for i, r in enumerate(clean_requirements(extraction), 1)
+    ]
+    job = JobSummary(
+        title=extraction.title,
+        seniority=extraction.seniority,
+        responsibilities=extraction.responsibilities,
+        requirements=reqs,
+    )
+    return {"job": job}
+
+
+def retrieve_knowledge(state: CareerPrepState, runtime: Runtime[WorkflowContext]) -> dict:
+    """One batched search (one Voyage request) for every studyable requirement; eligibility items
+    (degree, clearance) are not searched. `insufficient` results are kept so gap analysis and the
+    roadmap know the knowledge base doesn't cover that requirement."""
+    retrieval = _need(runtime.context.retrieval, "retrieval")
+    searchable = [r for r in state["job"].requirements if r.category not in NOT_STUDYABLE]
+    if not searchable:
+        return {"knowledge": []}
+    found = retrieval.search_many(
+        [r.skill for r in searchable], k=SEARCH_K, max_per_document=SEARCH_MAX_PER_DOCUMENT
+    )
+    knowledge = [
+        RequirementEvidence(
+            requirement_id=r.id,
+            insufficient=res.insufficient,
+            best_score=None if res.best_score is None else round(res.best_score, 3),
+            evidence=res.evidence,
+        )
+        for r, res in zip(searchable, found, strict=True)
+    ]
+    return {"knowledge": knowledge}
 
 
 def profile_to_evidence(profile: UserProfile) -> list[ProfileEvidence]:
@@ -67,14 +134,6 @@ def finalize(state: CareerPrepState) -> dict:
 
 
 # ---------- placeholders, replaced in step 5 ----------
-
-
-def stub_analyze_job(state: CareerPrepState) -> dict:
-    return {"job": JobSummary(title="", seniority="unknown", responsibilities=[], requirements=[])}
-
-
-def stub_retrieve_knowledge(state: CareerPrepState) -> dict:
-    return {"knowledge": []}
 
 
 def stub_analyze_gaps(state: CareerPrepState) -> dict:

@@ -67,3 +67,9 @@ defences for the profile and JD text; what reaches LangSmith.
   critique now partial, clear error for non-dict node returns, one revision cap constant, shared
   `Seniority` type. Deferred to step 6: mapping `GraphRecursionError` and node exceptions to API
   errors. Not done: blank optional strings become a 422 (the client omits blank fields).
+- Step 5a (job + retrieval nodes, retry): 18 new tests (170 total), ruff clean. code-reviewer: retry
+  bounded (2 attempts, inside one super-step), guard errors not retried, revise not double-counted,
+  quote checks and untrusted wrapping preserved, batching matches `analyze_job`. Fixed: retry
+  allow-list instead of LangGraph's default (which retried API 401s on top of the SDK's own
+  retries); added retry and guard tests. For step 6: never return `str(exc)` to the client (a
+  ValidationError message can echo the model's reply).

@@ -345,6 +345,23 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Honest result labels:** `complete` (critique ok), `complete_with_limitations` (limit reached,
   open issues listed), `partial` (a stage reported an error, or the critic never ran; open issues
   are still listed). Never present a limited result as complete.
+- **`analyze_job` and `retrieve_knowledge` nodes (step 5a):** both reuse Milestone 1 code rather
+  than copying it. `analyze_job` calls the same Haiku extraction as `POST /api/jobs/analyze`
+  (posting wrapped as untrusted data, quotes checked in code), then numbers the requirements
+  `r-1`, `r-2`... so later nodes can cite them. `retrieve_knowledge` sends every studyable
+  requirement in one `search_many` call (one Voyage request; degree and clearance items are not
+  searched) and keeps "insufficient" results, so the roadmap knows what the knowledge base
+  doesn't cover instead of guessing.
+- **Decision: one retry for model nodes, only for the right errors.** LangGraph's default retry
+  skips `ValueError` and `RuntimeError`, which is exactly what a malformed model reply (Pydantic
+  `ValidationError`) and a Claude Code failure are. So the model nodes get their own policy: 2
+  attempts, retrying only bad output and Claude Code errors. Our own guard errors (a node writing a
+  protected key) are bugs, so they are never retried. Non-model nodes get no retry. A second
+  failure stops the run for now; the labelled fallback is Milestone 4.
+- **Gotcha the review caught: an allow-list, not "default plus extras".** LangGraph's default
+  retries almost every error it doesn't exclude, including an API 401 from a bad visitor key, and
+  the Anthropic SDK already retries network errors twice, so one hiccup could cost 6 requests per
+  node. Now the workflow retries only its allow-list, and network retries are left to the SDK.
 - **Likely questions:** *"Why not one big prompt?"* Each step's output is validated before the
   next uses it, each step uses the cheapest model that works, a failure is retried or reported
   for that step only, and the loop has a hard stop. *"What stops an infinite self-critique

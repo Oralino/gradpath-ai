@@ -12,13 +12,20 @@ from gradpath.config import REPO_ROOT, Settings
 from gradpath.workflows import NodeSet, UserProfile, WorkflowContext, build_graph, run_workflow
 from gradpath.workflows.graph import recursion_limit_for, route_after_evaluation
 from gradpath.workflows.nodes import profile_to_evidence
-from gradpath.workflows.schemas import Critique, CritiqueIssue
+from gradpath.workflows.schemas import Critique, CritiqueIssue, JobSummary
 
 SAMPLE_PROFILE = REPO_ROOT / "evaluation" / "profiles" / "sample_new_grad.json"
 SAMPLE_JD = (
     REPO_ROOT / "evaluation" / "job_descriptions" / "sample_backend_new_grad.txt"
 ).read_text(encoding="utf-8")
 CTX = WorkflowContext()
+# The graph with placeholders for the model/Voyage nodes, so these tests need no services.
+SKELETON = NodeSet(
+    analyze_job=lambda s: {
+        "job": JobSummary(title="", seniority="unknown", responsibilities=[], requirements=[])
+    },
+    retrieve_knowledge=lambda s: {"knowledge": []},
+)
 FAIL = Critique(
     passed=False, issues=[CritiqueIssue(code="x", message="still wrong", severity="blocking")]
 )
@@ -28,7 +35,7 @@ def profile() -> UserProfile:
     return UserProfile.model_validate(json.loads(SAMPLE_PROFILE.read_text(encoding="utf-8")))
 
 
-def run(impl: NodeSet | None = None, max_revisions: int = 1):
+def run(impl: NodeSet = SKELETON, max_revisions: int = 1):
     return run_workflow(SAMPLE_JD, profile(), context=CTX, max_revisions=max_revisions, impl=impl)
 
 
@@ -66,7 +73,7 @@ def test_join_waits_for_the_longer_branch():
         seen["keys"] = {"profile_evidence", "knowledge"} <= state.keys()
         return {"gaps": []}
 
-    result = run(replace(NodeSet(), analyze_gaps=gaps))
+    result = run(replace(SKELETON, analyze_gaps=gaps))
     assert seen["keys"] is True
     assert result.node_log.count("analyze_gaps") == 1
 
@@ -79,7 +86,7 @@ def test_failing_critic_stops_at_the_revision_limit(limit):
         calls["evaluate"] += 1
         return {"critique": FAIL}
 
-    result = run(replace(NodeSet(), evaluate=always_fail), max_revisions=limit)
+    result = run(replace(SKELETON, evaluate=always_fail), max_revisions=limit)
     assert result.status == "complete_with_limitations"
     assert result.revisions_used == limit
     assert result.node_log.count("revise") == limit
@@ -91,13 +98,13 @@ def test_critic_passing_after_one_revision_ends_the_loop():
     def fail_then_pass(state):
         return {"critique": Critique(passed=state.get("revision_count", 0) >= 1)}
 
-    result = run(replace(NodeSet(), evaluate=fail_then_pass), max_revisions=2)
+    result = run(replace(SKELETON, evaluate=fail_then_pass), max_revisions=2)
     assert result.status == "complete"
     assert result.revisions_used == 1
 
 
 def test_revise_that_returns_only_a_roadmap_still_counts():
-    impl = replace(NodeSet(), evaluate=lambda s: {"critique": FAIL}, revise=lambda s: {})
+    impl = replace(SKELETON, evaluate=lambda s: {"critique": FAIL}, revise=lambda s: {})
     assert run(impl, max_revisions=2).revisions_used == 2
 
 
@@ -116,14 +123,14 @@ def test_nodes_may_not_write_protected_keys(node, update):
     """No node can reset the counter, raise the limit, rewrite the input or the log, or write
     the result (only finalize may)."""
     nodes = {"evaluate": lambda s: {"critique": FAIL}, node: lambda s: update}
-    impl = replace(NodeSet(), **nodes)
+    impl = replace(SKELETON, **nodes)
     with pytest.raises(ValueError, match="may not write"):
         run(impl, max_revisions=2)
 
 
 def test_node_returning_nothing_gets_a_clear_error():
     with pytest.raises(TypeError, match="'analyze_gaps' returned NoneType"):
-        run(replace(NodeSet(), analyze_gaps=lambda s: None))
+        run(replace(SKELETON, analyze_gaps=lambda s: None))
 
 
 def test_backstop_stops_a_loop_bug(monkeypatch):
@@ -138,22 +145,22 @@ def test_critic_flag_alone_does_not_make_it_complete():
     contradictory = Critique(
         passed=True, issues=[CritiqueIssue(code="y", message="bad", severity="blocking")]
     )
-    result = run(replace(NodeSet(), evaluate=lambda s: {"critique": contradictory}), 1)
+    result = run(replace(SKELETON, evaluate=lambda s: {"critique": contradictory}), 1)
     assert result.status == "complete_with_limitations"
     assert result.revisions_used == 1
     minor = Critique(passed=True, issues=[CritiqueIssue(code="z", message="m", severity="minor")])
-    assert run(replace(NodeSet(), evaluate=lambda s: {"critique": minor})).status == "complete"
+    assert run(replace(SKELETON, evaluate=lambda s: {"critique": minor})).status == "complete"
 
 
 def test_missing_critique_is_partial():
-    result = run(replace(NodeSet(), evaluate=lambda s: {}))
+    result = run(replace(SKELETON, evaluate=lambda s: {}))
     assert result.status == "partial"
     assert "never evaluated" in result.errors[0]
 
 
 def test_errors_plus_failing_critic_is_partial_and_keeps_the_issues():
     impl = replace(
-        NodeSet(),
+        SKELETON,
         analyze_job=lambda s: {"errors": ["job failed"]},
         evaluate=lambda s: {"critique": FAIL},
     )
@@ -165,7 +172,7 @@ def test_errors_plus_failing_critic_is_partial_and_keeps_the_issues():
 @pytest.mark.parametrize("limit", [0, 1, 2, 3])
 def test_recursion_limit_matches_the_real_step_count(limit):
     """With no spare steps the worst case still fits, so the formula counts steps correctly..."""
-    impl = replace(NodeSet(), evaluate=lambda s: {"critique": FAIL})
+    impl = replace(SKELETON, evaluate=lambda s: {"critique": FAIL})
     state = {"job_description": "j", "profile": profile(), "max_revisions": limit,
              "revision_count": 0, "errors": [], "node_log": []}  # fmt: skip
     exact = recursion_limit_for(limit) - 2
@@ -212,7 +219,7 @@ def test_input_is_validated_before_the_graph_runs():
 
 def test_errors_from_parallel_nodes_are_merged_and_mark_the_result_partial():
     impl = replace(
-        NodeSet(),
+        SKELETON,
         analyze_job=lambda s: {"errors": ["job failed"]},
         analyze_profile=lambda s: {"errors": ["profile failed"]},
     )
@@ -230,7 +237,7 @@ def test_nodes_that_ask_for_the_runtime_get_the_context():
 
     ctx = WorkflowContext()
     run_workflow(
-        SAMPLE_JD, profile(), context=ctx, max_revisions=0, impl=replace(NodeSet(), analyze_job=job)
+        SAMPLE_JD, profile(), context=ctx, max_revisions=0, impl=replace(SKELETON, analyze_job=job)
     )
     assert seen["ctx"] is ctx
 

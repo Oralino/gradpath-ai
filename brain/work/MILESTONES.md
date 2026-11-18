@@ -141,6 +141,7 @@ critic, with a bounded revision loop, as a LangGraph workflow behind `POST /api/
 | 2. Explain LangGraph + plan | ✅ | Node plan, `CareerPrepState`, bounded revision loop, open questions settled | The owner approves the design before code | Approved 2026-11-18: 1 revision round, structured profile, simple corrections now |
 | 3. Sample profile + job description | ✅ | A fictional new-grad profile and a fictional backend posting, committed | Demos, tests and traces must never use real personal data | Owner approved 2026-11-18 |
 | 4. State + graph skeleton | ✅ | `CareerPrepState`, Pydantic schemas, the graph with placeholder nodes, real `analyze_profile` and `finalize`; revision limit in settings; input limits | Get the shape and the loop limits right before any model call | 36 new tests (152 total): joins, loop stops at 0–3, protected keys, recursion backstop; code review: no loop bug, 9 hardening fixes |
+| 5a. Job + retrieval nodes | ✅ | Real `analyze_job` (Haiku extraction reused, ids, quote checks) and `retrieve_knowledge` (one batched search); one retry for model nodes on bad output | Reuse what Milestone 1 already proved instead of rewriting it | 18 new tests (170 total): ids, quotes, untrusted posting, one search batch, retry once then fail, retry allow-list, retried nodes counted once; code review: retry bounded, allow-list fix |
 
 ### Problems we hit and how we solved them
 
@@ -148,6 +149,7 @@ critic, with a bounded revision loop, as a LangGraph workflow behind `POST /api/
 |---|---|---|
 | The review showed any node could reset the revision counter or raise the limit, because only `revise` was wrapped | One wrapper around every node refuses writes to input, limit, counter and log | A limit is only a limit if nothing else can change it |
 | A critic could say "passed" while listing a blocking problem | Code decides: passed **and** no blocking issue | Don't let the model grade its own pass/fail flag |
+| LangGraph's default retry skips `ValueError`, so a malformed model reply (a Pydantic error) would never be retried | Our own retry rule for model nodes: an allow-list (bad output, Claude Code errors), 2 attempts; network retries left to the SDK so they don't multiply | Reading what a framework default actually does before relying on it |
 | The loop's safety limit (`recursion_limit`) formula was one step short | Measured the real minimum per revision count: LangGraph counts the input step too; a test pins the exact number | Measuring a framework's behaviour instead of assuming it |
 
 ---
