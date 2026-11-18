@@ -1,14 +1,41 @@
 """FastAPI application. Run from `backend/`: uv run uvicorn gradpath.api.main:app --reload"""
 
+import json
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+import anthropic
+import pydantic
+import voyageai.error
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from gradpath.api.chat import router as chat_router
 from gradpath.api.jobs import router as jobs_router
 from gradpath.config import get_settings
+from gradpath.providers import ClaudeCodeError
 from gradpath.retrieval import get_retrieval_service
+
+log = logging.getLogger(__name__)
+
+LLM_DOWN = "The language model is unavailable. Try again later."
+LLM_INVALID = "The language model returned an invalid response. Try again."
+SEARCH_LIMITED = "Search is rate limited on the free tier. Try again in a minute."
+SEARCH_DOWN = "Search is unavailable. Try again later."
+
+
+def _error_handler(status: int, detail: str):
+    """Handler that logs the exception server-side and returns a fixed message.
+
+    Used by `create_app`; the response never carries exception text, keys or prompts.
+    """
+
+    async def handler(request: Request, exc: Exception) -> JSONResponse:
+        log.error("%s on %s", type(exc).__name__, request.url.path, exc_info=exc)
+        return JSONResponse({"detail": detail}, status_code=status)
+
+    return handler
 
 
 @asynccontextmanager
@@ -34,6 +61,16 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
         summary="Adaptive RAG + agentic career preparation for new-grad engineers.",
         lifespan=lifespan if use_lifespan else None,
     )
+    # Subclasses are matched first (voyageai.error.RateLimitError before VoyageError).
+    for exc_type, status, detail in [
+        (ClaudeCodeError, 502, LLM_DOWN),
+        (anthropic.APIError, 502, LLM_DOWN),
+        (voyageai.error.RateLimitError, 429, SEARCH_LIMITED),
+        (voyageai.error.VoyageError, 503, SEARCH_DOWN),
+        (pydantic.ValidationError, 502, LLM_INVALID),
+        (json.JSONDecodeError, 502, LLM_INVALID),
+    ]:
+        app.add_exception_handler(exc_type, _error_handler(status, detail))
     app.include_router(chat_router)
     app.include_router(jobs_router)
 

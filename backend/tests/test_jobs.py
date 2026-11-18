@@ -215,3 +215,19 @@ def test_partial_evidence_note_is_kept_but_not_called_covered(kb_service):
     assert item.coverage == "weak_evidence"
     assert item.study_note.startswith("Related material")  # the honest note is still shown
     assert out.stats["covered"] == 0 and out.stats["weak_evidence"] == 1
+
+
+def test_empty_skills_are_dropped_and_list_is_capped(kb_service):
+    from gradpath.jobs.analyze import MAX_REQUIREMENTS
+
+    blank = req("   ", "other", "preferred", "Bachelor's degree")
+    reqs = [blank] + [EXTRACTION["requirements"][0]] * (MAX_REQUIREMENTS + 5)
+    extraction = {**EXTRACTION, "requirements": reqs}
+    out = analyze_job(
+        JD,
+        kb_service,
+        FakeChatModel(responses=[extraction]),
+        FakeChatModel(responses=[{"overview": "x", "notes": []}]),
+    )
+    assert len(out.requirements) == MAX_REQUIREMENTS
+    assert all(r.skill.strip() for r in out.requirements)

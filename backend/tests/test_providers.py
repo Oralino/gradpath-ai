@@ -131,3 +131,53 @@ def test_fake_model_structured():
 def test_settings_hide_secrets():
     s = Settings(_env_file=None, voyage_api_key="super-secret")
     assert "super-secret" not in repr(s)
+
+
+def test_empty_request_key_never_falls_back_to_server_key():
+    s = Settings(_env_file=None, llm_provider="anthropic_api", anthropic_api_key="server-key")
+    with pytest.raises(ValueError, match="empty"):
+        get_chat_model(settings=s, api_key=SecretStr(""))
+    with pytest.raises(ValueError, match="empty"):
+        get_chat_model(settings=s, api_key=SecretStr("   "))
+
+
+def test_request_key_is_refused_under_claude_code():
+    s = Settings(_env_file=None, llm_provider="claude_code")
+    with pytest.raises(ValueError, match="anthropic_api"):
+        get_chat_model(settings=s, api_key=SecretStr("visitor-key"))
+
+
+async def test_error_subtype_without_is_error_still_raises():
+    res = result(is_error=False, subtype="error_max_turns", result=None)
+    llm = ChatClaudeCode(model="m", query_fn=fake_query(res, []))
+    with pytest.raises(ClaudeCodeError, match="error_max_turns"):
+        await llm.ainvoke("hi")
+
+
+async def test_timeout_raises_and_closes_the_stream():
+    import asyncio
+
+    closed: list[bool] = []
+
+    class SlowStream:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            await asyncio.sleep(10)
+
+        async def aclose(self):
+            closed.append(True)
+
+    llm = ChatClaudeCode(model="m", timeout_s=0.05, query_fn=lambda **_: SlowStream())
+    with pytest.raises(ClaudeCodeError, match="timed out"):
+        await llm.ainvoke("hi")
+    assert closed == [True]  # the SDK stream (and its subprocess) is shut down
+
+
+async def test_env_api_key_triggers_a_warning(monkeypatch, caplog):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "would-bill-the-api")
+    llm = ChatClaudeCode(model="m", query_fn=fake_query(result(), []))
+    await llm.ainvoke("hi")
+    assert "ANTHROPIC_API_KEY is set" in caplog.text
+    assert "would-bill-the-api" not in caplog.text  # never log the key itself

@@ -186,6 +186,30 @@ routing quality are measured, not assumed.
 - **Q: "Why not one big prompt?"** Separate, validated steps can be tested, measured and retried
   independently, and they map directly onto LangGraph nodes in Milestone 3.
 
+## Hardening from the Milestone 1 code review
+A reviewer agent read the whole milestone; every finding was checked against the code before
+fixing. What changed, and the story behind each (good "tell me about a bug" answers):
+- **Visitor keys:** `SecretStr("")` is falsy, so `api_key or server_key` would have given a visitor
+  with an empty key the owner's key. Now `is not None`, empty keys are refused, and a request key
+  is refused unless the provider is the Anthropic API (never the owner's Claude plan).
+- **Thread safety:** FastAPI runs sync routes in a thread pool, so the rate limiter's shared
+  request window could be corrupted by concurrent requests. It now checks and reserves under a
+  lock and sleeps outside it; Qdrant searches are serialised with a lock too.
+- **Prompt injection via attributes:** scraped section headings go into `source="..."`; a heading
+  with a `"` could forge markup. Attribute values are now HTML-escaped (`safety.escape_attr`).
+- **Cache correctness:** download cache files are named by a hash of the URL (not their position)
+  and re-verified by sha256, so reordering a manifest can't pair a URL with another page's text.
+  A truncated embedding-cache line is skipped instead of crashing ingestion.
+- **robots.txt:** per RFC 9309, a 4xx means "no rules" (allowed) but a 5xx or network error means
+  "don't crawl"; `document_id` is validated so a manifest row can't write outside the cache.
+- **Claude Code:** failures that arrive with `is_error` false (e.g. `error_max_turns`) now raise;
+  a timeout closes the SDK stream so its subprocess shuts down; an exported `ANTHROPIC_API_KEY`
+  triggers a warning (it would bill the API, not the plan).
+- **API errors:** model, Voyage and invalid-output failures return 502/503/429 with a fixed safe
+  message; details are logged server-side only.
+- **Deferred, on purpose:** auth and rate limits before deploy, LangSmith wiring in Milestone 2,
+  ingestion polish (all listed in `TASKS.md`). Knowing what not to fix yet is part of the answer.
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.

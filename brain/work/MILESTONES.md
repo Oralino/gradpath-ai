@@ -10,7 +10,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | # | Milestone | Status | Goal | What you can show |
 |---|---|---|---|---|
 | 0 | Project setup | ✅ | Decide the plan, stack and rules before coding | Public repo, `brain/` docs, licence-checked sources |
-| 1 | RAG foundation | 🔨 | Load sources, answer with citations, analyse a job description | Cited answers, "not covered" answers, 40+ tests |
+| 1 | RAG foundation | ✅ | Load sources, answer with citations, analyse a job description | Cited answers, "not covered" answers, 40+ tests |
 | 2 | Retrieval evaluation + tracing | ⏳ | Measure search quality | Recall@K / Precision@K / MRR numbers, LangSmith traces |
 | 3 | Agentic workflow | ⏳ | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop |
 | 4 | Router + fallback | ⏳ | Pick the cheapest path that works | Routing accuracy, labelled partial answers |
@@ -52,7 +52,7 @@ because its licence forbids derivatives.
 
 ---
 
-## Milestone 1: RAG foundation 🔨
+## Milestone 1: RAG foundation ✅
 *Ticket: `tickets/T-001-rag-foundation.md`*
 
 **Goal:** a backend that loads trusted sources, answers focused questions from them with citations,
@@ -66,7 +66,7 @@ and analyses a job description, or says when it doesn't know.
 | 4. Retrieval service | ✅ | `RetrievalService.search()` returns scored, citable evidence above a threshold | One search path for every feature; "I don't know" built in | 7 tests; real probe found the right source 5/5; threshold set to 0.45 |
 | 5. RAG + `POST /api/chat` | ✅ | FastAPI app; answers only from retrieved evidence; citations verified in code; retrieved text marked as untrusted; abstains without calling the model when nothing is relevant | The fast path for focused questions, and grounded answering | 11 tests (54 total); real Pro-plan answer with 5 valid citations that also named what the sources didn't cover; abstains on off-topic questions |
 | 6. `POST /api/jobs/analyze` | ✅ code | Haiku extracts requirements with exact quotes (verified against the posting); one batched search for all requirements; Sonnet writes cited study notes for covered ones; eligibility items (degree, clearance) not studied | The spec's first milestone; start of the job-to-roadmap flow | 12 tests (66 total); real batched search: 8 requirements in 1.5 s, one Voyage request; real InterImage run on the Pro plan: 20 requirements, 0 unverified quotes, clearance and degree marked not applicable |
-| 7. Tests, review, commit | ⏳ | Full test run, code review (high-risk parts), commit and PR | Quality gate before merging | |
+| 7. Tests, review, PR | ✅ | Code-reviewer pass over 36 files; 13 findings verified; 7 groups fixed (me + engineer in parallel on separate files), the rest logged for later milestones; PR to `main` | Quality gate before merging; high-risk areas reviewed | 89 tests, lint clean, secret scan clean |
 
 ### Problems we hit and how we solved them
 
@@ -85,6 +85,8 @@ and analyses a job description, or says when it doesn't know.
 | On a re-run, Sonnet wrote honest notes like "the evidence doesn't cover vector databases directly", yet the label still said ✓ covered | Each note now rates its evidence `direct` or `partial`; `partial` shows as `~` with the note kept | The label now agrees with what the note itself says |
 | The same posting gave 20 requirements on one run and 24 on another | Accepted as normal model variation; to be measured in the Milestone 2 workflow evaluation | Knowing which variation is a bug and which is expected |
 | The model could invent requirements that aren't in the posting | Each requirement carries an exact quote; code checks the quote appears in the posting and flags it if not | Verifying model output against the source instead of trusting it |
+| The code review found an empty visitor key would fall back to the owner's key (`SecretStr("")` is falsy) | `is not None` checks, empty keys refused, request keys refused outside API mode | A one-character bug with real security impact |
+| Concurrent API requests could corrupt the rate limiter's shared window | Lock around check-and-reserve, sleep outside the lock; lock around Qdrant search | Thread safety in a thread-pool web server |
 | Heading anchors (`¶`, `#`) leaked into citation section names | Strip permalink anchors in the cleaner; re-ingest reused cached embeddings for unchanged chunks | Small polish that the cache made cheap |
 
 ### Step 3 in numbers: the first corpus

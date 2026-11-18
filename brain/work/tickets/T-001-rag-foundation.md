@@ -2,8 +2,8 @@
 Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 - **Type:** feature
-- **Status:** in progress
-- **Opened:** 2026-11-17 · **Closed:**
+- **Status:** done (PR open)
+- **Opened:** 2026-11-17 · **Closed:** 2026-11-17
 - **GitHub Issue:** none
 
 ## Summary
@@ -81,3 +81,9 @@ Steps:
   AWS/Azure, Docker, Vector databases and Agile said their evidence was limited yet were labelled
   covered, so notes now carry `evidence_strength` (direct/partial) and partial -> weak_evidence.
   Suite: 67 passed.
+- Step 7: code-reviewer pass (no critical issues). Fixed: empty/foreign visitor key fallback,
+  thread-safe rate limiter + Qdrant search lock, attribute escaping, URL-hash download cache with
+  sha256 re-check, robots 5xx = disallow, document_id validation, corrupt cache lines skipped,
+  query-only embeddings for the API, Claude Code error subtypes + timeout stream close + env-key
+  warning, API error mapping (502/503/429), requirement cap. Deferred items in TASKS.md. Final:
+  89 passed, ruff clean, secret scan clean; real retrieval re-checked.

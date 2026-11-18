@@ -23,16 +23,23 @@ def get_chat_model(
     """Return the configured chat model for a tier ("fast" = Haiku, "smart" = Sonnet by default).
 
     Called by every node and chain that needs an LLM, so swapping provider is a config change.
-    `api_key` overrides the server key for one request (live mode with a visitor's key); it is
-    passed straight to the client and never stored.
+    `api_key` is a visitor's key for one request (live mode); it is passed straight to the client
+    and never stored. A request key never falls back to the server key (even when empty) and is
+    refused under providers that can't use it, so a visitor can never run on the owner's account.
     """
     s = settings or get_settings()
     model = s.model_fast if tier == "fast" else s.model_smart
+    if api_key is not None:
+        if s.llm_provider != "anthropic_api":
+            raise ValueError("a request API key needs LLM_PROVIDER=anthropic_api")
+        if not api_key.get_secret_value().strip():
+            raise ValueError("the request API key is empty")
     if s.llm_provider == "claude_code":
         return ChatClaudeCode(model=model)
     if s.llm_provider == "anthropic_api":
-        key = api_key or s.anthropic_api_key
-        if key is None:
+        # `is not None`, not `or`: an empty SecretStr is falsy and must not select the server key.
+        key = api_key if api_key is not None else s.anthropic_api_key
+        if key is None or not key.get_secret_value().strip():
             raise ValueError("LLM_PROVIDER=anthropic_api needs ANTHROPIC_API_KEY or a request key")
         return ChatAnthropic(model=model, api_key=key, max_tokens=16000, max_retries=2)
     return FakeChatModel()

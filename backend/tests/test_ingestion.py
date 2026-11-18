@@ -1,6 +1,7 @@
 """Ingestion tests: no network, no Voyage. HTTP is `httpx.MockTransport`, vectors are fakes."""
 
 import json
+import threading
 from pathlib import Path
 
 import httpx
@@ -12,7 +13,12 @@ from voyageai.error import RateLimitError
 from gradpath.config import Settings
 from gradpath.ingestion.chunk import chunk_page, read_processed, write_processed
 from gradpath.ingestion.clean import clean_html, clean_markdown
-from gradpath.ingestion.embed import CachedEmbeddings, ThrottledEmbeddings, build_embeddings
+from gradpath.ingestion.embed import (
+    CachedEmbeddings,
+    ThrottledEmbeddings,
+    build_embeddings,
+    build_query_embeddings,
+)
 from gradpath.ingestion.fetch import USER_AGENT, Politeness, fetch_source, load_manual
 from gradpath.ingestion.index import rebuild_index
 from gradpath.ingestion.manifest import SourceEntry, load_manifest, select_ingestible
@@ -406,3 +412,123 @@ def test_markdown_heading_ids_are_removed():
     _, text = clean_markdown(md)
     assert "## Pick a language" in text and "{#pick" not in text
     assert "Body {#not-a-heading}" in text  # only headings are touched
+
+
+# --- review fixes -----------------------------------------------------------------------------
+
+
+def test_throttle_is_thread_safe_and_stays_under_rpm():
+    lock = threading.Lock()
+    now = [0.0]
+    starts: list[float] = []
+
+    class Inner(FakeInner):
+        def embed_query(self, text):
+            with lock:
+                starts.append(now[0])
+            return [1.0]
+
+    def sleep(s: float) -> None:
+        with lock:
+            now[0] += s
+
+    def clock() -> float:
+        with lock:
+            return now[0]
+
+    emb = ThrottledEmbeddings(Inner(), rpm=3, tpm=100_000, sleep=sleep, clock=clock)
+    errors: list[Exception] = []
+
+    def work():
+        try:
+            for _ in range(5):
+                emb.embed_query("hello")
+        except Exception as e:  # noqa: BLE001
+            errors.append(e)
+
+    threads = [threading.Thread(target=work) for _ in range(6)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not errors and len(starts) == 30
+    # No 60 s window ever holds more than rpm requests.
+    for i, t0 in enumerate(starts):
+        assert sum(1 for t in starts if t0 <= t < t0 + 60) <= 3, i
+
+
+def test_cache_skips_truncated_line(tmp_path: Path, caplog):
+    path = tmp_path / "c.jsonl"
+    path.write_text('{"key": "k1", "vector": [1.0]}\n{"key": "k2", "vec', encoding="utf-8")
+    cache = CachedEmbeddings(FakeInner(), "m", path)
+    assert list(cache._vectors) == ["k1"]
+    assert "skipped 1" in caplog.text
+
+
+def test_build_query_embeddings_is_uncached_and_needs_key():
+    with pytest.raises(RuntimeError, match="VOYAGE_API_KEY"):
+        build_query_embeddings(Settings(_env_file=None, voyage_api_key=None))
+    emb = build_query_embeddings(Settings(_env_file=None, voyage_api_key="k"))
+    assert isinstance(emb, ThrottledEmbeddings)
+
+
+def test_fetch_reordered_urls_reuse_cache_by_url(tmp_path: Path):
+    client, _ = make_site()
+    a, b = "https://example.org/a", "https://example.org/b"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return httpx.Response(
+            200, text=f"<html><body><main>page {request.url.path}</main></body></html>"
+        )
+
+    real = httpx.Client(transport=httpx.MockTransport(handler))
+    fetch_source(entry(fetch_urls=[a, b]), tmp_path, real, politeness=polite())
+
+    def fail(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("no request expected")
+
+    dead = httpx.Client(transport=httpx.MockTransport(fail))
+    pages = fetch_source(entry(fetch_urls=[b, a]), tmp_path, dead, politeness=polite())
+    assert [(p.index, p.url) for p in pages] == [(0, b), (1, a)]
+    assert "page /b" in pages[0].path.read_text(encoding="utf-8")
+    assert "page /a" in pages[1].path.read_text(encoding="utf-8")
+
+
+def test_fetch_redownloads_when_cached_file_changed(tmp_path: Path):
+    client, seen = make_site()
+    pages = fetch_source(entry(), tmp_path, client, politeness=polite())
+    pages[0].path.write_text("tampered", encoding="utf-8")
+    n = len(seen)
+    pages = fetch_source(entry(), tmp_path, client, politeness=polite())
+    assert len(seen) > n and pages[0].path.read_text(encoding="utf-8").startswith("<html>")
+
+
+def test_robots_404_allows_and_5xx_disallows(tmp_path: Path):
+    client, seen = make_site()  # robots.txt 404
+    assert len(fetch_source(entry(), tmp_path / "ok", client, politeness=polite())) == 1
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503)
+
+    down = httpx.Client(transport=httpx.MockTransport(handler))
+    pol = polite()
+    assert fetch_source(entry(), tmp_path / "down", down, politeness=pol) == []
+    assert pol.allowed("https://example.org/zzz", down) is False  # cached for the host
+
+
+def test_robots_network_error_disallows():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("boom")
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    assert polite().allowed("https://example.org/a", client) is False
+
+
+def test_manifest_rejects_path_traversal_ids():
+    with pytest.raises(ValueError, match="document_id"):
+        entry(document_id="../evil")
+    with pytest.raises(ValueError, match="document_id"):
+        entry(document_id="a/b")
+    assert entry(document_id="fund-mdn.http_2").document_id == "fund-mdn.http_2"

@@ -4,6 +4,7 @@ Used by traditional RAG (`POST /api/chat`), job analysis, and later the LangGrap
 tool, so there is exactly one retrieval implementation (see ARCHITECTURE.md, "Request flow").
 """
 
+import threading
 from collections.abc import Iterable
 from typing import Literal
 
@@ -13,7 +14,7 @@ from langchain_qdrant import QdrantVectorStore
 from pydantic import BaseModel, Field
 from qdrant_client import QdrantClient, models
 
-from gradpath.config import REPO_ROOT, Settings, get_settings
+from gradpath.config import Settings, get_settings
 
 FilterKey = Literal["collection", "document_id", "topic"]
 
@@ -105,6 +106,8 @@ class RetrievalService:
         )
         self.k = k
         self.min_score = min_score
+        # Local-mode Qdrant is not documented as thread-safe; API threads share one client.
+        self._search_lock = threading.Lock()
 
     def search(
         self,
@@ -154,9 +157,10 @@ class RetrievalService:
         k = k or self.k
         # Over-fetch when capping per document, so the cap doesn't leave the result short.
         fetch_k = k * 3 if max_per_document else k
-        hits = self.store.similarity_search_with_score_by_vector(
-            vector, k=fetch_k, filter=build_filter(filters)
-        )
+        with self._search_lock:
+            hits = self.store.similarity_search_with_score_by_vector(
+                vector, k=fetch_k, filter=build_filter(filters)
+            )
         ranked = [to_evidence(doc, score) for doc, score in hits]
         best = ranked[0].score if ranked else None
         relevant = [e for e in ranked if e.score >= self.min_score]
@@ -168,11 +172,11 @@ class RetrievalService:
 
 def get_retrieval_service(settings: Settings | None = None) -> RetrievalService:
     """Build the service from settings: Qdrant client + Voyage query embeddings (rate-limited)."""
-    from gradpath.ingestion.embed import build_embeddings
+    from gradpath.ingestion.embed import build_query_embeddings
     from gradpath.ingestion.index import get_qdrant_client
 
     s = settings or get_settings()
-    embeddings = build_embeddings(s, REPO_ROOT / "knowledge_base" / "processed" / "embedding_cache")
+    embeddings = build_query_embeddings(s)  # no document cache: queries only
     return RetrievalService(
         get_qdrant_client(s),
         s.qdrant_collection,

@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from gradpath.providers import with_structure
 from gradpath.rag.answer import Citation, to_citation
 from gradpath.retrieval import Evidence, RetrievalResult, RetrievalService
-from gradpath.safety import neutralise_tags
+from gradpath.safety import escape_attr, neutralise_tags
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +41,7 @@ Category = Literal[
 # Requirements that are about who may apply, not what to study (degree, clearance, work
 # authorization, years of experience): no knowledge-base search, coverage "not_applicable".
 NOT_STUDYABLE: set[str] = {"education_eligibility"}
+MAX_REQUIREMENTS = 40
 
 
 # ---------- step 1: extraction (Haiku) ----------
@@ -143,7 +144,7 @@ def _render_notes_prompt(
     for e in seen.values():
         source = f"{e.title} > {e.section}" if e.section else e.title
         blocks.append(
-            f'<evidence id="{e.chunk_id}" source="{neutralise_tags(source, TAGS)}">\n'
+            f'<evidence id="{escape_attr(e.chunk_id)}" source="{escape_attr(source)}">\n'
             f"{neutralise_tags(e.text, TAGS)}\n</evidence>"
         )
     lines = []
@@ -196,7 +197,11 @@ def analyze_job(
     (degree, clearance).
     """
     extraction = extract_requirements(job_description, fast_llm)
-    reqs = extraction.requirements
+    # Drop empty skills (Voyage rejects empty inputs) and cap the list so one long or adversarial
+    # posting can't trigger an unbounded search and notes prompt.
+    reqs = [r for r in extraction.requirements if r.skill.strip()][:MAX_REQUIREMENTS]
+    if len(extraction.requirements) > len(reqs):
+        log.warning("kept %d of %d extracted requirements", len(reqs), len(extraction.requirements))
 
     searchable = [i for i, r in enumerate(reqs) if r.category not in NOT_STUDYABLE]
     found = retrieval.search_many([reqs[i].skill for i in searchable], k=k, max_per_document=2)

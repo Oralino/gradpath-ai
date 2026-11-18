@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from gradpath.providers import with_structure
 from gradpath.retrieval import Evidence, RetrievalService
-from gradpath.safety import neutralise_tags
+from gradpath.safety import escape_attr, neutralise_tags
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ def format_evidence(evidence: list[Evidence]) -> str:
     for e in evidence:
         source = f"{e.title} > {e.section}" if e.section else e.title
         blocks.append(
-            f'<evidence id="{e.chunk_id}" source="{neutralise(source)}">\n'
+            f'<evidence id="{escape_attr(e.chunk_id)}" source="{escape_attr(source)}">\n'
             f"{neutralise(e.text)}\n</evidence>"
         )
     return "\n\n".join(blocks)

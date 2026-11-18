@@ -1,11 +1,13 @@
 """Source manifest: parse `knowledge_base/source_manifest.csv` into typed entries."""
 
 import csv
+import re
 from pathlib import Path
 
 from pydantic import BaseModel, field_validator
 
 MANUAL = "manual"
+DOCUMENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
 
 class SourceEntry(BaseModel):
@@ -23,6 +25,14 @@ class SourceEntry(BaseModel):
     added_by: str = ""
     fetch_urls: list[str] = []
     manual: bool = False
+
+    @field_validator("document_id")
+    @classmethod
+    def _safe_id(cls, value: str) -> str:
+        # The id becomes a folder name (raw_dir / document_id): no slashes, no ".." sequences.
+        if not DOCUMENT_ID_RE.match(value) or ".." in value:
+            raise ValueError(f"document_id {value!r} must match {DOCUMENT_ID_RE.pattern} (no '..')")
+        return value
 
     @field_validator("fetch_urls", mode="before")
     @classmethod

@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import math
+import threading
 import time
 from collections import deque
 from collections.abc import Callable
@@ -34,7 +35,8 @@ class ThrottledEmbeddings(Embeddings):
 
     Used by index.py via build_embeddings. Batches stay under 80% of tpm (the token estimate is
     rough); a sliding 60 s window of (time, tokens) decides how long to wait before each request.
-    Rate-limit errors are retried with exponential backoff.
+    Rate-limit errors are retried with exponential backoff. Thread-safe: API routes run in a
+    threadpool and share one instance, so the window is guarded by a lock (never held in sleep).
     """
 
     def __init__(
@@ -53,6 +55,7 @@ class ThrottledEmbeddings(Embeddings):
         self._clock = clock
         self.max_tries = max_tries
         self._window: deque[tuple[float, int]] = deque()
+        self._lock = threading.Lock()
 
     def _batches(self, texts: list[str]) -> list[list[str]]:
         budget = self.tpm * 0.8
@@ -70,24 +73,30 @@ class ThrottledEmbeddings(Embeddings):
             batches.append(current)
         return batches
 
-    def _wait_for_slot(self, tokens: int) -> None:
-        """Block until one more request of `tokens` fits in both the rpm and tpm windows."""
+    def _reserve_slot(self, tokens: int) -> None:
+        """Block until one more request of `tokens` fits the rpm and tpm windows, then record it.
+
+        Called by `_call`. Check and reservation happen under one lock so concurrent threads cannot
+        both take the last slot; the sleep happens outside the lock so others are not blocked.
+        """
         while True:
-            now = self._clock()
-            while self._window and self._window[0][0] <= now - WINDOW_S:
-                self._window.popleft()
-            used = sum(t for _, t in self._window)
-            if len(self._window) < self.rpm and used + tokens <= self.tpm:
-                return
-            if not self._window:  # a single oversized batch can never fit; send it alone
-                return
-            self._sleep(self._window[0][0] + WINDOW_S - now)
+            with self._lock:
+                now = self._clock()
+                while self._window and self._window[0][0] <= now - WINDOW_S:
+                    self._window.popleft()
+                used = sum(t for _, t in self._window)
+                fits = len(self._window) < self.rpm and used + tokens <= self.tpm
+                # a single oversized batch can never fit; send it alone
+                if fits or not self._window:
+                    self._window.append((now, tokens))
+                    return
+                wait = self._window[0][0] + WINDOW_S - now
+            self._sleep(wait)
 
     def _call(self, fn: Callable, arg, tokens: int):
         """Run one API call through the rpm/tpm window, retrying rate-limit errors with backoff."""
         for attempt in range(self.max_tries):
-            self._wait_for_slot(tokens)
-            self._window.append((self._clock(), tokens))
+            self._reserve_slot(tokens)
             try:
                 return fn(arg)
             except RateLimitError:
@@ -132,6 +141,7 @@ class CachedEmbeddings(Embeddings):
 
     Key = sha256(model + text); the file is append-only JSONL loaded into a dict at start. Only
     documents are cached (queries pass through). Used by build_embeddings, called by index.py.
+    Unparseable lines (a crash mid-append leaves a truncated one) are skipped with a warning.
     """
 
     def __init__(self, inner: Embeddings, model: str, path: Path):
@@ -142,10 +152,17 @@ class CachedEmbeddings(Embeddings):
         self.misses = 0
         self._vectors: dict[str, list[float]] = {}
         if path.exists():
+            bad = 0
             for line in path.read_text(encoding="utf-8").splitlines():
-                if line.strip():
+                if not line.strip():
+                    continue
+                try:
                     row = json.loads(line)
                     self._vectors[row["key"]] = row["vector"]
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    bad += 1
+            if bad:
+                log.warning("embedding cache %s: skipped %d unreadable line(s)", path, bad)
 
     def _key(self, text: str) -> str:
         return hashlib.sha256(f"{self.model}\n{text}".encode()).hexdigest()
@@ -188,15 +205,26 @@ class VoyageEmbeddings(VoyageAIEmbeddings):
         return client.embed(texts, model=self.model, input_type="query").embeddings
 
 
-def build_embeddings(settings: Settings, cache_dir: Path) -> CachedEmbeddings:
-    """Cache(Throttle(Voyage)); raises without a key (called by ingest.py)."""
+def _voyage(settings: Settings) -> VoyageEmbeddings:
     if settings.voyage_api_key is None:
         raise RuntimeError("VOYAGE_API_KEY is not set; add it to .env to embed and index.")
-    inner = VoyageEmbeddings(
+    return VoyageEmbeddings(
         model=settings.embed_model,
         voyage_api_key=settings.voyage_api_key,
         batch_size=MAX_TEXTS_PER_REQUEST,
     )
-    throttled = ThrottledEmbeddings(inner, rpm=settings.voyage_rpm, tpm=settings.voyage_tpm)
+
+
+def build_query_embeddings(settings: Settings) -> ThrottledEmbeddings:
+    """Throttle(Voyage) without the document cache (called by get_retrieval_service).
+
+    Retrieval only embeds queries, so it must not load the large document-vector cache file.
+    """
+    return ThrottledEmbeddings(_voyage(settings), rpm=settings.voyage_rpm, tpm=settings.voyage_tpm)
+
+
+def build_embeddings(settings: Settings, cache_dir: Path) -> CachedEmbeddings:
+    """Cache(Throttle(Voyage)); raises without a key (called by ingest.py)."""
+    throttled = build_query_embeddings(settings)
     safe_model = settings.embed_model.replace("/", "_")
     return CachedEmbeddings(throttled, settings.embed_model, cache_dir / f"{safe_model}.jsonl")

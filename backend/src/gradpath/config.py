@@ -15,8 +15,9 @@ class Settings(BaseSettings):
 
     Read once via `get_settings()`; providers, ingestion and the API take values from here instead
     of reading `os.environ`. Secrets are `SecretStr` so they never print in logs or reprs.
-    pydantic-settings reads `.env` without exporting it to `os.environ`, so `ANTHROPIC_API_KEY`
-    here does not leak into the Claude Code subprocess (which would bill the API, not the Pro plan).
+    pydantic-settings reads `.env` without exporting it to `os.environ`, so an `ANTHROPIC_API_KEY`
+    in `.env` does not reach the Claude Code subprocess. A key exported in the shell itself still
+    would (and would bill the API, not the plan); `ChatClaudeCode` logs a warning when it sees one.
     """
 
     model_config = SettingsConfigDict(

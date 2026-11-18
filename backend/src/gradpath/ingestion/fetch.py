@@ -59,7 +59,8 @@ class Politeness:
         self._clock = clock
         self._min_interval = min_interval
         self._last: dict[str, float] = {}
-        self._robots: dict[str, urllib.robotparser.RobotFileParser | None] = {}
+        # parser, or True (allow all) / False (disallow all) when robots.txt has no rules to parse
+        self._robots: dict[str, urllib.robotparser.RobotFileParser | bool] = {}
 
     def wait(self, host: str) -> None:
         """Sleep until at least `min_interval` has passed since the last request to `host`."""
@@ -71,26 +72,44 @@ class Politeness:
         self._last[host] = self._clock()
 
     def allowed(self, url: str, client: httpx.Client) -> bool:
-        """Check robots.txt for the URL's host (cached); a missing or unreadable one allows."""
+        """Check robots.txt for the URL's host (cached per host for the run), per RFC 9309.
+
+        200 -> parse the rules; 4xx (incl. 404) -> allow all; 5xx or a network error -> disallow
+        all (the site may be hiding rules), so ingest.py skips the URL with a warning.
+        """
         parts = urlparse(url)
         host = parts.netloc
         if host not in self._robots:
-            parser: urllib.robotparser.RobotFileParser | None = None
+            rules: urllib.robotparser.RobotFileParser | bool
             try:
                 self.wait(host)
                 resp = client.get(f"{parts.scheme}://{host}/robots.txt")
                 if resp.status_code == 200:
-                    parser = urllib.robotparser.RobotFileParser()
-                    parser.parse(resp.text.splitlines())
+                    rules = urllib.robotparser.RobotFileParser()
+                    rules.parse(resp.text.splitlines())
+                else:
+                    rules = resp.status_code < 500
+                    if not rules:
+                        log.warning(
+                            "robots.txt for %s returned %s; skipping host", host, resp.status_code
+                        )
             except httpx.HTTPError as exc:
-                log.warning("robots.txt fetch failed for %s: %s", host, exc)
-            self._robots[host] = parser
-        parser = self._robots[host]
-        return True if parser is None else parser.can_fetch(USER_AGENT, url)
+                log.warning("robots.txt fetch failed for %s: %s; skipping host", host, exc)
+                rules = False
+            self._robots[host] = rules
+        rules = self._robots[host]
+        if isinstance(rules, bool):
+            return rules
+        return rules.can_fetch(USER_AGENT, url)
 
 
 def _kind_for(url: str) -> str:
     return "md" if urlparse(url).path.lower().endswith((".md", ".mdx")) else "html"
+
+
+def _cache_valid(record: dict, path: Path) -> bool:
+    """True if `path` exists and its sha256 equals the logged one (else it is re-downloaded)."""
+    return path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() == record.get("sha256")
 
 
 def _download(client: httpx.Client, url: str) -> tuple[int, bytes | None]:
@@ -114,10 +133,12 @@ def fetch_source(
     refresh: bool = False,
     politeness: Politeness | None = None,
 ) -> list[FetchedPage]:
-    """Download each of the entry's URLs into `raw_dir/<document_id>/<index>.<ext>` and log them.
+    """Download each of the entry's URLs into `raw_dir/<document_id>/<url hash>.<ext>` and log them.
 
-    Called by ingest.py. Cached pages (present in fetch_log.json and on disk) are reused unless
-    `refresh`. Disallowed (robots), non-200 and oversized pages are logged and skipped.
+    Called by ingest.py. Files are named by the URL's hash (not its position), so reordering
+    `fetch_urls` cannot pair a URL with another page's file; `FetchedPage.index` is still the
+    position (chunk ids use it). Cached pages (in fetch_log.json, on disk, sha256 matching) are
+    reused unless `refresh`. Disallowed (robots), non-200 and oversized pages are logged, skipped.
     """
     politeness = politeness or Politeness()
     doc_dir = raw_dir / entry.document_id
@@ -129,9 +150,9 @@ def fetch_source(
     pages: list[FetchedPage] = []
     for index, url in enumerate(entry.fetch_urls):
         kind = _kind_for(url)
-        path = doc_dir / f"{index}.{kind}"
+        path = doc_dir / f"{hashlib.sha256(url.encode()).hexdigest()[:16]}.{kind}"
         cached = old.get(url)
-        if cached and path.exists() and not refresh:
+        if cached and not refresh and _cache_valid(cached, path):
             records.append(cached)
             pages.append(
                 FetchedPage(

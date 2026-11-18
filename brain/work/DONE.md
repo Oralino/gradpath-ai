@@ -2,6 +2,8 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-17
+- [T-001 Milestone 1: RAG foundation](tickets/T-001-rag-foundation.md): provider layer, ingestion
+  (956 chunks), retrieval, `POST /api/chat`, `POST /api/jobs/analyze`, code review fixes; 89 tests.
 - All source licences confirmed from each project's own licence file; BLS page saved manually
   (the site blocks scripted downloads).
 - Project setup: `brain/` docs, `CLAUDE.md`, `README.md`, `.env.example`, `.gitignore`, git repo.

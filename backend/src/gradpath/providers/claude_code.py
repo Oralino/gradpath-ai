@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+import logging
+import os
 import threading
 from collections.abc import Callable
 from typing import Any
@@ -15,6 +17,7 @@ from langchain_core.runnables import Runnable, RunnableLambda
 from pydantic import BaseModel
 
 QueryFn = Callable[..., Any]
+log = logging.getLogger(__name__)
 
 
 class ClaudeCodeError(RuntimeError):
@@ -76,8 +79,15 @@ class ChatClaudeCode(BaseChatModel):
             effort=self.effort,
             output_format=kwargs.get("output_format"),
         )
-        result = await asyncio.wait_for(self._run(prompt, options), timeout=self.timeout_s)
-        if result.is_error:
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            # Claude Code would bill this key instead of the owner's plan (zero-cost rule).
+            log.warning("ANTHROPIC_API_KEY is set in the environment; Claude Code may use the API")
+        try:
+            result = await asyncio.wait_for(self._run(prompt, options), timeout=self.timeout_s)
+        except TimeoutError as exc:
+            raise ClaudeCodeError(f"Claude Code timed out after {self.timeout_s:.0f}s") from exc
+        # Some failures (e.g. "error_max_turns") arrive with is_error false, so check the subtype.
+        if result.is_error or result.subtype != "success":
             detail = result.errors or result.result or result.subtype
             raise ClaudeCodeError(f"Claude Code returned an error: {detail}")
 
@@ -98,11 +108,21 @@ class ChatClaudeCode(BaseChatModel):
         return ChatResult(generations=[ChatGeneration(message=message)])
 
     async def _run(self, prompt: str, options: ClaudeAgentOptions) -> ResultMessage:
-        """Drain the SDK's message stream and return its final `ResultMessage`."""
+        """Drain the SDK's message stream and return its final `ResultMessage`.
+
+        The stream is always closed (also on timeout/cancellation), so the SDK can shut down its
+        Claude Code subprocess instead of leaving it running.
+        """
         final: ResultMessage | None = None
-        async for msg in self.query_fn(prompt=prompt, options=options):
-            if isinstance(msg, ResultMessage):
-                final = msg
+        stream = self.query_fn(prompt=prompt, options=options)
+        try:
+            async for msg in stream:
+                if isinstance(msg, ResultMessage):
+                    final = msg
+        finally:
+            aclose = getattr(stream, "aclose", None)
+            if aclose is not None:
+                await aclose()
         if final is None:
             raise ClaudeCodeError("Claude Code ended without a result message")
         return final
