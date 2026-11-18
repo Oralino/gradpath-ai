@@ -6,7 +6,6 @@ of the job -> gaps -> roadmap workflow; in Milestone 3 these steps become LangGr
 
 import logging
 import re
-import unicodedata
 from typing import Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -17,7 +16,7 @@ from pydantic import BaseModel, Field
 from gradpath.providers import with_structure
 from gradpath.rag.answer import Citation, to_citation
 from gradpath.retrieval import Evidence, RetrievalResult, RetrievalService
-from gradpath.safety import escape_attr, neutralise_tags
+from gradpath.safety import escape_attr, neutralise_tags, normalise_untrusted
 
 log = logging.getLogger(__name__)
 
@@ -81,8 +80,10 @@ class JobExtraction(BaseModel):
 
 
 def _normalise(text: str) -> str:
-    """Lowercase, unify quotes/dashes and collapse whitespace, for quote matching."""
-    text = unicodedata.normalize("NFKC", text).lower()
+    """Lowercase, unify quotes/dashes and collapse whitespace, for quote matching. Starts with
+    the same normalisation the prompt got (`normalise_untrusted`, T-008), so a posting with a soft
+    hyphen or zero-width space still matches what the model quoted."""
+    text = normalise_untrusted(text).lower()
     text = text.translate(
         str.maketrans({"’": "'", "‘": "'", "“": '"', "”": '"', "–": "-", "—": "-"})
     )
