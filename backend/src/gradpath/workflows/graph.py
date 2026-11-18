@@ -13,8 +13,10 @@ can reset the counter or raise the limit; and `recursion_limit` is set from the 
 second, independent stop.
 """
 
+import contextlib
 import inspect
 import logging
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, fields
 from typing import Literal
@@ -27,9 +29,11 @@ from pydantic import ValidationError
 
 from gradpath.config import MAX_REVISIONS_CAP
 from gradpath.providers import ClaudeCodeError
-from gradpath.workflows import critic, gaps, nodes, roadmap
+from gradpath.workflows import critic, fallback, gaps, nodes, roadmap
 from gradpath.workflows.schemas import CareerPrepResult, UserProfile, WorkflowInput
 from gradpath.workflows.state import CareerPrepState, WorkflowContext
+
+log = logging.getLogger(__name__)
 
 # Keys only run_workflow and the graph's own wrappers write. A node update containing one is
 # refused, so a buggy or confused node can't change the input, the limit or the counter.
@@ -58,7 +62,7 @@ class NodeSet:
 # default would skip the first (ValidationError is a ValueError) yet retry almost anything else,
 # including an API 401 from a bad visitor key. Network errors are not on the list: the Anthropic
 # SDK already retries those itself (max_retries=2 in providers.factory), so retrying here too
-# would multiply requests. A second failure propagates (fallback is Milestone 4).
+# would multiply requests. A second failure ends in a fallback result (`run_workflow`).
 MODEL_NODES = frozenset(
     {"analyze_job", "analyze_gaps", "plan_roadmap", "interview_questions", "evaluate", "revise"}
 )
@@ -102,6 +106,9 @@ logging.getLogger(RETRY_LOGGER).addFilter(_NoExceptionText())
 MODEL_RETRY = RetryPolicy(max_attempts=MODEL_ATTEMPTS, initial_interval=1.0, retry_on=_retry_on)
 
 
+FAILED_NODE_ATTR = "gradpath_failed_node"
+
+
 def _wrap(name: str, fn: Callable) -> Callable:
     """Wrap a node for the graph: pass the runtime only if the node has a parameter named
     `runtime` (the convention; pure nodes take just the state), check it returned a mapping
@@ -111,12 +118,19 @@ def _wrap(name: str, fn: Callable) -> Callable:
     forbidden = PROTECTED if name == "finalize" else PROTECTED | {"result"}
 
     def run(state: CareerPrepState, runtime) -> dict:
-        update = fn(state, runtime) if wants_runtime else fn(state)
-        if not isinstance(update, Mapping):
-            raise TypeError(f"node {name!r} returned {type(update).__name__}, expected a dict")
-        bad = forbidden & update.keys()
-        if bad:
-            raise ValueError(f"node {name!r} may not write {sorted(bad)}")
+        try:
+            update = fn(state, runtime) if wants_runtime else fn(state)
+            if not isinstance(update, Mapping):
+                raise TypeError(f"node {name!r} returned {type(update).__name__}, expected a dict")
+            bad = forbidden & update.keys()
+            if bad:
+                raise ValueError(f"node {name!r} may not write {sorted(bad)}")
+        except Exception as exc:
+            # Record which stage failed for the fallback (`run_workflow`); the first one wins.
+            if getattr(exc, FAILED_NODE_ATTR, None) is None:
+                with contextlib.suppress(AttributeError):
+                    setattr(exc, FAILED_NODE_ATTR, name)
+            raise
         update = {**update, "node_log": [name]}
         if name == "revise":
             update["revision_count"] = state.get("revision_count", 0) + 1
@@ -134,6 +148,13 @@ def route_after_evaluation(state: CareerPrepState) -> Literal["revise", "finaliz
     if state.get("revision_count", 0) >= state.get("max_revisions", 0):
         return "finalize"
     return "revise"
+
+
+def _only_finalize_left(state: CareerPrepState) -> bool:
+    """True right after an `evaluate` that routes to `finalize`: the plan is checked and only
+    assembly is left, so a time-budget stop there would only hide a finished result."""
+    log_ = state.get("node_log", [])
+    return bool(log_) and log_[-1] == "evaluate" and route_after_evaluation(state) == "finalize"
 
 
 def recursion_limit_for(max_revisions: int) -> int:
@@ -176,15 +197,24 @@ def run_workflow(
     max_revisions: int,
     corrections: list[str] | None = None,
     impl: NodeSet | None = None,
+    time_budget_s: float | None = None,
+    clock: Callable[[], float] = time.monotonic,
 ) -> CareerPrepResult:
-    """Validate the input (`WorkflowInput`), run the whole graph once and return its result.
-    `max_revisions` comes from settings (the caller passes `settings.workflow_max_revisions`),
-    never from the request. Raises pydantic.ValidationError for bad input; GraphRecursionError
-    and node exceptions propagate for now (step 6 maps them to API errors)."""
+    """Validate the input (`WorkflowInput`), run the graph once and return its result.
+
+    `max_revisions` and `time_budget_s` come from settings, never from the request. Raises
+    pydantic.ValidationError for bad input. Once the graph is running, nothing it raises reaches
+    the caller (except KeyboardInterrupt and the like): the graph is streamed step by step, and a
+    stage that fails after its retry, an unavailable service, the loop limit, or the budget
+    being exceeded (checked between steps; a running stage is not interrupted) ends in a result
+    with status "fallback" built from the last completed step (`fallback.build_fallback`).
+    """
     if type(max_revisions) is not int or not 0 <= max_revisions <= MAX_REVISIONS_CAP:
         raise ValueError(
             f"max_revisions must be an int 0..{MAX_REVISIONS_CAP}, got {max_revisions!r}"
         )
+    if time_budget_s is not None and not time_budget_s > 0:
+        raise ValueError(f"time_budget_s must be positive, got {time_budget_s!r}")
     data = WorkflowInput(
         job_description=job_description, profile=profile, corrections=list(corrections or [])
     )
@@ -197,9 +227,43 @@ def run_workflow(
         "errors": [],
         "node_log": [],
     }
-    final = build_graph(impl).invoke(
-        state,
-        context=context,
-        config={"recursion_limit": recursion_limit_for(max_revisions)},
-    )
-    return final["result"].model_copy(update={"node_log": final["node_log"]})
+    graph = build_graph(impl)
+    last: CareerPrepState = state
+    start = clock()
+    stopped: tuple[fallback.FallbackReason, str | None] | None = None
+    try:
+        # stream_mode="values": the whole state after each finished step, so `last` always
+        # holds validated outputs only (a failed step's writes are never applied). `closing`
+        # shuts the graph down at once when we stop early, instead of at garbage collection.
+        steps = graph.stream(
+            state,
+            context=context,
+            config={"recursion_limit": recursion_limit_for(max_revisions)},
+            stream_mode="values",
+        )
+        with contextlib.closing(steps):
+            for values in steps:
+                last = values
+                if "result" in values:
+                    break
+                over = time_budget_s is not None and clock() - start > time_budget_s
+                if over and not _only_finalize_left(values):
+                    log.warning("workflow fallback: time budget of %.0fs exceeded", time_budget_s)
+                    stopped = ("time_budget", None)
+                    break
+    except fallback.NOT_A_FALLBACK:
+        raise  # a wrong or refused key is a setup error to report, not an outage to work around
+    except Exception as exc:
+        stopped = (fallback.classify(exc), getattr(exc, FAILED_NODE_ATTR, None))
+        log.warning(
+            "workflow fallback: %s at %s (%s)",
+            stopped[0],
+            stopped[1] or "unknown",
+            type(exc).__name__,
+        )
+    if stopped is not None:
+        return fallback.build_fallback(last, stopped[0], stopped[1], context)
+    if "result" not in last:  # the graph ended without finalize: treat it as a failed stage
+        log.warning("workflow fallback: graph ended without a result")
+        return fallback.build_fallback(last, "stage_failed", None, context)
+    return last["result"].model_copy(update={"node_log": last["node_log"]})

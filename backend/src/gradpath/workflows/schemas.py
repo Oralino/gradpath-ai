@@ -18,7 +18,7 @@ from pydantic import (
 )
 
 from gradpath.jobs.analyze import ExtractedRequirement, Seniority
-from gradpath.rag.answer import Citation
+from gradpath.rag.answer import ChatAnswer, Citation
 from gradpath.retrieval import Evidence
 
 # Profile, job description and corrections are untrusted user input: bound every string and list,
@@ -190,13 +190,41 @@ class Critique(BaseModel):
 # ---------- result ----------
 
 
+FallbackReason = Literal[
+    "stage_failed", "time_budget", "loop_limit", "dependency_unavailable", "rate_limited"
+]
+
+
+class StudySource(BaseModel):
+    """Retrieved sources for one requirement, kept when the workflow stopped early."""
+
+    requirement_id: str
+    skill: ModelText
+    citations: list[Citation]
+
+
+class FallbackInfo(BaseModel):
+    """Why the workflow stopped and what still helps (T-006, `workflows/fallback.py`). Only set
+    when `status` is "fallback"; `message` is a fixed text per reason, never exception text."""
+
+    reason: FallbackReason
+    failed_stage: str | None
+    completed_stages: list[str]
+    not_completed: list[str]
+    message: str
+    study_sources: list[StudySource]
+    answer: ChatAnswer | None  # one traditional-RAG answer on the job's main requirements
+
+
 class CareerPrepResult(BaseModel):
     """What the workflow returns. `status` is honest about what happened:
     complete = the critic passed with no blocking issue; complete_with_limitations = the revision
     limit was reached with blocking issues left; partial = a stage failed or
-    the critic never ran (see `errors`)."""
+    the critic never ran (see `errors`); fallback = the run stopped early (a stage failed after
+    its retry, a dependency was down, the time budget or loop limit was hit), and `fallback`
+    says which stages finished and carries grounded help where it exists."""
 
-    status: Literal["complete", "complete_with_limitations", "partial"]
+    status: Literal["complete", "complete_with_limitations", "partial", "fallback"]
     job: JobSummary | None
     gaps: list[GapItem]
     roadmap: list[RoadmapItem]
@@ -205,3 +233,4 @@ class CareerPrepResult(BaseModel):
     revisions_used: int
     errors: list[str]
     node_log: list[str]
+    fallback: FallbackInfo | None = None

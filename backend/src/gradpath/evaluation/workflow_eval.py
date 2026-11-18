@@ -105,7 +105,8 @@ def score(case: WorkflowCase, result: CareerPrepResult, profile: UserProfile, ma
     gaps = result.gaps
     by_id = {g.requirement_id: g for g in gaps}
     checks: dict[str, bool] = {
-        "not_partial": result.status != "partial",
+        # a fallback is a stopped run too, so it fails this check like partial does
+        "not_partial": result.status not in ("partial", "fallback"),
         "loop_terminated": result.revisions_used <= max_rev,
     }
     for i, exp in enumerate(case.expect.gaps, 1):

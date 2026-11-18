@@ -53,6 +53,17 @@ def report(result: CareerPrepResult, seconds: float) -> str:
     if result.unresolved_issues:
         lines.append("\nOpen issues:")
         lines += [f"- [{i.severity}] {i.message}" for i in result.unresolved_issues]
+    if result.fallback:
+        fb = result.fallback
+        lines.append(f"\nStopped early ({fb.reason}, stage: {fb.failed_stage or '-'})")
+        lines.append(f"    {fb.message}")
+        lines.append(f"    finished: {', '.join(fb.completed_stages) or '-'}")
+        lines.append(f"    not finished: {', '.join(fb.not_completed) or '-'}")
+        for s in fb.study_sources:
+            lines.append(f"    {s.skill}:")
+            lines += [f"      - {c.title} > {c.section}" for c in s.citations]
+        if fb.answer:
+            lines.append(f"    answer ({fb.answer.status}): {fb.answer.answer}")
     if result.errors:
         lines.append("\nErrors:")
         lines += [f"- {e}" for e in result.errors]
@@ -109,6 +120,7 @@ def main() -> None:
             context=ctx,
             max_revisions=settings.workflow_max_revisions,
             corrections=args.correction,
+            time_budget_s=settings.workflow_time_budget_s,
         )
     finally:
         retrieval.store.client.close()

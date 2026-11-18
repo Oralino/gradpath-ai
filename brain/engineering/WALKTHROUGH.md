@@ -480,6 +480,38 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   decided free and instantly, and the routing evaluation will show whether the rules ever disagree
   with the labels.
 
+## Workflow fallback (`workflows/fallback.py`, `run_workflow` in `graph.py`, T-006)
+- **What it does:** when the workflow can't finish, the caller gets a result labelled
+  `status: "fallback"` instead of an error: which stages finished and which didn't, why (stage
+  failed after its retry, service unavailable, rate limit, time budget, loop limit), a fixed
+  message, the
+  outputs already validated, the sources already retrieved per requirement, and at most one
+  traditional-RAG answer about the job's main requirements.
+- **How it knows what finished:** the graph is streamed (`stream_mode="values"`), so after each
+  step we hold the whole state. LangGraph applies a step's writes all or nothing, so a failed
+  step leaves no half-written output; a parallel branch that succeeded in that step is dropped
+  too, and the result says so.
+- **Decision: routing and fallback stay separate** (spec 2A). The router chose the workflow;
+  fallback only decides what can still be offered honestly. Rejected: re-routing to RAG and
+  answering as if nothing happened, which would hide a failure behind a confident answer.
+- **Decision: the budget is checked between steps,** not by killing a running stage (a thread
+  can't be stopped safely; Claude Code has its own 300 s call timeout). No extra model call after
+  a budget stop: the time is already spent, and the free retrieved sources are still returned.
+- **Decision: one extra RAG call at most, and only when it can help.** Skipped after a time-budget
+  stop, an unavailable service or a rate limit (it would hit the same wall); the sources already
+  retrieved are free and always returned.
+- **Not a fallback:** a wrong or refused key (Anthropic or Voyage authentication) still raises,
+  so the API reports a setup error instead of "try again later".
+- **Gotchas found in review:** if `revise` ran but the re-check didn't, the old critic issues
+  describe the previous roadmap, so they are dropped and the result says the plan wasn't
+  re-checked; a budget stop is skipped when only `finalize` is left; assembling the fallback can
+  never raise (a minimal result is the last resort).
+- **Gotcha:** the API now answers 200 with `status: "fallback"` where it used to answer 5xx; the
+  client must show the label. A fallback fails the eval's `not_partial` check.
+- **Likely question:** *"Isn't catching every exception hiding bugs?"* The failure is logged with
+  its type and stage, the result is labelled, and tests pin each path; KeyboardInterrupt still
+  stops the run.
+
 ## Security threat model ([SECURITY.md](SECURITY.md))
 - Built from the owner's guides in `brain/security/`: every threat is marked defended, gap or
   later milestone, with the file that defends it. Main point to explain: the model is never the

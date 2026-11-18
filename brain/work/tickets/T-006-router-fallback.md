@@ -38,7 +38,9 @@ High-risk area: the workflow's fallback limits (code-reviewer + qa-checker whate
 - Branch: `feat/t-006-router-fallback`
 - PR:
 - Files touched: `backend/src/gradpath/router/` (new), `backend/tests/test_router.py`,
-  `evaluation/routing_cases.jsonl`, `brain/engineering/SECURITY.md` (new), `CLAUDE.md`, `brain/`
+  `evaluation/routing_cases.jsonl`, `brain/engineering/SECURITY.md` (new), `CLAUDE.md`, `brain/`,
+  `workflows/fallback.py` (new), `workflows/graph.py`, `workflows/schemas.py`, `workflows/cli.py`,
+  `api/career.py`, `config.py`, `evaluation/workflow_eval.py`, `.env.example`, workflow and API tests
 - Commits (hash, message):
 
 ## Verification
@@ -47,4 +49,8 @@ High-risk area: the workflow's fallback limits (code-reviewer + qa-checker whate
   posting."), comparison words reached the plan rule, zero-width/fullwidth tag variants (router now
   HTML-escapes the whole message), whitespace-only messages, failures logged without status; tests
   now assert log contents and cover forged tags and KeyboardInterrupt.
+- Step 5 (fallback): 24 tests with forced failures (stage after retry, service down, rate limit,
+  wrong key, loop limit, time budget, failed parallel step, failed revise, stale issues, broken
+  assembly, KeyboardInterrupt). code-reviewer found 6 issues, all fixed; qa-checker clean (lock,
+  lint, format, 380 tests then, secrets, personal data, attribution, debug leftovers).
 - Security: threat model in `brain/engineering/SECURITY.md` (2026-11-18) from the owner's guides.

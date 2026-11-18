@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from gradpath.config import REPO_ROOT, Settings
 from gradpath.workflows import NodeSet, UserProfile, WorkflowContext, build_graph, run_workflow
-from gradpath.workflows.graph import recursion_limit_for, route_after_evaluation
+from gradpath.workflows.graph import _wrap, recursion_limit_for, route_after_evaluation
 from gradpath.workflows.nodes import profile_to_evidence
 from gradpath.workflows.schemas import Critique, CritiqueIssue
 
@@ -118,22 +118,28 @@ def test_revise_that_returns_only_a_roadmap_still_counts():
 def test_nodes_may_not_write_protected_keys(node, update):
     """No node can reset the counter, raise the limit, rewrite the input or the log, or write
     the result (only finalize may)."""
-    nodes = {"evaluate": lambda s: {"critique": FAIL}, node: lambda s: update}
-    impl = replace(SKELETON, **nodes)
     with pytest.raises(ValueError, match="may not write"):
-        run(impl, max_revisions=2)
+        _wrap(node, lambda s: update)({"revision_count": 0}, None)
+    # In a full run the refused write stops the graph at that node and ends in a fallback.
+    nodes = {"evaluate": lambda s: {"critique": FAIL}, node: lambda s: update}
+    result = run(replace(SKELETON, **nodes), max_revisions=2)
+    assert result.status == "fallback"
+    assert (result.fallback.reason, result.fallback.failed_stage) == ("stage_failed", node)
 
 
 def test_node_returning_nothing_gets_a_clear_error():
     with pytest.raises(TypeError, match="'analyze_gaps' returned NoneType"):
-        run(replace(SKELETON, analyze_gaps=lambda s: None))
+        _wrap("analyze_gaps", lambda s: None)({}, None)
+    result = run(replace(SKELETON, analyze_gaps=lambda s: None))
+    assert result.fallback.failed_stage == "analyze_gaps"
 
 
 def test_backstop_stops_a_loop_bug(monkeypatch):
-    """If the route function always said "revise", recursion_limit would still stop the loop."""
+    """If the route function always said "revise", recursion_limit would still stop the loop,
+    and the run ends in a labelled fallback instead of an error."""
     monkeypatch.setattr("gradpath.workflows.graph.route_after_evaluation", lambda s: "revise")
-    with pytest.raises(GraphRecursionError):
-        run(max_revisions=1)
+    result = run(max_revisions=1)
+    assert result.status == "fallback" and result.fallback.reason == "loop_limit"
 
 
 def test_critic_flag_alone_does_not_make_it_complete():
