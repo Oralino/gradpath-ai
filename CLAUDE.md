@@ -93,8 +93,9 @@ Without those agents, the main session does the work itself. This project adds:
 - No project-only agents.
 
 ## Git
-- Branch per ticket or milestone, PR to `main`, merge after review. GitHub CI: TBD (added with the
-  backend; then the global PR and CI rules apply).
+- Branch per ticket or milestone, PR to `main`, merge after review. GitHub CI:
+  `.github/workflows/ci.yml` (ruff + pytest on every push and PR, no secrets); the global PR and CI
+  rules apply (never merge on a red or unfinished build).
 - Commit after each completed task, once its tier's review and QA have passed. Only the main session
   commits. Conventional Commits ending with the ticket ID, for example
   `feat: add document chunker (T-003)`. One logical change per commit.

@@ -294,6 +294,19 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   server?"* "Just leave it off" depends on nobody setting a variable; code that enforces the rule
   doesn't.
 
+## CI (`.github/workflows/ci.yml`)
+- **What it does:** on every push and every PR to `main`, a GitHub runner installs exactly what
+  `uv.lock` pins (`uv sync --locked`), then runs ruff (lint + format) and pytest.
+- **Decision: no secrets in CI.** Tests already use the fake model, fake embeddings and in-memory
+  Qdrant, so CI needs no keys and costs nothing; `LLM_PROVIDER=fake` and `LANGSMITH_TRACING=false`
+  are set anyway, so nothing in CI can call a model or send a trace.
+- **Decision: actions pinned to commit SHAs** (with the version in a comment), not tags: a tag can
+  be moved to different code, a commit SHA can't. `contents: read` permission only, and
+  `persist-credentials: false`, so a step can't push with the workflow's token.
+- **Likely questions:** *"Why `--locked`?"* It fails if `uv.lock` is out of date with
+  `pyproject.toml`, so CI tests exactly the versions you run locally. *"Does CI run the
+  retrieval eval?"* No: that needs the Voyage key and the local index; it's a manual release check.
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.
