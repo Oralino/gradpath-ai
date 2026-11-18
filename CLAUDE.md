@@ -18,7 +18,8 @@ loaded as context). Only `CLAUDE.md` and `README.md` stay in the root.
 | `brain/engineering/EVALUATION.md` | Metrics, datasets, experiments and their measured results | main session |
 | `brain/engineering/WALKTHROUGH.md` | How to explain the code: per component, the decisions, rejected alternatives, likely interview questions | main session |
 | `brain/design/DESIGN.md` | How the Next.js UI looks (created before the frontend milestone) | design-advisor (owner approves) |
-| `brain/work/TASKS.md` | Milestones, open work, bugs; links to open tickets | main session |
+| `brain/work/MILESTONES.md` | Milestone plan and story: what was built, why, what it does (for the owner to retell) | main session |
+| `brain/work/TASKS.md` | Open work and bugs; links to open tickets | main session |
 | `brain/work/DONE.md` | Finished work, newest first; links to closed tickets | main session |
 | `brain/work/tickets/` | One file per non-trivial change or bug (`T-001-name.md`, template `_TEMPLATE.md`) | main session |
 | `brain/work/HANDOFF.md` | Session handoff, only when written (local, gitignored) | main session |
@@ -28,15 +29,19 @@ One fact lives in one file; link instead of repeating. Update docs when the code
 contradictions between docs and code instead of guessing.
 
 ## Commands
-TBD until Milestone 1 creates the backend. Planned (uv, Python 3.13):
+Backend (from `backend/`, uv, Python 3.13):
 ```bash
-cd backend && uv sync              # install
-uv run pytest                      # tests (fake LLM provider, no API calls)
+uv sync                                     # install from uv.lock
+uv run pytest -q                            # tests (fake LLM provider, no API calls)
+uv run pytest --html=reports/tests.html --self-contained-html   # browsable report (gitignored)
 uv run ruff check . && uv run ruff format --check .
-uv run uvicorn app.main:app --reload
-uv run python -m app.ingestion.ingest   # build the Qdrant index from knowledge_base/
+uv run python -m gradpath.providers.smoke   # manual: one real call through LLM_PROVIDER (Haiku)
 ```
-Frontend (from its milestone): `cd frontend && npm install && npm run dev`.
+Planned with later steps: `uv run uvicorn gradpath.api.main:app --reload`,
+`uv run python -m gradpath.ingestion.ingest`. Frontend (from its milestone):
+`cd frontend && npm install && npm run dev`.
+- Claude Code mode needs the Claude Code login once on this PC (see README). Run real calls from your
+  own terminal: a shell inside a Claude Code session inherits that session's variables.
 
 ## How we work on this project
 - The owner is learning. Follow the milestone rules in `brain/archive/SPEC.md` ("Instructions for an AI
@@ -51,6 +56,9 @@ Frontend (from its milestone): `cd frontend && npm install && npm run dev`.
   evaluation (the split is in `ARCHITECTURE.md`). Don't replace our own parts with LangChain
   conveniences without asking.
 - Tests never call real model APIs: use the fake provider. Real-model runs are manual or eval runs.
+- **Zero cost (owner rule):** never propose or add anything that needs payment or a payment method.
+  Design for free-tier limits (e.g. Voyage 3 RPM / ~10K TPM and non-refreshing free tokens: don't
+  re-embed unchanged chunks; keep eval runs small).
 
 ## Conventions
 - Python 3.13, uv, Pydantic models for every LLM structured output and API schema, typed LangGraph

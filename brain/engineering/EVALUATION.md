@@ -29,4 +29,17 @@ source.
 5. Prompt and structured-output variants.
 
 ## Results
-None yet.
+
+### Threshold probe (informal, 2026-11-17)
+Not a formal evaluation (8 hand-picked questions, no labels); used to set a provisional
+`retrieval_min_score` until the labelled set exists (Milestone 2).
+
+Config: `voyage-4`, chunk 1200 / overlap 150, semantic search, 956 chunks, top-3.
+
+| Group | Questions | Best cosine score per question | Right source ranked first |
+|---|---|---|---|
+| Covered by the corpus | 5 (index, HTTP 404, merge conflict, behavioural interviews, config/API keys) | 0.591 – 0.681 | 5 / 5 |
+| Not covered | 3 (sourdough, capital of Australia, security clearance) | 0.271 – 0.392 | n/a |
+
+Decision: `retrieval_min_score = 0.45` (0.06 above the highest uncovered score, 0.14 below the
+lowest covered one). Re-check with the labelled set.

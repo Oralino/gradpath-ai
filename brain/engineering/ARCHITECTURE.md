@@ -33,10 +33,11 @@ Use LangChain for standard building blocks; write the parts interviewers ask abo
 
 ## Layout (planned)
 ```
-backend/
-  app/
+backend/          uv project (pyproject.toml, uv.lock)
+  src/gradpath/
+    config.py     typed settings from the repo-root .env (secrets as SecretStr)
     api/          FastAPI routes
-    providers/    chat-model factory: ChatClaudeCode, ChatAnthropic, fake model for tests
+    providers/    chat-model factory: ChatClaudeCode, ChatAnthropic, fake model for tests (built)
     ingestion/    load, clean, chunk, embed, index
     retrieval/    retrieval service + retrieval tool
     router/       query router and route schema
@@ -76,7 +77,7 @@ All LLM calls go through one factory that returns a LangChain chat model.
 
 | `LLM_PROVIDER` | Model | Used for |
 |---|---|---|
-| `claude_code` | `ChatClaudeCode`: calls Claude through Claude Code (Agent SDK or `claude -p`, TBD in M1) | Local runs on the owner's Pro plan; recording demo runs |
+| `claude_code` | `ChatClaudeCode`: calls Claude through the Claude Agent SDK (bundles the Claude Code CLI), built-in tools and user settings off | Local runs on the owner's Pro plan; recording demo runs |
 | `anthropic_api` | `ChatAnthropic` with a server key or the visitor's key | Live mode |
 | `fake` | LangChain fake chat model with canned responses | Tests |
 
@@ -94,11 +95,21 @@ Deployed site:
   the sample profile, not real personal data.
 
 ## Ingestion and retrieval
-Ingestion: load (PDF/HTML/Markdown/text) -> clean -> chunk -> attach metadata -> embed -> store.
-Chunk metadata: `document_id, title, source_url, source_type, role_category, topic, company,
-published_at, retrieved_at, license_or_usage_notes, chunk_id`. Every source is listed in
-`knowledge_base/source_manifest.csv` with its URL, retrieval date and licence notes; nothing is
+Ingestion (built, `ingestion/`, details in `WALKTHROUGH.md`): manifest (approved rows) -> polite
+fetch with cache (`knowledge_base/raw/`, or `knowledge_base/manual/` for sites that block scripts)
+-> clean -> heading-aware chunking (1200 chars, 150 overlap) -> `processed/<doc>.jsonl` -> Voyage
+`voyage-4` embeddings (rate-limited + on-disk cache) -> Qdrant collection `gradpath_kb`, rebuilt
+after all embeddings succeed. Run: `uv run python -m gradpath.ingestion.ingest [--dry-run]
+[--refresh] [--only DOC ...]`. `raw/`, `processed/` and `manual/` are gitignored.
+
+Chunk metadata: `document_id, chunk_id (<doc>:<page>:<n>), title, section (heading path),
+source_url, source_type, collection, topic, license_or_usage_notes, retrieved_at`. Every source is
+listed in `knowledge_base/source_manifest.csv` with its URL, licence and fetch URLs; nothing is
 ingested without the owner's approval.
+
+First corpus (2026-11-17 dry run): 18 sources, 52 pages, 956 chunks, ~188K estimated tokens.
+
+Retrieval: planned (T-001 step 4).
 
 ## Security
 Retrieved content, uploads and JDs are untrusted data: delimited in prompts, never followed as
@@ -108,6 +119,11 @@ content in logs. Specific defences: TBD per milestone (always-hard area, see `CL
 ## Known limits
 - `claude_code` mode is bound by the Pro plan's usage limits and is slower than the API; large eval
   runs may hit the limit.
-- The Claude Code CLI isn't on this PC's bash PATH yet (checked 2026-11-17); M1 sets it up.
+- `claude_code` mode: the Agent SDK's bundled CLI needs a one-time Claude login on the PC. Calls made
+  from a shell inside a Claude Code session inherit that session's variables, so test from a normal
+  terminal. An `ANTHROPIC_API_KEY` in the process environment would make the CLI bill the API
+  instead of the plan; settings read `.env` without exporting it.
+- Structured output: `ChatAnthropic` must use `method="json_schema"` (current models reject a forced
+  tool call); `ChatClaudeCode` uses the SDK's `output_format`. Both go through `with_structure()`.
 - LangSmith free plan: about 5k traces a month, about 14 days of retention. Results are kept in
   `EVALUATION.md`, not only in LangSmith.
