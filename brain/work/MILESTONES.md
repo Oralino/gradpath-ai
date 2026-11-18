@@ -12,8 +12,8 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 0 | Project setup | ✅ | Decide the plan, stack and rules before coding | Public repo, `brain/` docs, licence-checked sources |
 | 1 | RAG foundation | ✅ | Load sources, answer with citations, analyse a job description | Cited answers, "not covered" answers, 40+ tests |
 | 2 | Retrieval evaluation + tracing | ✅ | Measure search quality | Recall@5 0.97, MRR 0.98, threshold checked, LangSmith traces, CI |
-| 3 | Agentic workflow | ✅ (PR open) | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop; 4/4 workflow eval cases; `POST /api/career/prepare` |
-| 4 | Router + fallback | ⏳ | Pick the cheapest path that works | Routing accuracy, labelled partial answers |
+| 3 | Agentic workflow | ✅ | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop; 4/4 workflow eval cases; `POST /api/career/prepare` |
+| 4 | Router + fallback | 🔨 | Pick the cheapest path that works | Routing accuracy, labelled partial answers |
 | 5 | Hybrid retrieval + reranking | ⏳ | Improve search for exact terms | Before/after metrics vs semantic-only |
 | 6 | Frontend | ⏳ | Make it usable | Next.js app designed from `DESIGN.md` |
 | 7 | Demo and live modes | ⏳ | A public site that costs nothing | Recorded demo runs; live mode with a visitor's key |
@@ -129,7 +129,7 @@ and analyses a job description, or says when it doesn't know.
 
 ---
 
-## Milestone 3: Agentic workflow (LangGraph) ✅ (PR open)
+## Milestone 3: Agentic workflow (LangGraph) ✅
 *Ticket: `tickets/T-003-agentic-workflow.md`*
 
 **Goal:** job description + profile -> requirements -> gap analysis -> prioritised roadmap ->
@@ -144,7 +144,7 @@ critic, with a bounded revision loop, as a LangGraph workflow behind `POST /api/
 | 5a. Job + retrieval nodes | ✅ | Real `analyze_job` (Haiku extraction reused, ids, quote checks) and `retrieve_knowledge` (one batched search); one retry for model nodes on bad output | Reuse what Milestone 1 already proved instead of rewriting it | 18 new tests (170 total): ids, quotes, untrusted posting, one search batch, retry once then fail, retry allow-list, retried nodes counted once; code review: retry bounded, allow-list fix |
 | 5b. Gaps, roadmap, questions, critic | ✅ | `analyze_gaps` (Sonnet), `plan_roadmap` + `revise` (Sonnet), `interview_questions` (Haiku), `evaluate` (code checks, then Haiku); corrections as self-reported facts; one injection helper for every prompt | The core of the product: evidence-checked gaps and a plan that only cites what was retrieved | 31 new tests (201 total), incl. full runs: complete, one revision, limit reached; code review: 7 fixes (spaced closing tags, empty or worse revision, empty roadmap, correction cap, cap order, missing sources) |
 | 6. API + CLI + real run | ✅ | `POST /api/career/prepare` (body = `WorkflowInput`, limit from settings, one run at a time, fixed error messages), `workflows.cli` (report or JSON), model text truncated at 1,000 characters | One call for the whole feature; a terminal runner for real runs | 17 new tests (217 total); code review: no leaks, 5 fixes. Real Pro-plan run: `complete` after 1 revision in 101 s; 18 requirements, 10 roadmap items (47 h of a 48 h budget), 10 questions (EVALUATION.md) |
-| 7. Workflow eval + open tasks + PR | ✅ | 4 labelled workflow cases scored in code (`--rescore` for free re-scoring); concurrency caps on every model route; retry logs redacted; `--out` guard; ingestion hardening (T-005: polite redirects, content type, stale chunks, atomic rebuild) | Measure the workflow's behaviour and close the open review items before the PR | 4/4 cases pass (correction capped, injection had no effect, budget respected); retrieval unchanged; 251 tests; QA clean; PR open |
+| 7. Workflow eval + open tasks + PR | ✅ | 4 labelled workflow cases scored in code (`--rescore` for free re-scoring); concurrency caps on every model route; retry logs redacted; `--out` guard; ingestion hardening (T-005: polite redirects, content type, stale chunks, atomic rebuild) | Measure the workflow's behaviour and close the open review items before the PR | 4/4 cases pass (correction capped, injection had no effect, budget respected); retrieval unchanged; 251 tests; QA clean; merged as `e100ccb` (PR #3, CI green) |
 
 ### Problems we hit and how we solved them
 
@@ -159,6 +159,19 @@ critic, with a bounded revision loop, as a LangGraph workflow behind `POST /api/
 | A critic could say "passed" while listing a blocking problem | Code decides: passed **and** no blocking issue | Don't let the model grade its own pass/fail flag |
 | LangGraph's default retry skips `ValueError`, so a malformed model reply (a Pydantic error) would never be retried | Our own retry rule for model nodes: an allow-list (bad output, Claude Code errors), 2 attempts; network retries left to the SDK so they don't multiply | Reading what a framework default actually does before relying on it |
 | The loop's safety limit (`recursion_limit`) formula was one step short | Measured the real minimum per revision count: LangGraph counts the input step too; a test pins the exact number | Measuring a framework's behaviour instead of assuming it |
+
+---
+
+## Milestone 4: Router + fallback 🔨
+*Ticket: `tickets/T-006-router-fallback.md`*
+
+**Goal:** pick traditional RAG or the workflow per request and record why; when the workflow can't
+finish, return a labelled partial result instead of an error; measure routing accuracy.
+
+| Step | Status | What we built | Why | Result |
+|---|---|---|---|---|
+| 1. Ticket + housekeeping | ✅ | T-006, branch, Milestone 3 marked merged | Clean start | Pushed |
+| 2. Explain routing + fallback, plan | 🔨 | | The owner approves the design before code | |
 
 ---
 

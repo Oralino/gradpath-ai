@@ -4,7 +4,7 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] **(owner)** Review and merge the Milestone 3 PR (T-003, T-005; see `DONE.md`).
+- [ ] [T-006 Milestone 4: router + fallback](tickets/T-006-router-fallback.md) (in progress).
 
 ## Before Milestone 2
 - [ ] **(owner + Claude)** Fill corpus gaps: behavioral interviews (STAR), caching, message queues,
