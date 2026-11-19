@@ -34,7 +34,7 @@ now points there (same content, no re-embedding).
 
 ## Changes
 - Branch: `feat/t-009-corpus-gaps`
-- PR:
+- PR: https://github.com/Oralino/gradpath-ai/pull/5
 - Files touched: `knowledge_base/source_manifest.csv`, `backend/src/gradpath/ingestion/clean.py`,
   `backend/tests/test_ingestion.py`
 - Commits (hash, message):
