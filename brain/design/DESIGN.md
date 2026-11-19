@@ -14,8 +14,10 @@ DESIGN.md section convention (Google Stitch); no palette or look is adapted from
 real brand.
 
 Tokens live in `app/globals.css` under `@import "tailwindcss";` in a plain `@theme { ... }` block (not
-`@theme inline`, so utilities read the CSS variables). Dark values override the same variables in
-`@media (prefers-color-scheme: dark) { :root { ... } }`, so components never need `dark:` prefixes.
+`@theme inline`, so utilities read the CSS variables). **Dark mode is the default** (owner, 2026-11-19):
+the dark values sit on `:root`, and `:root[data-theme="light"]` overrides the same variables with the
+light values, so components never need `dark:` prefixes. A header toggle switches the theme (see
+Components, Theme toggle).
 Contrast ratios below are WCAG 2.x, computed for each text/background pair (light / dark).
 
 ## Colors
@@ -174,6 +176,10 @@ model and retrieved text goes in as React children (see Security rules).
 - **Stage list** (long runs): `<ol>`, each row a 10px dot plus label. States: done (ink filled dot +
   check, "done" in sr text), running (teal ring, `motion-safe:animate-pulse`), waiting (hollow
   `line` dot), not reached (dash). Option A shows no states at all (see Long runs).
+- **Theme toggle**: header right, secondary button style (`h-11 sm:h-9`), moon or sun icon plus the
+  words "Dark mode", `aria-pressed` true when dark. Dark first; the choice is saved in localStorage
+  (`gradpath-theme`) and applied before first paint by a tiny inline script in `app/layout.tsx`, so
+  there is no light flash. No system-setting detection.
 - **Disclosure**: native `<details>`/`<summary>`, summary in `text-label text-link` with a chevron
   that rotates 90 degrees (`motion-safe:transition-transform duration-150`).
 
@@ -413,8 +419,8 @@ Weekly study hours [  ]   Timeline in weeks [  ]   (both optional)
   parses them with protocol `http:` or `https:`; otherwise the title shows as plain text. Always
   `target="_blank" rel="noopener noreferrer"`, with the hostname visible.
 - No third-party trackers, analytics, embeds or runtime font CDNs (`next/font` self-hosts).
-- Browser storage holds only the profile (localStorage) and the current posting and last result
-  (sessionStorage). Never a key.
+- Browser storage holds only the profile and the theme choice (localStorage) and the current posting
+  and last result (sessionStorage). Never a key.
 
 ### Motion
 - Hover and colour changes `transition-colors duration-150`. Disclosure chevron 150ms.
@@ -450,7 +456,7 @@ revisit only if a later screen needs a combobox or menu.** Icons: about ten smal
 3. **Component library**: none (above).
 4. **Plan layout**: sections with in-page nav (recommended) vs tabs.
 5. **Font**: Atkinson Hyperlegible Next (recommended) vs the system stack only.
-6. **Dark mode**: follow the system setting, no toggle (recommended for the MVP).
+6. **Dark mode. Decided 2026-11-19:** dark by default, with a light/dark toggle in the header.
 
 ## Do's and Don'ts
 Do:
