@@ -204,7 +204,7 @@ threshold, whose margin is gone (`q-031` 0.520 vs lowest covered 0.526).
 |---|---|---|---|---|
 | 1. Ticket + housekeeping | ✅ | T-010, branch, T-009 marked merged | Clean start | Pushed |
 | 2. Explain hybrid, fusion, reranking; open questions | 🔨 | Tables for the owner; library options checked against docs | The owner approves the design before code | Waiting for the owner |
-| 3. Harder labels (if approved) | ⏳ | Exact-term and near-topic uncovered questions | Today's set can't show an exact-term gain (exact_term recall@5 is already 1.0) | |
+| 3. Harder labels + baseline | ✅ | Labels v1.3: 6 exact-term and 4 near-topic uncovered questions (owner approved); semantic baseline re-run | Today's set couldn't show an exact-term gain | Semantic ranks all 6 new exact-term questions first (Recall@5 0.961); the threshold fails: 3 of 4 new uncovered clear 0.45, and `q-041` scores 0.393 |
 | 4. Sparse index | ⏳ | BM25 sparse vectors computed locally, stored next to the dense ones | Keyword matching for exact terms; no Voyage tokens | |
 | 5. Fusion | ⏳ | Our own RRF over dense + sparse results | Combine the two rankings without comparing incompatible scores | |
 | 6. Reranker | ⏳ | Rerank the fused top candidates | Better ordering, and maybe a better abstention score | |

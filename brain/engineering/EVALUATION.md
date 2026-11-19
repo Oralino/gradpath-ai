@@ -5,7 +5,7 @@ date, the configuration and the dataset version. Design is in `ARCHITECTURE.md`.
 ## Datasets (in `evaluation/`)
 | File | Contents | Size |
 |---|---|---|
-| `retrieval_questions.jsonl` | Questions with their relevant pages or sections (v1.2, 2026-11-19) | 40 (32 covered, 8 uncovered) |
+| `retrieval_questions.jsonl` | Questions with their relevant pages or sections (v1.3, 2026-11-19) | 50 (38 covered, 12 uncovered) |
 | `routing_cases.jsonl` | Requests labelled with the expected route and action (run, needs input, unsupported), tagged; owner-approved 2026-11-18 | 30 |
 | `workflow_cases.jsonl` | JD + sample profile cases with expected behaviour, scored in code (2026-11-18) | 4 |
 | `profiles/sample_*.json` | Fictional profiles: new grad (demos, tests, traces), sparse, injection | 3 |
@@ -14,7 +14,7 @@ date, the configuration and the dataset version. Design is in `ARCHITECTURE.md`.
 Datasets may also be uploaded to LangSmith for side-by-side experiment views; the files here are the
 source.
 
-## Retrieval dataset format (`retrieval_questions.jsonl`, v1.2)
+## Retrieval dataset format (`retrieval_questions.jsonl`, v1.3)
 One JSON object per line:
 
 | Field | Meaning |
@@ -52,6 +52,13 @@ v1.2 (2026-11-19, owner approved, T-009): `q-030` points at the OWASP page's new
 (`api-security.owasp.org`, same page); `q-034` (CI/CD with GitHub Actions) relabelled covered by the
 new GitHub Docs pages. `q-031` (Kubernetes liveness probes) stays uncovered: the new pages mention
 liveness only in passing.
+v1.3 (2026-11-19, owner approved, T-010): 10 questions added so hybrid search can be measured
+fairly (the 7 v1.2 `exact_term` questions already scored Recall@5 1.0). Six covered exact-term
+questions (`q-041` SQLSTATE 40001, `q-042` BRIN, `q-043` maxSurge/maxUnavailable, `q-044`
+basic.nack, `q-045` LLM08, `q-046` tmp_path), each term checked to appear in the labelled
+section; four near-topic uncovered questions (`q-047` SKIP LOCKED, `q-048` Dockerfile HEALTHCHECK,
+`q-049` workflow_dispatch, `q-050` Kafka consumer-group rebalancing), whose key terms appear in
+no chunk while their topics are indexed.
 
 **Runner:** `uv run python -m gradpath.evaluation.retrieval_eval` (from `backend/`, API stopped).
 Embeds all questions in one Voyage call, searches the raw top-K with no threshold (ranking metrics
@@ -305,4 +312,33 @@ What it shows:
   threshold separates "covered" from "nearby" less well. Candidate for Milestone 5: reranking
   scores, or a threshold tuned on more uncovered questions.
 - Limits: 40 questions, one run.
+
+### Semantic baseline on labels v1.3 (2026-11-19, T-010)
+Semantic-only, the reference for Milestone 5. Same index as above (corpus v2, 1,592 chunks), labels
+v1.3 (50 questions: 38 covered, 12 uncovered). Output:
+`evaluation/results/retrieval-20261119-062918.json`.
+
+| Metric | Labels v1.2 (40) | Labels v1.3 (50) |
+|---|---|---|
+| Recall@5 | 0.953 | 0.961 |
+| Precision@5 | 0.631 | 0.605 |
+| MRR | 0.984 | 0.987 |
+| exact_term Recall@5 | 1.000 (7) | 1.000 (13) |
+| Covered kept at 0.45 | 100% | 97% (`q-041` 0.393) |
+| Uncovered rejected at 0.45 | 88% (7/8) | 67% (8/12) |
+| Lowest covered / highest uncovered best score | 0.526 / 0.520 | 0.393 / 0.589 |
+| Search per question / batched embedding | 3.4 ms / 2.0 s | 3.6 ms / 0.5 s |
+
+What it shows:
+- **All six new exact-term questions rank their labelled section first** (best scores 0.39-0.67):
+  Voyage's embeddings handle codes and identifiers here, so there is little ranking left for keyword
+  search to win. The same three misses as v1.2 remain (`q-001`, `q-027`, `q-034`, each with one of
+  two targets outside the top 5).
+- **The threshold is the real weakness.** Three of the four new near-topic uncovered questions
+  clear 0.45 (`q-049` workflow_dispatch 0.589, `q-050` Kafka consumer groups 0.538, `q-047` SKIP
+  LOCKED 0.488; `q-048` HEALTHCHECK is rejected at 0.415), and `q-041` (SQLSTATE 40001) is found at
+  rank 1 but scores 0.393, so it would be answered "not covered". No cosine threshold separates the
+  two groups (the sweep: 0.55 keeps 92% and rejects 92%). Milestone 5's main test is therefore
+  whether a reranker score is a better abstention signal.
+- Limits: 50 questions, one run; labels written by the same author as the system.
 

@@ -48,3 +48,7 @@ re-embedding); our own code owns fusion, reranking and evaluation (no LangChain 
 - Commits (hash, message):
 
 ## Verification
+- Labels v1.3 (owner approved 2026-11-19): 50 questions load and validate; 439 tests pass; ruff clean.
+- Semantic baseline on v1.3 (`retrieval-20261119-062918.json`): Recall@5 0.961, MRR 0.987,
+  exact_term Recall@5 1.0 (13 questions); at 0.45 covered kept 97%, uncovered rejected 67%
+  (EVALUATION.md, "Semantic baseline on labels v1.3").
