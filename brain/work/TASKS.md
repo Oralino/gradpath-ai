@@ -4,7 +4,7 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] **(owner)** Review and merge the Milestone 4 PR (T-006, T-007, T-008; see `DONE.md`).
+- [ ] [T-009 Fill the knowledge-base gaps](tickets/T-009-corpus-gaps.md) (in progress; 10 sources proposed, waiting for the owner).
 
 Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
 - [x] [T-007](tickets/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.

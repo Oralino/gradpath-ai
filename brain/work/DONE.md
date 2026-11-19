@@ -4,7 +4,7 @@ Finished work and releases, newest first; closed tickets are linked here. Open w
 ## 2026-11-18
 - [T-006 Milestone 4: router + fallback](tickets/T-006-router-fallback.md): rules + Haiku router
   (30/30 labels), labelled workflow fallback with a time budget, `POST /api/assist` with a route
-  log, threat model `SECURITY.md`; adaptive served 4/4 in the comparison; 425 tests. PR open.
+  log, threat model `SECURITY.md`; adaptive served 4/4 in the comparison; 425 tests. Merged as `56fd164`.
 - [T-008 Tag neutraliser misses invisible and fullwidth variants](tickets/T-008-tag-neutraliser-unicode.md):
   untrusted text normalised (NFKC, format characters removed); look-alike openers neutralised.
 - [T-007 Ingestion redirects could reach any host](tickets/T-007-ingestion-url-allowlist.md):
