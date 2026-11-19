@@ -53,7 +53,7 @@ re-embedding); our own code owns fusion, reranking and evaluation (no LangChain 
 
 ## Changes
 - Branch: `feat/t-010-hybrid-retrieval`
-- PR:
+- PR: https://github.com/Oralino/gradpath-ai/pull/6
 - Files touched: `backend/src/gradpath/retrieval/rerank.py` (new), `retrieval/sparse.py` (new),
   `retrieval/service.py` (`dense_scores`), `evaluation/retrieval_eval.py` (`--rerank`, `--hybrid`,
   shared search/scoring helpers, comparison report), `backend/tests/test_rerank.py`,
