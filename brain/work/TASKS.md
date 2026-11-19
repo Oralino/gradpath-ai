@@ -10,6 +10,10 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
       "the evidence doesn't cover ..." (`q-031`, `q-049`) looks like a full answer. Own ticket.
 - [ ] Milestone 6: run id + status polling for workflow runs (owner decision 2026-11-19). Own ticket;
       always-hard area (workflow limits).
+- [ ] Milestone 6: import a profile from pasted resume text (owner decision 2026-11-19). New endpoint:
+      resume text in, `UserProfile` out (Haiku, structured output); contact details dropped; text
+      not stored or traced; the owner reviews the result before saving. Fictional sample resume for
+      demos and tests. Own ticket. PDF/DOCX upload deferred to Milestone 7 (always-hard: uploads).
 - [ ] Milestone 6 (backend, small): a "sources as of" date the UI can show (`DESIGN.md` Known gaps).
 
 Answer quality (owner decision 2026-11-19: before Milestone 7's public demo):

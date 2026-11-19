@@ -225,7 +225,7 @@ Flat, like paper. Depth comes from surface colour and rules, not shadows.
 - **insufficient_evidence**: gap-tone panel. Headline "Not covered by the knowledge base". Body:
   "GradPath answers only from its curated sources, and none of them answer this well enough. It did
   not guess." Then `note` if present. If citations came back: "Closest sources found (they do not
-  answer the question)". Then two text-button suggestions: narrow the question; attach a job posting.
+  answer the question)". Then two text-button suggestions: narrow the question; paste a job posting.
 - **Partial answer**: caution badge "Partial answer" above the text and a line "Not covered: {what
   the sources did not cover}" (decision 1). `note` (downgrade reason) always shows as a caution line
   above the answer.
@@ -273,13 +273,13 @@ wrong: check the sources."
 **1. Assistant (`/`)**, h1 "Ask GradPath"
 ```
 Ask GradPath
-Ask a backend preparation question, or attach a job posting and
+Ask a backend preparation question, or paste a job posting and
 a profile to get a preparation plan.
 +--------------------------------------------------------------+
 | [ message textarea, 4 rows                                 ] |
 | 312 / 2,000                                                  |
 | +-- sunken tray ------------------------------------------+  |
-| | Job posting: attached, 2,340 chars  [Edit] [Remove]     |  |
+| | Job posting: pasted, 2,340 chars  [Edit] [Remove]       |  |
 | | Profile: Sample new grad (fictional)  [Change]          |  |
 | +---------------------------------------------------------+  |
 |                                                 [  Ask  ]    |
@@ -289,12 +289,13 @@ Knowledge-base answer · chosen by rules   > How this was answered
 ```
 - Empty: three example questions as text buttons that fill the box (do not submit), plus one line on
   the two paths. No hero, no illustration.
-- Attach job posting opens an inline textarea in the tray; profile picks the saved profile or a
+- "Paste a job posting" opens an inline textarea in the tray (pasted text only: no URLs, owner
+  decision 2026-11-19, because fetching visitor URLs is an SSRF risk and job sites block scripts); profile picks the saved profile or a
   sample.
 - Loading: "Searching the knowledge base and writing an answer... 0:07" for answers; the full
   progress view if the route is the workflow (decision 2, option B can report the route first).
 - `answered` / `prepared`: answer card or plan result (screen 3 component), route line above it.
-- `needs_input`: info panel with `message`, plus buttons that focus the missing control ("Attach a
+- `needs_input`: info panel with `message`, plus buttons that focus the missing control ("Paste a
   job posting", "Choose a profile").
 - `unsupported`: neutral panel with `message` and "GradPath answers backend new-grad preparation
   questions and builds plans from a job posting." plus the example prompts.
@@ -383,6 +384,11 @@ Experience (1 of 6)  role / organisation (optional) / description          [Remo
 Weekly study hours [  ]   Timeline in weeks [  ]   (both optional)
                                                      [ Save profile ]
 ```
+- **Import from resume** (owner decision 2026-11-19): a disclosure above the form, "Fill from a
+  resume". Paste resume text (up to 15,000 chars), "Extract profile"; the fields fill in for review
+  and nothing is saved until "Save profile". Info line: "Contact details are dropped. The resume
+  text is sent to the model once and not stored." The Ask tray's profile row offers "Import from
+  resume" too. A PDF upload comes with Milestone 7's upload work.
 - No name field: `name`, `profile_id` and `note` are not needed for a plan, so the form omits them
   (less personal data). A loaded sample shows a neutral badge "Sample (fictional)".
 - Empty: "No profile saved in this browser." with "Load sample profile" and "Start from blank".

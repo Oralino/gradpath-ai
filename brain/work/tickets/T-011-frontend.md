@@ -24,6 +24,11 @@ Owner decisions 2026-11-19:
   progress and can't really stop a run. Own ticket; the workflow's limits are an always-hard area.
 - **Answer-quality items 2-4** go into `TASKS.md`, to do before Milestone 7's public demo.
 - **Look:** approve `DESIGN.md` after a visual mock-up (private page with fake data, not in the repo).
+- **Resume:** pasted resume text fills the profile (Haiku extracts it, the owner reviews it, contact
+  details dropped, nothing stored). Rejected for now: the resume as a third input to every route
+  (repeats the profile, touches router, workflow and evals); PDF upload waits for Milestone 7.
+- **Job posting input:** pasted text only. Rejected: a URL field (server-side fetch of visitor URLs
+  is SSRF; job sites block scripts). The UI says "Paste a job posting".
 - **Copy:** no motivational quotes, slogans or marketing filler anywhere in the UI.
 
 Versions checked 2026-11-19 against the npm registry and the official install guides: Next.js
