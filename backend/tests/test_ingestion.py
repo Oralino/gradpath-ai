@@ -908,3 +908,43 @@ def test_scheme_relative_redirect_to_other_host_is_refused(tmp_path: Path):
     )
     assert fetch_source(entry(), tmp_path, client, politeness=guarded()) == []
     assert all(u.startswith("https://example.org/") for u in seen)
+
+
+# ---------- T-009: template markup in docs Markdown ----------
+
+from gradpath.ingestion.clean import strip_templates  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        ('A {{< glossary_tooltip text="Pod" term_id="pod" >}} runs.', "A Pod runs."),
+        ('Uses {{< glossary_tooltip term_id="control-plane" >}}.', "Uses control plane."),
+        ("{{< note >}}", "Note:"),
+        ('{{% tab name="Linux" %}}', "Linux:"),
+        ('{{< feature-state for_k8s_version="v1.30" state="stable" >}}', ""),
+        ("{{< /note >}}", ""),
+        ("Use {% data variables.product.prodname_actions %} for CI.", "Use GitHub Actions for CI."),
+        ("{% data reusables.actions.about-actions %}", ""),
+        ("{% ifversion fpt or ghec %}", ""),
+        ('<Step title="Load documents">', "Load documents"),
+        ("</Steps>", ""),
+        ("<InDocAd />", ""),
+        ("Plain text with a < b and {braces}.", "Plain text with a < b and {braces}."),
+    ],
+)
+def test_strip_templates(line, expected):
+    assert strip_templates(line) == expected
+
+
+def test_clean_markdown_keeps_code_fences_and_drops_markup_only_lines():
+    md = (
+        '---\ntitle: X\n---\n# Pods\n{{< note >}}\nRead {{< glossary_tooltip text="this" >}}.\n'
+        "{{< /note >}}\n```yaml\nrun: echo {% raw %}${{ secrets.X }}{% endraw %}\n```\n"
+        "<Steps>\nEnd.\n"
+    )
+    title, text = clean_markdown(md)
+    assert title == "Pods"
+    assert "Note:\nRead this." in text
+    assert "{% raw %}${{ secrets.X }}{% endraw %}" in text  # code is never touched
+    assert "<Steps>" not in text and "{{<" not in text

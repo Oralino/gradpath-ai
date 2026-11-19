@@ -24,11 +24,22 @@ clients unless the User-Agent carries contact details, which would put personal 
 requests), Redis docs (CC BY-NC-SA 4.0 and product-specific), Qdrant docs (no licence in the
 repo), the two longest Kubernetes and RabbitMQ pages (Deployments 60 KB, publisher confirms 32 KB)
 to keep Voyage use small. New collection `ai_engineering` for LLM/RAG sources.
+Owner 2026-11-18: approve all 10, and include the two long pages after all (10 sources, 35
+pages). The dry run showed template markup in the chunks (Kubernetes 83 of 172 chunks with Hugo
+shortcodes, GitHub Docs 29 of 33 with Liquid tags), so `clean_markdown` now strips Hugo, Liquid
+and line-level JSX markup outside code fences, keeping the words it stood for (tooltip text,
+product names, callout labels). The dry run also found that the approved OWASP API Top 10 page
+moved to `api-security.owasp.org`, which T-007 rightly refused as an unlisted host; the fetch URL
+now points there (same content, no re-embedding).
 
 ## Changes
 - Branch: `feat/t-009-corpus-gaps`
 - PR:
-- Files touched: `knowledge_base/source_manifest.csv`
+- Files touched: `knowledge_base/source_manifest.csv`, `backend/src/gradpath/ingestion/clean.py`,
+  `backend/tests/test_ingestion.py`
 - Commits (hash, message):
 
 ## Verification
+- Dry run (no embedding): all 35 new pages fetched; 638 new chunks, about 126K tokens; markup left
+  only inside code fences; existing sources: 10 Tech Interview Handbook chunks change (an ad
+  component removed), nothing else. 14 new cleaner tests (439 total).
