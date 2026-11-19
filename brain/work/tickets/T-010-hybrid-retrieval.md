@@ -18,9 +18,25 @@ Baseline: `evaluation/results/retrieval-20261119-024443.json` (Recall@5 0.953, P
 MRR 0.984; misses `q-001`, `q-027`, `q-034`; exact_term recall@5 already 1.0).
 
 ## Decision
-Pending the owner's answers (2026-11-19): which reranker (local free cross-encoder vs Voyage
-rerank tokens), whether to add harder exact-term and near-topic uncovered labels before measuring,
-and how much extra latency is acceptable for a recall gain.
+Owner, 2026-11-19 (all as recommended):
+- **Reranker:** local cross-encoder `Xenova/ms-marco-MiniLM-L-6-v2` via fastembed (80 MB,
+  Apache-2.0); try `BAAI/bge-reranker-base` (1 GB, MIT) only if MiniLM doesn't help. No Voyage
+  reranker: tokens would be cheap (measured with Voyage's local tokenizer: chunk mean 172 tokens,
+  question 12, so ~3.7K tokens per question for 20 candidates, ~147K per 40-question eval), but each
+  question would spend a second request of the free tier's 3 per minute.
+- **Keyword search:** fastembed `Qdrant/bm25` sparse vectors (IDF modifier) stored next to the dense
+  vectors; dense vectors come from the embedding cache (0 Voyage tokens). Rejected: Qdrant's
+  built-in BM25 `TextQuery`, which supports only the plain word tokenizer (no stemming) in local
+  mode.
+- **Fusion:** our own RRF over the dense and sparse top-20 lists (Qdrant runs the two searches).
+- **Labels first:** add ~6 exact-term and ~4 near-topic uncovered questions (labels v1.3, owner
+  approves each) before measuring; the current exact_term questions already score 1.0.
+- **Latency budget:** up to +300 ms per question (p95, owner's PC) for a clear gain (+0.03 Recall@5,
+  a fixed miss, or a real covered/uncovered gap); drop any part that doesn't clear it.
+
+Checked 2026-11-19: `qdrant-client==1.20.0` local mode supports sparse vectors with `Modifier.IDF`,
+`query_points` with `prefetch`, and RRF/DBSF fusion (source read); fastembed 0.9.1 (2026-10-24)
+fits qdrant-client's `fastembed>=0.9,<0.10` extra and Python 3.13.
 
 Constraints: zero cost (sparse vectors computed locally, re-indexing reuses the embedding cache, no
 re-embedding); our own code owns fusion, reranking and evaluation (no LangChain retrievers).
