@@ -4,10 +4,10 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] **(owner)** Review and merge the Milestone 5 PR (T-010).
-- [ ] Measure abstention at the answer step: for near-topic uncovered questions that clear the
-      0.45 threshold (`q-031`, `q-047`, `q-049`, `q-050`), does the RAG answer say "not covered"?
-      (Milestone 5 found no retrieval-side fix.)
+- [ ] Milestone 6 (frontend): show a partial answer as partial. Today `ChatAnswer.status` is only
+      `answered` or `insufficient_evidence`, so an answer that opens with "the evidence doesn't cover
+      ..." (`q-031`, `q-049` in the abstention check) looks like a full answer. Options: a `partial`
+      status from the model, or a UI label; decide with `DESIGN.md`.
 
 Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
 - [x] [T-007](tickets/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.
@@ -22,6 +22,13 @@ Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner
 - [x] Before Milestone 5: the 0.45 threshold no longer separates near-topic uncovered questions.
       Reranker scores tried in T-010: no better. Follow-up moved to "Current" (answer-step abstention).
 - [ ] More new-grad backend job descriptions in `private/job_descriptions/` (one so far).
+- [ ] **After Milestone 6 (owner decision 2026-11-19):** corpus update driven by need, in a T-009-style
+      ticket. Run the job-analysis tool over the target postings to list poorly answered skills; use
+      the UI's "not covered" and partial answers; check the remaining Voyage free tokens first.
+      Candidates seen so far: Kubernetes Pod Lifecycle / configure probes, PostgreSQL explicit locking
+      (`SKIP LOCKED`), GitHub Actions trigger events, Kafka consumer groups. Covering eval questions
+      `q-031`, `q-047`, `q-049`, `q-050` means relabelling them and writing new near-topic uncovered
+      questions to keep the refusal test.
 
 ## Milestones
 The milestone plan and its story (what, why, what it does) live in [MILESTONES.md](MILESTONES.md).

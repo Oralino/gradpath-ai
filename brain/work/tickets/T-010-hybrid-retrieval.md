@@ -2,7 +2,7 @@
 Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 - **Type:** feature
-- **Status:** done (PR open)
+- **Status:** done (merged, d8d97b9)
 - **Opened:** 2026-11-19 · **Closed:** 2026-11-19
 - **GitHub Issue:** none
 
@@ -67,8 +67,13 @@ re-embedding); our own code owns fusion, reranking and evaluation (no LangChain 
   - `efc9a8d` feat: add 10 exact-term and near-topic retrieval labels (v1.3) and record the semantic baseline (T-010)
   - `0d19e14` feat: add a local cross-encoder reranker experiment to the retrieval eval and record that it doesn't help (T-010)
   - `a7b9e44` feat: add a BM25 + RRF hybrid experiment to the retrieval eval and record that it doesn't help (T-010)
+  - `a6acf3f` docs: close Milestone 5 as semantic-only and record why (T-010)
+  - `5a97be9` docs: link the Milestone 5 PR in T-010 (T-010)
+  - `d8d97b9` merge of PR #6 into `main`
 
 ## Verification
+- Answer-step abstention follow-up (2026-11-19, after the merge): EVALUATION.md, "Answer-step
+  abstention on near-topic questions".
 - Labels v1.3 (owner approved 2026-11-19): 50 questions load and validate; 439 tests pass; ruff clean.
 - Semantic baseline on v1.3 (`retrieval-20261119-062918.json`): Recall@5 0.961, MRR 0.987,
   exact_term Recall@5 1.0 (13 questions); at 0.45 covered kept 97%, uncovered rejected 67%
