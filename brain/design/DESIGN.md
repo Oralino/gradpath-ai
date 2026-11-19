@@ -9,7 +9,7 @@ mock-up. Remaining "Owner decision needed" items carry a recommendation.
 
 **Identity: an annotated study notebook.** Warm paper, near-black ink, one teal ink for links. Every
 claim sits next to its evidence, the way a margin note sits next to a quote: the posting's own words,
-the source title and its hostname. Success is quiet; limits are loud. Format follows the common
+the source title and its hostname. Format follows the common
 DESIGN.md section convention (Google Stitch); no palette or look is adapted from any catalogue or
 real brand.
 
@@ -190,7 +190,7 @@ Flat, like paper. Depth comes from surface colour and rules, not shadows.
 ### Principles
 1. **Evidence first.** Show the posting quote and the source next to every claim; interpretation
    comes after.
-2. **Success is quiet, limits are loud.** A complete result gets a small badge; anything partial gets
+2. **Mark partial results clearly.** A complete result gets a small badge; anything partial gets
    a banner, a different heading and the reason.
 3. **Say what happened.** Which path ran, which stages finished, what was not checked.
 4. **Estimates look like estimates.** "~", "(estimate)", no bars or percentages for things we cannot
