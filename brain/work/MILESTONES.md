@@ -233,7 +233,7 @@ partial) and clear errors. `DESIGN.md` comes first; the owner approves it before
 |---|---|---|---|---|
 | 1. Ticket + housekeeping | ✅ | T-011, branch `feat/t-011-frontend` | Clean start | Pushed |
 | 2. Plan + open questions | 🔨 | Screens, API mapping, long-run and partial-answer handling, security rules, versions checked | The owner approves the design before code | Waiting for the owner |
-| 3. `DESIGN.md` | 🔨 | design-advisor draft | One agreed look before building | Waiting for the owner |
+| 3. `DESIGN.md` | 🔨 | design-advisor draft: an "annotated study notebook" look, honesty states, long-run progress view | One agreed look before building | Drafted 2026-11-19, waiting for the owner |
 
 ---
 

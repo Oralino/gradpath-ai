@@ -1,0 +1,481 @@
+# DESIGN.md: GradPath AI
+How the Milestone 6 Next.js UI looks and behaves: tokens, components, screens, honesty states.
+What the product does is in `../product/REQUIREMENTS.md`; stack, API and data flow in
+`../engineering/ARCHITECTURE.md`; the XSS and output-handling rules this file turns into design rules
+are in `../engineering/SECURITY.md`; the work itself is ticket `../work/tickets/T-011-frontend.md`.
+Status: **draft for owner approval** (2026-11-19). Items marked "Owner decision needed" carry a
+recommendation.
+
+**Identity: an annotated study notebook.** Warm paper, near-black ink, one teal ink for links. Every
+claim sits next to its evidence, the way a margin note sits next to a quote: the posting's own words,
+the source title and its hostname. Success is quiet; limits are loud. Format follows the common
+DESIGN.md section convention (Google Stitch); no palette or look is adapted from any catalogue or
+real brand.
+
+Tokens live in `app/globals.css` under `@import "tailwindcss";` in a plain `@theme { ... }` block (not
+`@theme inline`, so utilities read the CSS variables). Dark values override the same variables in
+`@media (prefers-color-scheme: dark) { :root { ... } }`, so components never need `dark:` prefixes.
+Contrast ratios below are WCAG 2.x, computed for each text/background pair (light / dark).
+
+## Colors
+
+### Brand / Accent
+- **Ink** (`#1C1B19` / dark `#ECE8E1`) `--color-ink`: body text, headings, primary button fill.
+- **Teal** (`#0F5C66` / dark `#6FC3CB`) `--color-link`: links (always underlined), the info tone.
+  7.2:1 on paper, 7.7:1 on surface / dark 9.0:1, 8.2:1.
+- **Focus** (`#0F5C66` / dark `#6FC3CB`) `--color-focus`: the focus outline only. 7.2:1 / 9.0:1
+  against paper, well above the 3:1 needed.
+
+### Surface
+- **Paper** (`#FAF8F4` / dark `#161513`) `--color-paper`: page background.
+- **Surface** (`#FFFFFF` / dark `#1F1E1B`) `--color-surface`: cards, forms, result panels.
+- **Sunken** (`#F2EFE9` / dark `#121110`) `--color-sunken`: posting quotes, the composer's
+  attachment tray, code-like ids.
+
+### Text
+- **Ink** (see above): ink on paper 16.2:1, ink on surface 17.2:1 / dark 14.9:1, 13.7:1. Primary
+  button text (paper on ink) 16.2:1 / 14.9:1.
+- **Ink muted** (`#5C5A55` / dark `#A8A39A`) `--color-ink-muted`: help text, meta lines, section
+  labels in citations. Paper 6.5:1, surface 6.9:1, sunken 6.0:1 / dark 7.3:1, 6.7:1, 7.5:1.
+
+### Borders
+- **Line** (`#8A857B` / dark `#77726A`) `--color-line`: input, button and checkbox borders (meaning-
+  bearing, 3:1 needed). Paper 3.5:1, surface 3.7:1 / dark 3.8:1, 3.5:1.
+- **Rule** (`#E2DDD3` / dark `#2E2C28`) `--color-rule`: decorative dividers, card outlines, the
+  roadmap rail. Never the only cue for anything.
+
+### Semantic
+Each tone is a text colour plus a tinted background (`--color-<tone>` and `--color-<tone>-bg`); the
+text colour also draws the badge border and the banner's left bar. Colour is never the only cue:
+every status has its own icon and words (see Components, Status badge).
+- **Positive** (`#1E5631` on `#E6F2E9` / dark `#8FD19E` on `#1B2E21`): evidenced, covered, checked.
+  7.5:1 / 8.1:1.
+- **Caution** (`#6B4A00` on `#FBF1D9` / dark `#E8C36A` on `#33280F`): partly evidenced, weak
+  evidence, partial, open issues, low confidence. 7.2:1 / 8.6:1.
+- **Gap** (`#7A3410` on `#F7EAE1` / dark `#F0A77E` on `#3A2116`): no evidence yet: not yet
+  evidenced, not covered, not covered by the knowledge base. 7.7:1 / 7.5:1.
+- **Stopped** (`#8C1D18` on `#FBE9E7` / dark `#F4A3A0` on `#3D1A19`): fallback, blocking issues,
+  errors, field validation. 7.8:1 / 7.8:1. On plain surface: 9.1:1 / 8.4:1.
+- **Neutral** (`#5C5A55` on `#EFECE6` / dark `#A8A39A` on `#2A2925`): eligibility (not assessed),
+  unsupported, minor issues, "Preferred". 5.8:1 / 5.8:1.
+- **Info** (`#0F5C66` on `#E4F0F1` / dark `#6FC3CB` on `#142C2F`): needs input, busy, profile
+  storage notice. 6.6:1 / 7.2:1.
+
+## Typography
+One family: **Atkinson Hyperlegible Next** (free, Google Fonts, designed for legibility) through
+`next/font/google`, weights 400 and 600, exposed as `--font-atkinson`; `--font-sans:
+var(--font-atkinson), ui-sans-serif, system-ui, sans-serif`. No monospace font: numbers that change
+(timer, counters) use `tabular-nums`. Sentence case everywhere; no all-caps labels. Each token sets
+`--text-<name>`, `--text-<name>--line-height`, `--text-<name>--letter-spacing` and
+`--text-<name>--font-weight`, used as `text-<name>`.
+- **display**: 28px (1.75rem) · 600 · 1.2 · -0.01em `--text-display`: the page `h1`, one per page.
+- **title**: 22px (1.375rem) · 600 · 1.3 · 0 `--text-title`: `h2` (result heading, plan sections).
+- **heading**: 18px (1.125rem) · 600 · 1.4 · 0 `--text-heading`: `h3` (roadmap step topic,
+  requirement groups, interview question).
+- **body**: 16px (1rem) · 400 · 1.6 · 0 `--text-body`: answers, reasoning, form inputs (16px also
+  stops iOS zoom on focus).
+- **label**: 14px (0.875rem) · 600 · 1.4 · 0 `--text-label`: field labels, buttons, badges, skill
+  names in dense rows.
+- **small**: 14px (0.875rem) · 400 · 1.5 · 0 `--text-small`: citation lists, help text, quotes.
+- **meta**: 13px (0.8125rem) · 400 · 1.4 · 0.01em `--text-meta`: route line, hostnames, counters,
+  "sources as of". Never smaller than 13px.
+
+Reading measure: answer and reasoning text `max-w-reading` (`--container-reading: 40rem`, about 68
+characters).
+
+## Layout
+
+### Spacing
+Tailwind's default `--spacing: 0.25rem`; use these steps only.
+- **1** (4px): icon to text inside badges (`gap-1`).
+- **2** (8px): inside badges and chips, label to input.
+- **3** (12px): rows in a citation list, help text to error text.
+- **4** (16px): card padding and page gutter at 375px (`p-4`, `px-4`).
+- **6** (24px): card padding from `sm`, items within a section, gutter from `sm`.
+- **8** (32px): between form groups, gutter from `lg`.
+- **12** (48px): between page sections and plan sections.
+
+### Radius
+- **sm** (3px) `--radius-sm`: badges, citation chips.
+- **md** (6px) `--radius-md`: buttons, inputs, cards, banners, dialog.
+- **full** `--radius-full`: the stage-progress dots only.
+No pill-shaped buttons, no large rounded cards.
+
+### Grid and breakpoints
+- Shell: `mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8`. Header `h-14`, footer below content.
+- Single column by default; form pages (Assistant, Job analysis, Profile) use `max-w-3xl`.
+- Plan result from `lg` (1024px): `lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-12`; the left
+  column is a sticky "On this page" nav (`lg:sticky lg:top-20 self-start`). Below `lg` that nav is a
+  wrapping row of in-page links under the status banner.
+- Breakpoints: Tailwind defaults `sm` 640, `md` 768, `lg` 1024. Base design is 375px: nothing scrolls
+  sideways, badges wrap under the skill name, buttons go full width (`w-full sm:w-auto`).
+- Touch targets: buttons `h-11 sm:h-10`, links in lists get `py-1` so targets reach 24px minimum.
+
+## Components
+Plain React + Tailwind and native HTML elements (see "Component library" under Guidelines). All
+model and retrieved text goes in as React children (see Security rules).
+
+- **Primary button**: `bg-ink text-paper rounded-md px-4 text-label hover:bg-ink/90
+  disabled:opacity-50`. One per form ("Ask", "Analyse posting", "Build plan", "Save profile").
+- **Secondary button**: `bg-surface text-ink border border-line rounded-md`. "Load sample", "Stop
+  waiting", "Try again".
+- **Text button**: `text-link underline underline-offset-4`. Example prompts, "Edit inputs".
+- **Destructive button**: secondary style with `text-stopped border-stopped`. "Clear profile" only,
+  confirmed in a native `<dialog>`.
+- **Field**: label (`text-label`) above, input `bg-surface border border-line rounded-md px-3 py-2
+  text-body`, help (`text-meta text-ink-muted`) below. Error: `aria-invalid`, border and message in
+  `stopped`, octagon icon, linked by `aria-describedby`. Long inputs show a counter "1,240 / 20,000"
+  (`text-meta tabular-nums`), caution from 90%, stopped when over (submit then shows the error).
+- **Status badge**: `inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-label`,
+  tone text + tone bg + tone border, icon 14px `aria-hidden`, the words carry the meaning. One glyph
+  means one thing everywhere: check = evidenced, half-filled circle = partial, hollow circle = no
+  evidence yet, dash = not assessed, triangle = open issues, octagon = stopped/blocking, info circle
+  = needs something, question circle = low confidence.
+
+  | Field | Value | Tone | Icon | Words on screen |
+  |---|---|---|---|---|
+  | workflow status | complete | positive | check | Checked |
+  | | complete_with_limitations | caution | triangle | Finished with open issues |
+  | | partial | caution | half circle | Partial: not fully checked |
+  | | fallback | stopped | octagon | Stopped early: partial result |
+  | answer status | answered | positive | check | From the knowledge base |
+  | | partial (decision 1) | caution | half circle | Partial answer |
+  | | insufficient_evidence | gap | hollow circle | Not covered by the knowledge base |
+  | gap status | demonstrated | positive | check | Demonstrated |
+  | | partially_evidenced | caution | half circle | Partly evidenced |
+  | | not_yet_evidenced | gap | hollow circle | Not yet evidenced |
+  | | not_applicable | neutral | dash | Eligibility (not assessed) |
+  | coverage | covered / weak_evidence / not_covered / not_applicable | positive / caution / gap / neutral | check / half / hollow / dash | Covered / Weak evidence / Not covered / Eligibility (not assessed) |
+  | importance | required / preferred | ink outline / neutral | none | Required / Preferred |
+  | issue severity | blocking / minor | stopped / neutral | octagon / info | Blocking / Minor |
+  | posting quote | quote_verified false | caution | triangle | Quote not found in posting |
+
+- **Confidence**: text, not a meter: "High confidence", "Medium confidence" in `text-meta
+  text-ink-muted`; "Low confidence" in `text-caution` with the question-circle icon.
+- **Effort estimate**: always "~6 h (estimate)" (`text-meta`, `tabular-nums`, round to the nearest
+  hour, "<1 h" under 1). Plan total: "~34 h in total (estimate)". Never a progress bar.
+- **Citation list** (under answers, study notes, fallback sources): `<ol>` with `space-y-3`. Each
+  item: title as a link (`text-small text-link underline`), then `section` and the hostname in
+  `text-meta text-ink-muted` ("Indexes · postgresql.org"), external-link icon plus visually hidden
+  "(opens in new tab)". Duplicate `source_url` + `section` pairs shown once. Score hidden; shown
+  only inside the "How this was answered" disclosure as "match 0.62".
+- **Citation chip** (roadmap resources, compact): `rounded-sm border border-rule bg-sunken px-2
+  py-0.5 text-small`, title truncated at 40 characters with the full title in the link's accessible
+  name and `title`; hostname after it. Wraps; never a horizontal scroller.
+- **Posting quote**: `border-l-2 border-line bg-sunken pl-3 py-2 text-small`, prefixed "Posting:".
+  The posting's own words, shown before any interpretation.
+- **Status banner** (result-level): `rounded-md border-l-4 border-<tone> bg-<tone>-bg p-4 sm:p-6`,
+  icon 20px, `text-heading` headline, body `text-body`, then a "What you can do" line. Not
+  dismissible. Used for the honesty states below; `complete` gets no banner.
+- **Route line**: `text-meta text-ink-muted` under every assistant result: "Knowledge-base answer ·
+  chosen by rules" or "Preparation workflow · chosen by the model classifier" (`default`: "chosen
+  by default"). A `<details>` "How this was answered" holds the `reason` (plain text) and scores.
+- **Stage list** (long runs): `<ol>`, each row a 10px dot plus label. States: done (ink filled dot +
+  check, "done" in sr text), running (teal ring, `motion-safe:animate-pulse`), waiting (hollow
+  `line` dot), not reached (dash). Option A shows no states at all (see Long runs).
+- **Disclosure**: native `<details>`/`<summary>`, summary in `text-label text-link` with a chevron
+  that rotates 90 degrees (`motion-safe:transition-transform duration-150`).
+
+## Elevation
+Flat, like paper. Depth comes from surface colour and rules, not shadows.
+- **Level 0**: `bg-paper`, the page.
+- **Level 1**: `bg-surface border border-rule rounded-md`: cards, forms, result panels. No shadow.
+- **Level 2**: sticky header `bg-paper border-b border-rule` (solid, no blur or transparency).
+- **Dialog**: native `<dialog>`, `bg-surface border border-line`, the only shadow in the app
+  `shadow-[0_8px_24px_rgb(0_0_0/0.12)]`, backdrop `bg-ink/40`.
+
+## Guidelines
+
+### Principles
+1. **Evidence first.** Show the posting quote and the source next to every claim; interpretation
+   comes after.
+2. **Success is quiet, limits are loud.** A complete result gets a small badge; anything partial gets
+   a banner, a different heading and the reason.
+3. **Say what happened.** Which path ran, which stages finished, what was not checked.
+4. **Estimates look like estimates.** "~", "(estimate)", no bars or percentages for things we cannot
+   measure.
+5. **Calm.** One accent, no decoration, no motion that isn't feedback.
+
+### Honesty states (the most important part)
+- **Result headings change with status** (the `h2` itself, not only a badge): "Preparation plan";
+  "Preparation plan, with open issues"; "Partial preparation plan"; "Partial result: the run stopped
+  early". The live region announces the same words.
+- **complete**: positive "Checked" badge next to the heading and one meta line "The final check
+  passed with no blocking issues." Minor `unresolved_issues` sit in a `<details>` "N minor notes".
+- **complete_with_limitations**: caution banner. Headline "Finished with open issues". Body: "The plan
+  was revised {revisions_used} times and the final check still found problems. Read these before
+  relying on the plan." Blocking issues listed inline in the banner (not hidden), minor ones in a
+  disclosure.
+- **partial**: caution banner, half-circle icon. Headline "Partial plan: not fully checked". Body:
+  "A stage failed or the final check did not run, so parts of this plan are missing or unreviewed."
+  Every empty section shows an inline gap-tone row "Not produced in this run" instead of vanishing.
+  `errors[]` go in a disclosure "Technical details" as plain text.
+- **fallback**: stopped banner, octagon. Headline "Stopped early: partial result". Body:
+  `fallback.message` (fixed server text). Then two short lists side by side from `sm` (stacked below):
+  "Finished" (check) from `completed_stages` and "Not finished" (dash) from `not_completed`, using
+  the stage labels below. Then a section "What still helps": `fallback.answer` as an answer card and
+  `study_sources` as one citation list per skill. Gap, roadmap and question sections render only if
+  they have content; never an empty "Your plan".
+- **insufficient_evidence**: gap-tone panel. Headline "Not covered by the knowledge base". Body:
+  "GradPath answers only from its curated sources, and none of them answer this well enough. It did
+  not guess." Then `note` if present. If citations came back: "Closest sources found (they do not
+  answer the question)". Then two text-button suggestions: narrow the question; attach a job posting.
+- **Partial answer**: caution badge "Partial answer" above the text and a line "Not covered: {what
+  the sources did not cover}" (decision 1). `note` (downgrade reason) always shows as a caution line
+  above the answer.
+- **Stage labels**: analyze_job "Read the job posting", analyze_profile "Read your profile",
+  retrieve_knowledge "Search the knowledge base", analyze_gaps "Compare requirements with your
+  profile", plan_roadmap "Plan the roadmap", interview_questions "Write interview questions",
+  evaluate "Check the plan", revise "Revise the plan", finalize "Assemble the result". Unknown names
+  shown de-snake-cased.
+
+### Long runs (80-300 s)
+Progress view replaces the form's submit area; inputs stay visible, read-only.
+```
++--------------------------------------------------------------+
+| Preparing your plan                              1:42        |
+| Usually 80-150 s. It stops by itself at 5:00 and returns     |
+| what it finished.                                            |
+|                                                              |
+|  (x) Read the job posting                                    |
+|  (x) Read your profile                                       |
+|  (o) Search the knowledge base        <- running             |
+|  ( ) Compare requirements with your profile                  |
+|  ( ) Plan the roadmap  ( ) Write interview questions         |
+|  ( ) Check the plan                                          |
+|                                                              |
+|  [ Stop waiting ]                                            |
++--------------------------------------------------------------+
+```
+- Timer `text-title tabular-nums`, not in a live region. No percentage bar, no spinner.
+- From 150 s a meta line: "Taking longer than usual." Past 320 s with no reply: error state "No reply
+  after 5 minutes. The server may still be finishing; try again in a few minutes."
+- Live region (polite) announces stage changes (option B) or "Still working, 2 minutes" each 60 s
+  (option A), and the final result heading.
+- **Busy (503)**: info panel, not an error: "Another preparation run is in progress. Only one runs at
+  a time on this server. Try again in a few minutes." One "Try again" button; no automatic retries.
+- Demo mode (Milestone 7) replays recorded runs: skip the progress view and label the result
+  "Recorded run, {date}".
+
+### Screens
+Header on every page: wordmark "GradPath" (`text-label`, ink, no logo), nav "Ask", "Analyse a job",
+"Plan", "Profile" (current page `aria-current="page"`, underlined), right-side slot reserved for the
+Milestone 7 mode indicator. At 375px the nav wraps to a second row; no hamburger menu (four links).
+Footer: "Sources as of {date} · Preparation support only, not a hiring prediction · Answers can be
+wrong: check the sources."
+
+**1. Assistant (`/`)**, h1 "Ask GradPath"
+```
+Ask GradPath
+Ask a backend preparation question, or attach a job posting and
+a profile to get a preparation plan.
++--------------------------------------------------------------+
+| [ message textarea, 4 rows                                 ] |
+| 312 / 2,000                                                  |
+| +-- sunken tray ------------------------------------------+  |
+| | Job posting: attached, 2,340 chars  [Edit] [Remove]     |  |
+| | Profile: Sample new grad (fictional)  [Change]          |  |
+| +---------------------------------------------------------+  |
+|                                                 [  Ask  ]    |
++--------------------------------------------------------------+
+Knowledge-base answer · chosen by rules   > How this was answered
+[ result: answer card | plan result | state panel ]
+```
+- Empty: three example questions as text buttons that fill the box (do not submit), plus one line on
+  the two paths. No hero, no illustration.
+- Attach job posting opens an inline textarea in the tray; profile picks the saved profile or a
+  sample.
+- Loading: "Searching the knowledge base and writing an answer... 0:07" for answers; the full
+  progress view if the route is the workflow (decision 2, option B can report the route first).
+- `answered` / `prepared`: answer card or plan result (screen 3 component), route line above it.
+- `needs_input`: info panel with `message`, plus buttons that focus the missing control ("Attach a
+  job posting", "Choose a profile").
+- `unsupported`: neutral panel with `message` and "GradPath answers backend new-grad preparation
+  questions and builds plans from a job posting." plus the example prompts.
+- Errors: see "States for every screen".
+
+**Answer card**
+```
+[check From the knowledge base]
+Answer text, plain, whitespace-pre-line, max 68 characters wide ...
+Sources
+ 1. PostgreSQL docs: Indexes  ->     Introduction · postgresql.org
+ 2. Use The Index, Luke       ->     Anatomy of an index · use-the-index-luke.com
+Can be wrong: check the sources.
+```
+
+**2. Job analysis (`/job`)**, h1 "Analyse a job posting"
+```
+[ posting textarea, 12 rows ]        1,240 / 20,000   [Use sample posting]
+                                                       [ Analyse posting ]
+------------------------------------------------------------------------
+Backend Software Engineer, New Grad      Entry level
+12 requirements: 5 covered, 3 weak evidence, 2 not covered, 2 eligibility
+> Responsibilities (6)
+Required (7)                                             <- h3
+ SQL and relational databases              [check Covered]
+ | Posting: "Experience with SQL and relational databases"
+ Study note text, plain ...
+ Sources: [chip] [chip]
+ ...
+Preferred (3)
+Eligibility, not assessed (2)
+[ Build a preparation plan from this posting ]  -> /plan, posting carried over
+```
+- Rows are an `<ul>` of self-labelled items, not a table: each row carries its own words, so it reads
+  the same at 375px and in a screen reader. Grouped by importance; eligibility last.
+- Empty: textarea, "Use sample posting" (the repo's fictional sample), one line on what it returns.
+- Loading: status line + timer, "Reading the posting and searching the knowledge base".
+
+**3. Preparation plan (`/plan`)**, h1 "Preparation plan"
+```
+Inputs: Backend Software Engineer posting · Profile: Sample new grad   [Edit inputs]
++-- stopped banner --------------------------------------------------+
+| [octagon] Stopped early: partial result                            |
+| Partial result: the workflow ran past its time limit ...           |
+| Finished: (x) Read the job posting (x) Read your profile ...       |
+| Not finished: - Plan the roadmap - Write interview questions ...   |
++--------------------------------------------------------------------+
+On this page       | Partial result: the run stopped early     <- h2
+ Skills gap        | Skills gap                               <- h2
+ Roadmap           |  Not yet evidenced (4) / Partly (2) / Demonstrated (3) / Eligibility
+ Interview qs      |  REST API design  [Required] [hollow Not yet evidenced]
+ What still helps  |  Reasoning text ...            Medium confidence
+                   | Roadmap   ~34 h in total (estimate)
+                   |  | Step 1 of 6 . After step -          ~6 h (estimate)
+                   |  | SQL indexing                                  <- h3
+                   |  | Why it matters / Objective / Exercise / Done when
+                   |  | Resources: [chip] [chip]
+                   | Interview questions
+                   |  1. How would you ... > What a good answer shows
+                   | Correct an assumption  (3 of 10)  [ Re-run with corrections ]
+```
+- Sections with in-page links, not tabs (decision 4): everything is visible, printable and scrolls
+  for a reviewer.
+- Gaps grouped by status, gaps to address first. Interview questions show "For: {skill}" from the
+  matching gap.
+- Roadmap: `<ol>` on a left rail (`border-l border-rule pl-6`), step number in a small square on the
+  rail; `depends_on` as "After step 2".
+- Corrections: textarea (1-500 chars), list of added corrections with Remove, counter "3 of 10",
+  helper "A re-run takes another 1.5-5 minutes."
+- Empty: two prerequisite rows, "Job posting: missing [Add]" and "Profile: missing [Choose]",
+  then "Build plan" (disabled until both are set, with the reason as help text).
+
+**4. Profile (`/profile`)**, h1 "Your profile"
+```
++-- info panel ----------------------------------------------------+
+| Stored only in this browser. It is sent to the GradPath server   |
+| only when you build a plan. Leave out contact details.           |
++------------------------------------------------------------------+
+[ Load sample profile ]  [ Clear profile ]          6,240 / 12,000
+Education       [ input ]
+Skills          [ one per line textarea ]     (up to 50)
+Coursework      [ one per line textarea ]     (up to 30)
+Projects (2 of 6)    name / description / technologies (comma-separated)  [Remove]
+                     [ + Add project ]
+Experience (1 of 6)  role / organisation (optional) / description          [Remove]
+Weekly study hours [  ]   Timeline in weeks [  ]   (both optional)
+                                                     [ Save profile ]
+```
+- No name field: `name`, `profile_id` and `note` are not needed for a plan, so the form omits them
+  (less personal data). A loaded sample shows a neutral badge "Sample (fictional)".
+- Empty: "No profile saved in this browser." with "Load sample profile" and "Start from blank".
+- Saved: meta line "Saved in this browser, {time}". Clear asks for confirmation.
+
+### States for every screen
+| State | Treatment |
+|---|---|
+| Empty | One sentence of purpose plus a sample action; no illustrations |
+| Loading | Status line + elapsed timer; long runs use the progress view |
+| 422 validation | Error summary at the top of the form (`role="alert"`, links to fields) and per-field messages; never raw Pydantic text |
+| 503 busy | Info panel with fixed copy and "Try again" |
+| Other error / network | Stopped panel: "Something went wrong on the server. Nothing was saved. Try again." No exception text |
+| needs_input / unsupported | Assistant only; see screen 1 |
+
+### Accessibility (WCAG 2.2 AA)
+- Landmarks: `header` with `nav aria-label="Main"`, `main`, `footer`; plan nav `aria-label="Plan
+  sections"`. A "Skip to main content" link first.
+- One `h1` per page; `h2` result and sections; `h3` steps, groups, questions. No skipped levels.
+- Focus: `focus-visible:outline-2 outline-offset-2 outline-focus` on every interactive element; never
+  removed.
+- One polite live region in the layout (`sr-only`) for stage changes and "Answer ready" / the result
+  heading. The timer is not announced every second.
+- When a result arrives, focus moves to the result `h2` (`tabindex="-1"`). Tab order then: route
+  disclosure, in-page links, citations, disclosures, corrections. All disclosures are native
+  `<details>`.
+- Icons are `aria-hidden`; badges speak their words. Links state "(opens in new tab)".
+
+### Security rules (design level, from SECURITY.md)
+- All model, retrieved and user text renders as React text children with `whitespace-pre-line`. No
+  `dangerouslySetInnerHTML`, no markdown rendering in the MVP, never linkify URLs inside model text.
+- The only links to outside are citation `source_url` values, rendered as links only if `new URL()`
+  parses them with protocol `http:` or `https:`; otherwise the title shows as plain text. Always
+  `target="_blank" rel="noopener noreferrer"`, with the hostname visible.
+- No third-party trackers, analytics, embeds or runtime font CDNs (`next/font` self-hosts).
+- Browser storage holds only the profile (localStorage) and the current posting and last result
+  (sessionStorage). Never a key.
+
+### Motion
+- Hover and colour changes `transition-colors duration-150`. Disclosure chevron 150ms.
+- The running stage dot pulses (`motion-safe:animate-pulse`). Nothing else moves: results appear
+  without entrance animation; smooth scroll for in-page links only under `motion-safe`.
+- `prefers-reduced-motion`: every animation is `motion-safe:` only, so it switches off as a whole.
+
+### Component library (Owner decision needed)
+shadcn/ui (MIT, copied into the repo, Radix primitives, works with v4 variables) would bring
+accessible tabs, dialog, tooltip and accordion. This design needs none of them in a JS form: sections
+replace tabs, `<details>` replaces accordion, native `<dialog>` covers the single confirm, and
+tooltips are banned (information stays visible). Adding it costs Radix packages, `class-variance-
+authority`, `clsx`, `tailwind-merge` and usually `lucide-react`, plus its recognisable default look
+that we would have to restyle. **Recommendation: plain hand-written components and native elements;
+revisit only if a later screen needs a combobox or menu.** Icons: about ten small inline SVGs
+(main session decides between hand-drawn SVGs and a free icon package).
+
+### Owner decisions needed
+1. **Partial answers.** (A) backend `partial` status: the answer model returns what the evidence does
+   not cover, code sets `status: "partial"`; precise and testable, costs a schema, prompt and eval
+   change and is one more model judgement to measure. (B) UI label from existing fields: no backend
+   work, but nothing in `ChatAnswer` marks partiality, so it means matching phrases in the answer
+   text (brittle) or showing only the general caveat. **Recommend A**; until it ships, show the
+   caveat line under every answer.
+2. **Long runs.** (A) synchronous request, timer, expected range, static step list, "Stop waiting":
+   no backend work, but the list cannot show real progress (it must not tick by time) and stopping
+   only stops the browser waiting; the server keeps the run and the busy slot. (B) run id + status
+   polling: real finished stages from `node_log`, a real stop if the server supports it, survives a
+   reload, matches `ARCHITECTURE.md`; costs a run store, a status endpoint and tests. **Recommend B**.
+   The stage-list component serves both; under A it is titled "Steps this run goes through" with no
+   states, and the button reads "Stop waiting" with "The run continues on the server until it
+   finishes."
+3. **Component library**: none (above).
+4. **Plan layout**: sections with in-page nav (recommended) vs tabs.
+5. **Font**: Atkinson Hyperlegible Next (recommended) vs the system stack only.
+6. **Dark mode**: follow the system setting, no toggle (recommended for the MVP).
+
+## Do's and Don'ts
+Do:
+- Show the posting quote and the sources before the model's interpretation.
+- Change the result heading, not just a badge, when a result is partial.
+- Label every estimate, and say which path ran and why.
+- Keep the empty states useful: a sample action, one sentence.
+
+Don't:
+- Purple or blue gradients, glows, sparkle or "AI" icons, glassmorphism, emoji in headings.
+- Skill bars, percentage meters, donut charts or scores for gaps, confidence or effort.
+- A big green success screen, confetti, or "Your plan is ready!" for a non-`complete` status.
+- Fake progress: percentage bars, stages ticked by a timer, "almost there".
+- Tooltips that hold information, identical card grids for every list, animation on page load.
+- Raw HTML, markdown rendering, auto-linked URLs or retrieval scores shown as the main signal.
+
+## Known gaps
+- **Sources date**: the API exposes no corpus date for "Sources as of {date}". Recommend the backend
+  return one (for example from ingestion, via `/api/health`) so it lives in one place; main session.
+- Decision 1 option A and decision 2 option B both need backend work and their own tickets.
+- `GapItem.profile_evidence_ids` (p-1, c-2) cannot be shown as text: the result does not return the
+  profile facts. Showing "based on: your Study-group finder project" would strengthen the evidence
+  story; needs a backend field.
+- `errors[]` in a `partial` result: checked 2026-11-19, all fixed texts (`workflows/nodes.py`,
+  `workflows/fallback.py`; `stopped early: {reason}` uses the `FallbackReason` literal). Keep it so.
+- Milestone 7: mode indicator in the header, demo "Recorded run" label, the visitor key field (its
+  design follows the always-hard key-handling rules). Milestone 8: Content-Security-Policy.
+- Font: Atkinson Hyperlegible Next is on Google Fonts (checked 2026-11-19); confirm the `next/font/google`
+  import at build. Icons: about ten hand-drawn inline SVGs (no icon package).
