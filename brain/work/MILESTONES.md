@@ -232,8 +232,8 @@ partial) and clear errors. `DESIGN.md` comes first; the owner approves it before
 | Step | Status | What we built | Why | Result |
 |---|---|---|---|---|
 | 1. Ticket + housekeeping | ✅ | T-011, branch `feat/t-011-frontend` | Clean start | Pushed |
-| 2. Plan + open questions | 🔨 | Screens, API mapping, long-run and partial-answer handling, security rules, versions checked | The owner approves the design before code | Waiting for the owner |
-| 3. `DESIGN.md` | 🔨 | design-advisor draft: an "annotated study notebook" look, honesty states, long-run progress view | One agreed look before building | Drafted 2026-11-19, waiting for the owner |
+| 2. Plan + open questions | ✅ | Screens, API mapping, long-run and partial-answer handling, security rules, versions checked | The owner approves the design before code | Decided 2026-11-19: backend `partial` status, run polling, answer-quality items 2-4 in TASKS |
+| 3. `DESIGN.md` | ✅ | design-advisor draft: an "annotated study notebook" look, honesty states, long-run progress view | One agreed look before building | Approved 2026-11-19 after a visual mock-up (dark first, light/dark toggle) |
 
 ---
 
