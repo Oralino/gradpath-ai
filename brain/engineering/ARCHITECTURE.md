@@ -23,7 +23,7 @@ Use LangChain for standard building blocks; write the parts interviewers ask abo
 
 | LangChain | Our own code |
 |---|---|
-| `ChatAnthropic` and `.with_structured_output()` | Retrieval service: query building, metadata filters, hybrid fusion, reranking, evidence selection, citations, abstention |
+| `ChatAnthropic` and `.with_structured_output()` | Retrieval service: query building, metadata filters, evidence selection, citations, abstention; hybrid fusion (RRF) and reranking as eval experiments (T-010) |
 | A custom `ChatClaudeCode` (`BaseChatModel` subclass) for the Pro plan | Query router (rules + a small validated classification) |
 | `@tool` + LangGraph `ToolNode` for retrieval | Fallback policy |
 | Document loaders, `RecursiveCharacterTextSplitter` | Evaluation metrics (Recall@K, Precision@K, MRR, routing accuracy, citation checks) |
@@ -64,7 +64,8 @@ request -> router -> traditional_rag | agentic_workflow -> validation -> respons
   (`router/`): rules for certain cases, then Haiku names a kind and a fixed table picks the route.
 - **Entry point:** `POST /api/assist` (`router/assist.py`): route, then RAG, the workflow, or a
   fixed needs-input / unsupported reply; one route-log line per request (`logs/routes.jsonl`).
-- **Traditional RAG:** retrieve -> (rerank) -> answer from evidence only -> citations, or abstain.
+- **Traditional RAG:** retrieve -> answer from evidence only -> citations, or abstain. (Reranking
+  and hybrid search were measured in Milestone 5 and not adopted; see `EVALUATION.md`.)
   Callable from the API and as a tool inside the workflow.
 - **Agentic workflow (LangGraph):** `analyze_job` and `analyze_profile` in parallel ->
   `retrieve_knowledge` -> `analyze_gaps` -> `plan_roadmap` -> `evaluate` -> `revise` (bounded) or
@@ -139,6 +140,10 @@ Kubernetes, CI/CD, HTTP caching, RabbitMQ, Kafka, behavioural interviews and LLM
 
 Retrieval (built): `RetrievalService.search` -> top-k chunks above `retrieval_min_score` (0.45,
 probe-calibrated), optional metadata filters and per-document cap; `insufficient` when none qualify.
+Semantic-only by decision (Milestone 5, T-010): BM25 + RRF hybrid (`retrieval/sparse.py`) and local
+cross-encoder reranking (`retrieval/rerank.py`, fastembed) both measured worse and are used only by
+`evaluation/retrieval_eval.py` (`--hybrid`, `--rerank`). fastembed models download once into
+`backend/data/models/` (gitignored).
 
 Traditional RAG (built): `rag.answer_question` -> `POST /api/chat`. Abstains without a model call
 when retrieval is insufficient; evidence in delimited untrusted blocks; Sonnet structured reply;
@@ -160,5 +165,7 @@ content in logs. Specific defences: TBD per milestone (always-hard area, see `CL
   instead of the plan; settings read `.env` without exporting it.
 - Structured output: `ChatAnthropic` must use `method="json_schema"` (current models reject a forced
   tool call); `ChatClaudeCode` uses the SDK's `output_format`. Both go through `with_structure()`.
+- The 0.45 cosine threshold doesn't separate near-topic uncovered questions (labels v1.3: covered
+  kept 97%, uncovered rejected 67%); no retrieval-side fix found in Milestone 5.
 - LangSmith free plan: about 5k traces a month, about 14 days of retention. Results are kept in
   `EVALUATION.md`, not only in LangSmith.

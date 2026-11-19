@@ -5,7 +5,7 @@ date, the configuration and the dataset version. Design is in `ARCHITECTURE.md`.
 ## Datasets (in `evaluation/`)
 | File | Contents | Size |
 |---|---|---|
-| `retrieval_questions.jsonl` | Questions with their relevant pages or sections (v1.2, 2026-11-19) | 40 (32 covered, 8 uncovered) |
+| `retrieval_questions.jsonl` | Questions with their relevant pages or sections (v1.3, 2026-11-19) | 50 (38 covered, 12 uncovered) |
 | `routing_cases.jsonl` | Requests labelled with the expected route and action (run, needs input, unsupported), tagged; owner-approved 2026-11-18 | 30 |
 | `workflow_cases.jsonl` | JD + sample profile cases with expected behaviour, scored in code (2026-11-18) | 4 |
 | `profiles/sample_*.json` | Fictional profiles: new grad (demos, tests, traces), sparse, injection | 3 |
@@ -14,7 +14,7 @@ date, the configuration and the dataset version. Design is in `ARCHITECTURE.md`.
 Datasets may also be uploaded to LangSmith for side-by-side experiment views; the files here are the
 source.
 
-## Retrieval dataset format (`retrieval_questions.jsonl`, v1.2)
+## Retrieval dataset format (`retrieval_questions.jsonl`, v1.3)
 One JSON object per line:
 
 | Field | Meaning |
@@ -52,6 +52,13 @@ v1.2 (2026-11-19, owner approved, T-009): `q-030` points at the OWASP page's new
 (`api-security.owasp.org`, same page); `q-034` (CI/CD with GitHub Actions) relabelled covered by the
 new GitHub Docs pages. `q-031` (Kubernetes liveness probes) stays uncovered: the new pages mention
 liveness only in passing.
+v1.3 (2026-11-19, owner approved, T-010): 10 questions added so hybrid search can be measured
+fairly (the 7 v1.2 `exact_term` questions already scored Recall@5 1.0). Six covered exact-term
+questions (`q-041` SQLSTATE 40001, `q-042` BRIN, `q-043` maxSurge/maxUnavailable, `q-044`
+basic.nack, `q-045` LLM08, `q-046` tmp_path), each term checked to appear in the labelled
+section; four near-topic uncovered questions (`q-047` SKIP LOCKED, `q-048` Dockerfile HEALTHCHECK,
+`q-049` workflow_dispatch, `q-050` Kafka consumer-group rebalancing), whose key terms appear in
+no chunk while their topics are indexed.
 
 **Runner:** `uv run python -m gradpath.evaluation.retrieval_eval` (from `backend/`, API stopped).
 Embeds all questions in one Voyage call, searches the raw top-K with no threshold (ranking metrics
@@ -305,4 +312,99 @@ What it shows:
   threshold separates "covered" from "nearby" less well. Candidate for Milestone 5: reranking
   scores, or a threshold tuned on more uncovered questions.
 - Limits: 40 questions, one run.
+
+### Semantic baseline on labels v1.3 (2026-11-19, T-010)
+Semantic-only, the reference for Milestone 5. Same index as above (corpus v2, 1,592 chunks), labels
+v1.3 (50 questions: 38 covered, 12 uncovered). Output:
+`evaluation/results/retrieval-20261119-062918.json`.
+
+| Metric | Labels v1.2 (40) | Labels v1.3 (50) |
+|---|---|---|
+| Recall@5 | 0.953 | 0.961 |
+| Precision@5 | 0.631 | 0.605 |
+| MRR | 0.984 | 0.987 |
+| exact_term Recall@5 | 1.000 (7) | 1.000 (13) |
+| Covered kept at 0.45 | 100% | 97% (`q-041` 0.393) |
+| Uncovered rejected at 0.45 | 88% (7/8) | 67% (8/12) |
+| Lowest covered / highest uncovered best score | 0.526 / 0.520 | 0.393 / 0.589 |
+| Search per question / batched embedding | 3.4 ms / 2.0 s | 3.6 ms / 0.5 s |
+
+What it shows:
+- **All six new exact-term questions rank their labelled section first** (best scores 0.39-0.67):
+  Voyage's embeddings handle codes and identifiers here, so there is little ranking left for keyword
+  search to win. The same three misses as v1.2 remain (`q-001`, `q-027`, `q-034`, each with one of
+  two targets outside the top 5).
+- **The threshold is the real weakness.** Three of the four new near-topic uncovered questions
+  clear 0.45 (`q-049` workflow_dispatch 0.589, `q-050` Kafka consumer groups 0.538, `q-047` SKIP
+  LOCKED 0.488; `q-048` HEALTHCHECK is rejected at 0.415), and `q-041` (SQLSTATE 40001) is found at
+  rank 1 but scores 0.393, so it would be answered "not covered". No cosine threshold separates the
+  two groups (the sweep: 0.55 keeps 92% and rejects 92%). Milestone 5's main test is therefore
+  whether a reranker score is a better abstention signal.
+- Limits: 50 questions, one run; labels written by the same author as the system.
+
+### Experiment 3: reranking (2026-11-19, labels v1.3, T-010)
+Local cross-encoders (fastembed, ONNX on the owner's CPU, no API) rerank the semantic top 10 or 20;
+ranking and abstention are then judged on the reranker's score (sigmoid of its logit, 0..1). One
+Voyage call per run; semantic column from the same call. Outputs:
+`evaluation/results/retrieval-rerank-20261119-063851.json` (MiniLM) and
+`retrieval-rerank-20261119-064221.json` (bge).
+
+| Metric | Semantic | MiniLM-L-6 @10 | MiniLM-L-6 @20 | bge-reranker-base @10 | bge @20 |
+|---|---|---|---|---|---|
+| Recall@5 | 0.961 | 0.921 | 0.921 | 0.961 | 0.961 |
+| Precision@5 | 0.605 | 0.547 | 0.542 | 0.542 | 0.495 |
+| MRR@5 | 0.987 | 0.904 | 0.873 | 0.921 | 0.899 |
+| Threshold | 0.45 | 0.5 | 0.5 | 0.5 | 0.5 |
+| Covered kept / uncovered rejected | 97% / 67% | 95% / 75% | 95% / 75% | 79% / 83% | 79% / 83% |
+| Best trade-off in the sweep | 92% / 92% at 0.55 | 95% / 75% at 0.5 | 95% / 75% at 0.5 | 89% / 83% at 0.2 | similar |
+| Rerank ms per question p50 / p95 | - | 94 / 198 | 266 / 414 | 660 / 986 | 1503 / 2344 |
+
+What it shows:
+- **Neither reranker helps.** Both lower MRR and precision; MiniLM also loses recall (`q-014`
+  12-factor config and `q-035` CORS fall out of the top 5: their correct chunks score 0.001-0.07).
+  bge keeps recall but reorders first-rank hits downwards.
+- **Neither fixes abstention.** Both are very confident on near-topic text that doesn't answer the
+  question: `q-049` workflow_dispatch 0.999 / 0.996 (a GitHub Actions "Events" chunk that says a
+  workflow can be run "manually"), `q-047` SKIP LOCKED 0.985 with MiniLM (a Serializable-isolation
+  chunk about locks). bge rejects more uncovered questions only by also rejecting 8 covered ones
+  (`q-001`, `q-008`, `q-014`, `q-035` under 0.02). No reranker threshold beats the best cosine
+  threshold (0.55: 92% / 92%).
+- **Latency:** only MiniLM @10 fits the +300 ms budget; bge is 2-8x over it.
+- Why, probably: the MS MARCO models were trained on short web passages and questions; our chunks are
+  ~1,200-character Markdown sections with headings, lists and code, and many questions are "how do
+  I" questions where a topical chunk looks like an answer. Not tested further.
+- Decision (pending the owner): don't add a reranker to the retrieval service. Limits: 50
+  questions, one run each, two models.
+
+### Experiment 2: semantic vs hybrid (BM25 + RRF) (2026-11-19, labels v1.3, T-010)
+BM25 from fastembed `Qdrant/bm25` (stemmed, stopwords removed, mean chunk length 77.4 kept
+tokens), IDF applied by Qdrant, in an in-memory index over the same 1,592 processed chunks (the
+real index untouched). Hybrid = our RRF (k=60, equal weights) of the semantic top 20 and the BM25
+top 20. Every returned chunk keeps its cosine score (looked up for BM25-only chunks), so the 0.45
+threshold means the same in all three columns. One Voyage call. Output:
+`evaluation/results/retrieval-hybrid-20261119-065311.json`.
+
+| Metric | Semantic | BM25 only | Hybrid (RRF) |
+|---|---|---|---|
+| Recall@5 | **0.961** | 0.855 | 0.921 |
+| Precision@5 | **0.605** | 0.437 | 0.521 |
+| MRR@5 | **0.987** | 0.755 | 0.914 |
+| exact_term Recall@5 | 1.000 | 1.000 | 1.000 |
+| Covered kept / uncovered rejected at 0.45 | 97% / 67% | 95% / 67% | 97% / 67% |
+| Added ms per question p50 / p95 | - | - | 11 / 15 |
+
+What it shows:
+- **Hybrid doesn't help on this corpus.** It fixes none of semantic's three misses (`q-001`,
+  `q-027`, `q-034`), adds two (`q-002` loses its SQLite target; `q-035` CORS drops to rank 7,
+  BM25 finds no labelled chunk for it), and pushes some first hits down (`q-043` to rank 2).
+- **Exact terms were never semantic's weakness here:** all 13 exact-term questions rank their
+  target first with Voyage embeddings alone; BM25 alone gets them too but ranks `q-045` (LLM08)
+  third. The textbook case for hybrid search (codes and identifiers lost by embeddings) doesn't
+  show up with `voyage-3.5` on this corpus.
+- **Abstention is unchanged,** as designed: hybrid only reorders, and the best cosine score
+  among returned chunks stays the same.
+- It is cheap (11-15 ms), so cost isn't the reason to drop it; the numbers are. Not tried: RRF
+  weights favouring dense, or other k values; tuning them on 38 covered questions would fit noise,
+  and the best they could do is match semantic.
+- Limits: 50 questions, one run; BM25 parameters fastembed's defaults (k1 1.2, b 0.75).
 

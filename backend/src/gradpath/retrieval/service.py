@@ -4,6 +4,7 @@ Used by traditional RAG (`POST /api/chat`), job analysis, and later the LangGrap
 tool, so there is exactly one retrieval implementation (see ARCHITECTURE.md, "Request flow").
 """
 
+import math
 import threading
 from collections.abc import Iterable
 from typing import Literal
@@ -192,6 +193,38 @@ class RetrievalService:
             self._search_vector(q, v, k, filters, max_per_document)
             for q, v in zip(queries, vectors, strict=True)
         ]
+
+    def dense_scores(self, vector: list[float], chunk_ids: list[str]) -> dict[str, float]:
+        """Cosine similarity of `vector` to stored chunks, by chunk id (unknown ids are left out).
+
+        Hybrid search (T-010) returns chunks that only keyword search found; the relevance
+        threshold is cosine, so those chunks need a cosine score too. Reads the stored vectors.
+        """
+        if not chunk_ids:
+            return {}
+        from gradpath.ingestion.index import point_id
+
+        with self._search_lock:
+            points = self.store.client.retrieve(
+                self.store.collection_name,
+                ids=[point_id(c) for c in chunk_ids],
+                with_vectors=True,
+                with_payload=True,
+            )
+        q_norm = math.sqrt(sum(x * x for x in vector))
+        scores = {}
+        for p in points:
+            v = p.vector
+            if isinstance(
+                v, dict
+            ):  # a named-vector collection: the dense vector is the unnamed one
+                v = v.get("", next(iter(v.values()), None))
+            if not v or not q_norm:
+                continue
+            norm = math.sqrt(sum(x * x for x in v))
+            dot = sum(a * b for a, b in zip(vector, v, strict=True))
+            scores[p.payload["metadata"]["chunk_id"]] = dot / (q_norm * norm) if norm else 0.0
+        return scores
 
     def _search_vector(
         self,

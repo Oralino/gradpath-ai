@@ -43,7 +43,7 @@ uv run python -m gradpath.retrieval.probe                # real retrieval scores
 uv run python -m gradpath.rag.ask "question"             # one RAG answer from the terminal
 uv run python -m gradpath.jobs.cli <job_description_file> [--json]   # analyse a posting
 uv run python -m gradpath.workflows.cli <jd_file> <profile.json> [--correction TEXT] [--json] [--out FILE]   # full workflow
-uv run python -m gradpath.evaluation.retrieval_eval [--k 1,3,5,10]   # retrieval eval (1 Voyage call)
+uv run python -m gradpath.evaluation.retrieval_eval [--k 1,3,5,10] [--hybrid 20 | --rerank 10,20]   # retrieval eval (1 Voyage call)
 uv run python -m gradpath.evaluation.routing_eval [--rules-only] [--rescore FILE]   # routing eval (Haiku per open case)
 uv run python -m gradpath.evaluation.routing_compare     # adaptive vs always-RAG vs always-workflow (4 requests)
 uv run python -m gradpath.router.cli "message" [--job FILE] [--profile FILE] [--route-only] [--json]   # route + run
