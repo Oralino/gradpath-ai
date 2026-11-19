@@ -207,7 +207,7 @@ threshold, whose margin is gone (`q-031` 0.520 vs lowest covered 0.526).
 | 3. Harder labels + baseline | ✅ | Labels v1.3: 6 exact-term and 4 near-topic uncovered questions (owner approved); semantic baseline re-run | Today's set couldn't show an exact-term gain | Semantic ranks all 6 new exact-term questions first (Recall@5 0.961); the threshold fails: 3 of 4 new uncovered clear 0.45, and `q-041` scores 0.393 |
 | 4. Sparse index | ⏳ | BM25 sparse vectors computed locally, stored next to the dense ones | Keyword matching for exact terms; no Voyage tokens | |
 | 5. Fusion | ⏳ | Our own RRF over dense + sparse results | Combine the two rankings without comparing incompatible scores | |
-| 6. Reranker | ⏳ | Rerank the fused top candidates | Better ordering, and maybe a better abstention score | |
+| 6. Reranker (moved first) | ✅ measured | `retrieval/rerank.py` (local fastembed cross-encoder, 0..1 score) and `retrieval_eval --rerank 10,20 [--rerank-model]`: semantic and reranked from one embedding call | Better ordering, and maybe a better abstention score | **Didn't help:** MiniLM-L-6 lowered Recall@5 0.961 -> 0.921 and MRR 0.987 -> 0.904; bge-reranker-base kept recall but lowered MRR, cost 660-1500 ms per question, and fixed no abstention case (`q-049` scored 0.996). Not added to the service |
 | 7. Eval + PR | ⏳ | Semantic vs hybrid vs hybrid+rerank side by side, threshold behaviour, latency | Keep only what helps | |
 
 ---

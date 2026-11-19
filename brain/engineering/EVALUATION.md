@@ -342,3 +342,37 @@ What it shows:
   whether a reranker score is a better abstention signal.
 - Limits: 50 questions, one run; labels written by the same author as the system.
 
+### Experiment 3: reranking (2026-11-19, labels v1.3, T-010)
+Local cross-encoders (fastembed, ONNX on the owner's CPU, no API) rerank the semantic top 10 or 20;
+ranking and abstention are then judged on the reranker's score (sigmoid of its logit, 0..1). One
+Voyage call per run; semantic column from the same call. Outputs:
+`evaluation/results/retrieval-rerank-20261119-063851.json` (MiniLM) and
+`retrieval-rerank-20261119-064221.json` (bge).
+
+| Metric | Semantic | MiniLM-L-6 @10 | MiniLM-L-6 @20 | bge-reranker-base @10 | bge @20 |
+|---|---|---|---|---|---|
+| Recall@5 | 0.961 | 0.921 | 0.921 | 0.961 | 0.961 |
+| Precision@5 | 0.605 | 0.547 | 0.542 | 0.542 | 0.495 |
+| MRR@5 | 0.987 | 0.904 | 0.873 | 0.921 | 0.899 |
+| Threshold | 0.45 | 0.5 | 0.5 | 0.5 | 0.5 |
+| Covered kept / uncovered rejected | 97% / 67% | 95% / 75% | 95% / 75% | 79% / 83% | 79% / 83% |
+| Best trade-off in the sweep | 92% / 92% at 0.55 | 95% / 75% at 0.5 | 95% / 75% at 0.5 | 89% / 83% at 0.2 | similar |
+| Rerank ms per question p50 / p95 | - | 94 / 198 | 266 / 414 | 660 / 986 | 1503 / 2344 |
+
+What it shows:
+- **Neither reranker helps.** Both lower MRR and precision; MiniLM also loses recall (`q-014`
+  12-factor config and `q-035` CORS fall out of the top 5: their correct chunks score 0.001-0.07).
+  bge keeps recall but reorders first-rank hits downwards.
+- **Neither fixes abstention.** Both are very confident on near-topic text that doesn't answer the
+  question: `q-049` workflow_dispatch 0.999 / 0.996 (a GitHub Actions "Events" chunk that says a
+  workflow can be run "manually"), `q-047` SKIP LOCKED 0.985 with MiniLM (a Serializable-isolation
+  chunk about locks). bge rejects more uncovered questions only by also rejecting 8 covered ones
+  (`q-001`, `q-008`, `q-014`, `q-035` under 0.02). No reranker threshold beats the best cosine
+  threshold (0.55: 92% / 92%).
+- **Latency:** only MiniLM @10 fits the +300 ms budget; bge is 2-8x over it.
+- Why, probably: the MS MARCO models were trained on short web passages and questions; our chunks are
+  ~1,200-character Markdown sections with headings, lists and code, and many questions are "how do
+  I" questions where a topical chunk looks like an answer. Not tested further.
+- Decision (pending the owner): don't add a reranker to the retrieval service. Limits: 50
+  questions, one run each, two models.
+

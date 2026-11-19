@@ -52,3 +52,8 @@ re-embedding); our own code owns fusion, reranking and evaluation (no LangChain 
 - Semantic baseline on v1.3 (`retrieval-20261119-062918.json`): Recall@5 0.961, MRR 0.987,
   exact_term Recall@5 1.0 (13 questions); at 0.45 covered kept 97%, uncovered rejected 67%
   (EVALUATION.md, "Semantic baseline on labels v1.3").
+- Reranker (owner: reranker first). CPU speed on the owner's PC (16 threads, MiniLM-L-6, real
+  chunks): 20 candidates p50 ~310 ms, p95 ~490-590 ms; 10 candidates p95 ~170-240 ms.
+- Real comparison runs (EVALUATION.md, "Experiment 3: reranking"): MiniLM-L-6 @10 Recall@5 0.921,
+  MRR 0.904, 94/198 ms; bge-reranker-base @10 Recall@5 0.961, MRR 0.921, 660/986 ms. Neither
+  separates covered from near-topic uncovered better than cosine. 447 tests pass; ruff clean.
