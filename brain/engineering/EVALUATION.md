@@ -376,3 +376,35 @@ What it shows:
 - Decision (pending the owner): don't add a reranker to the retrieval service. Limits: 50
   questions, one run each, two models.
 
+### Experiment 2: semantic vs hybrid (BM25 + RRF) (2026-11-19, labels v1.3, T-010)
+BM25 from fastembed `Qdrant/bm25` (stemmed, stopwords removed, mean chunk length 77.4 kept
+tokens), IDF applied by Qdrant, in an in-memory index over the same 1,592 processed chunks (the
+real index untouched). Hybrid = our RRF (k=60, equal weights) of the semantic top 20 and the BM25
+top 20. Every returned chunk keeps its cosine score (looked up for BM25-only chunks), so the 0.45
+threshold means the same in all three columns. One Voyage call. Output:
+`evaluation/results/retrieval-hybrid-20261119-065311.json`.
+
+| Metric | Semantic | BM25 only | Hybrid (RRF) |
+|---|---|---|---|
+| Recall@5 | **0.961** | 0.855 | 0.921 |
+| Precision@5 | **0.605** | 0.437 | 0.521 |
+| MRR@5 | **0.987** | 0.755 | 0.914 |
+| exact_term Recall@5 | 1.000 | 1.000 | 1.000 |
+| Covered kept / uncovered rejected at 0.45 | 97% / 67% | 95% / 67% | 97% / 67% |
+| Added ms per question p50 / p95 | - | - | 11 / 15 |
+
+What it shows:
+- **Hybrid doesn't help on this corpus.** It fixes none of semantic's three misses (`q-001`,
+  `q-027`, `q-034`), adds two (`q-002` loses its SQLite target; `q-035` CORS drops to rank 7,
+  BM25 finds no labelled chunk for it), and pushes some first hits down (`q-043` to rank 2).
+- **Exact terms were never semantic's weakness here:** all 13 exact-term questions rank their
+  target first with Voyage embeddings alone; BM25 alone gets them too but ranks `q-045` (LLM08)
+  third. The textbook case for hybrid search (codes and identifiers lost by embeddings) doesn't
+  show up with `voyage-3.5` on this corpus.
+- **Abstention is unchanged,** as designed: hybrid only reorders, and the best cosine score
+  among returned chunks stays the same.
+- It is cheap (11-15 ms), so cost isn't the reason to drop it; the numbers are. Not tried: RRF
+  weights favouring dense, or other k values; tuning them on 38 covered questions would fit noise,
+  and the best they could do is match semantic.
+- Limits: 50 questions, one run; BM25 parameters fastembed's defaults (k1 1.2, b 0.75).
+

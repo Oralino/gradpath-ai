@@ -24,6 +24,7 @@ from pydantic import BaseModel
 from gradpath.config import REPO_ROOT, get_settings
 from gradpath.evaluation.dataset import DEFAULT_DATASET, Question, load_questions
 from gradpath.evaluation.metrics import is_relevant, precision_at_k, recall_at_k, reciprocal_rank
+from gradpath.ingestion.chunk import read_processed
 from gradpath.retrieval import Evidence, RetrievalService, get_retrieval_service
 from gradpath.retrieval.rerank import (
     DEFAULT_RERANK_MODEL,
@@ -31,8 +32,10 @@ from gradpath.retrieval.rerank import (
     Reranker,
     rerank,
 )
+from gradpath.retrieval.sparse import BM25_MODEL, RRF_K, Bm25Encoder, SparseIndex, rrf_fuse
 
 RESULTS_DIR = REPO_ROOT / "evaluation" / "results"
+PROCESSED_DIR = REPO_ROOT / "knowledge_base" / "processed"
 DEFAULT_KS = (1, 3, 5, 10)
 SWEEP = tuple(round(0.30 + 0.05 * i, 2) for i in range(7))  # 0.30 .. 0.60
 # Reranker scores are sigmoid(logit), 0..1, and spread far wider than cosine: a wider grid.
@@ -80,8 +83,8 @@ class Summary(BaseModel):
     recall_by_tag: dict[str, float]  # at the report K
     embed_seconds: float  # one batched call for all questions; includes any rate-limit wait
     search_ms_per_question: float  # vector search only (local Qdrant)
-    rerank_ms_p50: float | None = None  # reranking only, per question (rerank variants)
-    rerank_ms_p95: float | None = None
+    extra_ms_p50: float | None = None  # time added per question: reranking, or BM25 + fusion
+    extra_ms_p95: float | None = None
 
 
 class EvalReport(BaseModel):
@@ -104,7 +107,7 @@ def score_question(
     q: Question, ranked: list[Evidence], ks: tuple[int, ...], threshold: float
 ) -> QuestionResult:
     """Metrics for one question at every K; uncovered questions only get their best score."""
-    best = ranked[0].score if ranked else None
+    best = max((c.score for c in ranked), default=None)  # = rank 1 unless a hybrid reorders
     result = QuestionResult(
         id=q.id,
         question=q.question,
@@ -200,11 +203,11 @@ def _validate(questions: list[Question], ks: tuple[int, ...], report_k: int) -> 
 
 def _search_all(
     service: RetrievalService, questions: list[Question], k: int, max_per_document: int | None
-) -> tuple[list[list[Evidence]], float, float]:
+) -> tuple[list[list[Evidence]], list[list[float]], float, float]:
     """Embed every question in one batch and take each raw top-k (threshold lifted, restored).
 
-    Shared by run_eval and run_rerank_eval. Returns the ranked lists plus embedding and search
-    seconds, timed apart.
+    Shared by run_eval, run_rerank_eval and run_hybrid_eval. Returns the ranked lists, the query
+    vectors (hybrid needs them for cosine scores), and embedding and search seconds, timed apart.
     """
     threshold = service.min_score
     service.min_score = -1.0
@@ -218,7 +221,7 @@ def _search_all(
         search_seconds = time.perf_counter() - start
     finally:
         service.min_score = threshold
-    return [r.evidence for r in found], embed_seconds, search_seconds
+    return [r.evidence for r in found], vectors, embed_seconds, search_seconds
 
 
 def _score_all(
@@ -251,7 +254,7 @@ def run_eval(
     Not safe on a service shared with live API requests: use a service built for the run.
     """
     _validate(questions, ks, report_k)
-    ranked, embed_s, search_s = _search_all(service, questions, max(ks), max_per_document)
+    ranked, _, embed_s, search_s = _search_all(service, questions, max(ks), max_per_document)
     return _score_all(questions, ranked, ks, report_k, service.min_score, (embed_s, search_s))
 
 
@@ -275,7 +278,9 @@ def run_rerank_eval(
     _validate(questions, ks, report_k)
     if not candidates or min(candidates) < max(ks):
         raise ValueError(f"every candidate count must be >= max(ks) {max(ks)}, got {candidates}")
-    ranked, embed_s, search_s = _search_all(service, questions, max(candidates), max_per_document)
+    ranked, _, embed_s, search_s = _search_all(
+        service, questions, max(candidates), max_per_document
+    )
     timings = (embed_s, search_s)
     top = [r[: max(ks)] for r in ranked]
     variants = {"semantic": _score_all(questions, top, ks, report_k, service.min_score, timings)}
@@ -290,9 +295,61 @@ def run_rerank_eval(
         summary, sweep, results = _score_all(
             questions, reordered, ks, report_k, rerank_threshold, timings, RERANK_SWEEP
         )
-        summary.rerank_ms_p50 = round(statistics.median(times), 1)
-        summary.rerank_ms_p95 = round(percentile(times, 0.95), 1)
+        summary.extra_ms_p50 = round(statistics.median(times), 1)
+        summary.extra_ms_p95 = round(percentile(times, 0.95), 1)
         variants[f"rerank@{n}"] = (summary, sweep, results)
+    return variants
+
+
+def run_hybrid_eval(
+    service: RetrievalService,
+    questions: list[Question],
+    sparse: SparseIndex,
+    *,
+    candidates: int = 20,
+    rrf_k: int = RRF_K,
+    ks: tuple[int, ...] = DEFAULT_KS,
+    report_k: int = 5,
+) -> dict[str, tuple[Summary, list[ThresholdRow], list[QuestionResult]]]:
+    """Semantic, BM25-only and hybrid (RRF of both top-N lists), from one embedding call.
+
+    Every chunk keeps its cosine score (looked up for chunks only BM25 found), so the 0.45
+    threshold means the same thing in all three variants: a question is covered when any returned
+    chunk clears it. "Added ms" is BM25 search + fusion + the cosine lookup, per question.
+    """
+    _validate(questions, ks, report_k)
+    if candidates < max(ks):
+        raise ValueError(f"candidates must be >= max(ks) {max(ks)}, got {candidates}")
+    dense, vectors, embed_s, search_s = _search_all(service, questions, candidates, None)
+    timings = (embed_s, search_s)
+    top = max(ks)
+    keyword, fused, times = [], [], []
+    for q, d, vec in zip(questions, dense, vectors, strict=True):
+        start = time.perf_counter()
+        hits = sparse.search(q.question, candidates)
+        dense_ids = {e.chunk_id for e in d}
+        missing = [e.chunk_id for e in hits if e.chunk_id not in dense_ids]
+        cosine = {e.chunk_id: e.score for e in d} | service.dense_scores(vec, missing)
+        unknown = [e.chunk_id for e in hits if e.chunk_id not in cosine]
+        if unknown:
+            raise ValueError(f"BM25 chunks missing from the dense index: {unknown[:3]}")
+        by_id = {e.chunk_id: e.model_copy(update={"score": cosine[e.chunk_id]}) for e in hits}
+        by_id.update({e.chunk_id: e for e in d})
+        order = rrf_fuse([[e.chunk_id for e in d], [e.chunk_id for e in hits]], k=rrf_k)
+        fused.append([by_id[cid] for cid, _ in order[:top]])
+        times.append(1000 * (time.perf_counter() - start))
+        keyword.append([by_id[e.chunk_id] for e in hits[:top]])
+    threshold = service.min_score
+    variants = {
+        "semantic": _score_all(
+            questions, [d[:top] for d in dense], ks, report_k, threshold, timings
+        ),
+        "bm25": _score_all(questions, keyword, ks, report_k, threshold, timings),
+    }
+    summary, sweep, results = _score_all(questions, fused, ks, report_k, threshold, timings)
+    summary.extra_ms_p50 = round(statistics.median(times), 1)
+    summary.extra_ms_p95 = round(percentile(times, 0.95), 1)
+    variants["hybrid"] = (summary, sweep, results)
     return variants
 
 
@@ -326,8 +383,8 @@ def format_report(report: EvalReport, report_k: int) -> str:
         f"Latency: embedding {s.embed_seconds} s for all questions (one batched Voyage call, "
         f"incl. any rate-limit wait); vector search {s.search_ms_per_question} ms per question"
         + (
-            f"; reranking p50 {s.rerank_ms_p50} ms, p95 {s.rerank_ms_p95} ms per question"
-            if s.rerank_ms_p50 is not None
+            f"; added p50 {s.extra_ms_p50} ms, p95 {s.extra_ms_p95} ms per question"
+            if s.extra_ms_p50 is not None
             else ""
         ),
         "",
@@ -387,10 +444,9 @@ def format_comparison(report: ComparisonReport) -> str:
     for label, get in COMPARE_ROWS:
         lines.append(f"| {label} | " + " | ".join(_fmt(get(s)) for s in sums) + " |")
     lines.append(
-        "| Rerank ms p50 / p95 | "
+        "| Added ms p50 / p95 | "
         + " | ".join(
-            "-" if s.rerank_ms_p50 is None else f"{s.rerank_ms_p50} / {s.rerank_ms_p95}"
-            for s in sums
+            "-" if s.extra_ms_p50 is None else f"{s.extra_ms_p50} / {s.extra_ms_p95}" for s in sums
         )
         + " |"
     )
@@ -417,7 +473,17 @@ def main() -> None:
     )
     parser.add_argument("--rerank-threshold", type=float, default=0.5)
     parser.add_argument("--rerank-model", default=DEFAULT_RERANK_MODEL, help="a fastembed model")
+    parser.add_argument(
+        "--hybrid", type=int, default=None, help="also BM25 and RRF hybrid over the top N, e.g. 20"
+    )
+    parser.add_argument("--rrf-k", type=int, default=RRF_K)
     args = parser.parse_args()
+    if args.hybrid is not None and args.hybrid < 1:
+        parser.error("--hybrid must be a positive integer")
+    if args.rerank and args.hybrid:
+        parser.error("--rerank and --hybrid are separate experiments: pick one")
+    if args.hybrid and args.max_per_document:
+        parser.error("--hybrid doesn't support --max-per-document")
 
     settings = get_settings()
     ks = _int_list(parser, "--k", args.k)
@@ -427,7 +493,19 @@ def main() -> None:
     service = get_retrieval_service(settings)
     try:
         chunks = service.store.client.count(settings.qdrant_collection).count
-        if candidates:
+        if args.hybrid:
+            docs = [d for f in sorted(PROCESSED_DIR.glob("*.jsonl")) for d in read_processed(f)]
+            sparse = SparseIndex(docs, Bm25Encoder())
+            variants = run_hybrid_eval(
+                service,
+                questions,
+                sparse,
+                candidates=args.hybrid,
+                rrf_k=args.rrf_k,
+                ks=ks,
+                report_k=report_k,
+            )
+        elif candidates:
             reranker = CrossEncoderReranker(args.rerank_model)
             variants = run_rerank_eval(
                 service,
@@ -468,7 +546,15 @@ def main() -> None:
     reports = {}
     for name, (summary, sweep, results) in variants.items():
         cfg = dict(config)
-        if name != "semantic":
+        if name == "bm25":
+            cfg.update(
+                search=f"BM25 ({BM25_MODEL}, avg_len {sparse.avg_len:.1f}, {sparse.size} chunks)"
+            )
+        elif name == "hybrid":
+            cfg.update(
+                search=f"RRF k={args.rrf_k} of semantic top {args.hybrid} + BM25 top {args.hybrid}"
+            )
+        elif name != "semantic":
             cfg.update(
                 search=f"semantic top {name.split('@')[1]}, reranked",
                 reranker=reranker.model_name,
@@ -479,10 +565,11 @@ def main() -> None:
         )
         print(f"\n## {name}\n\n{format_report(reports[name], report_k)}")
     stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-    if candidates:
+    if len(reports) > 1:
         comparison = ComparisonReport(run_at=run_at, config=config, variants=reports)
         print(f"\n## Comparison\n\n{format_comparison(comparison)}")
-        payload, out_name = comparison.model_dump_json(indent=2), f"retrieval-rerank-{stamp}.json"
+        kind = "hybrid" if args.hybrid else "rerank"
+        payload, out_name = comparison.model_dump_json(indent=2), f"retrieval-{kind}-{stamp}.json"
     else:
         payload, out_name = reports["semantic"].model_dump_json(indent=2), f"retrieval-{stamp}.json"
     if not args.no_save:

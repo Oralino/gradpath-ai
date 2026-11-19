@@ -123,7 +123,7 @@ def test_rerank_eval_compares_variants_on_one_embedding_call(service):
     semantic = variants["semantic"][0]
     plain = run_eval(service, QUESTIONS, ks=(1, 3), report_k=3)[0]
     assert semantic.recall == plain.recall and semantic.mrr == plain.mrr
-    assert semantic.rerank_ms_p50 is None
+    assert semantic.extra_ms_p50 is None
 
     summary, sweep, results = variants["rerank@6"]
     assert (
@@ -133,7 +133,7 @@ def test_rerank_eval_compares_variants_on_one_embedding_call(service):
     assert summary.threshold == 0.5
     assert results[0].best_score == 0.9  # abstention judged on the reranker's score
     assert summary.uncovered_rejected == 1.0 and summary.covered_kept == 1.0
-    assert summary.rerank_ms_p50 is not None and summary.rerank_ms_p95 >= summary.rerank_ms_p50
+    assert summary.extra_ms_p50 is not None and summary.extra_ms_p95 >= summary.extra_ms_p50
     assert sweep[0].threshold == 0.01  # the reranker grid, not the cosine one
 
 
@@ -158,9 +158,9 @@ def test_reports_show_both_variants_and_covered_questions_below_threshold(servic
     text = format_report(reports["rerank@3"], 3)
     assert "Covered questions below the threshold (1):" in text
     assert "- q-2 best 0.050: http status" in text
-    assert "reranking p50" in text
+    assert "added p50" in text
 
     table = format_comparison(ComparisonReport(run_at="now", config={}, variants=reports))
     assert "| Metric | semantic | rerank@3 |" in table
     assert "| Threshold | 0.5 | 0.5 |" in table
-    assert "| Rerank ms p50 / p95 | - |" in table
+    assert "| Added ms p50 / p95 | - |" in table

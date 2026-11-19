@@ -57,3 +57,6 @@ re-embedding); our own code owns fusion, reranking and evaluation (no LangChain 
 - Real comparison runs (EVALUATION.md, "Experiment 3: reranking"): MiniLM-L-6 @10 Recall@5 0.921,
   MRR 0.904, 94/198 ms; bge-reranker-base @10 Recall@5 0.961, MRR 0.921, 660/986 ms. Neither
   separates covered from near-topic uncovered better than cosine. 447 tests pass; ruff clean.
+- Hybrid (EVALUATION.md, "Experiment 2: semantic vs hybrid"): BM25 alone Recall@5 0.855, MRR
+  0.755; RRF hybrid 0.921 / 0.914 vs semantic 0.961 / 0.987; abstention unchanged; +11-15 ms per
+  question. 455 tests pass; ruff clean.
