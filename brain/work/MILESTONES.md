@@ -14,7 +14,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 2 | Retrieval evaluation + tracing | ✅ | Measure search quality | Recall@5 0.97, MRR 0.98, threshold checked, LangSmith traces, CI |
 | 3 | Agentic workflow | ✅ | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop; 4/4 workflow eval cases; `POST /api/career/prepare` |
 | 4 | Router + fallback | ✅ | Pick the cheapest path that works | 30/30 routing labels; adaptive served 4/4 (3/4 strict) vs 2/4 for always-RAG or always-workflow; labelled fallback; `POST /api/assist` |
-| 5 | Hybrid retrieval + reranking | ⏳ | Improve search for exact terms | Before/after metrics vs semantic-only |
+| 5 | Hybrid retrieval + reranking | 🔨 | Improve search for exact terms | Before/after metrics vs semantic-only |
 | 6 | Frontend | ⏳ | Make it usable | Next.js app designed from `DESIGN.md` |
 | 7 | Demo and live modes | ⏳ | A public site that costs nothing | Recorded demo runs; live mode with a visitor's key |
 | 8 | Deploy | ⏳ | A live link | Vercel + Render + Qdrant Cloud (free tiers) |
@@ -190,6 +190,26 @@ finish, return a labelled partial result instead of an error; measure routing ac
 | The first fallback could itself crash, retried a service that had just failed, and showed critic issues for an older roadmap | Fallback assembly can't raise, no extra call after an outage, stale issues dropped and labelled | The failure path needs as much review as the happy path |
 | A failure used to be a bare 502 | The workflow streams step by step and returns a labelled partial result with what finished | Users get something honest and useful instead of an error page |
 | 30/30 routing accuracy looks too good | Recorded with its bias: labels and prompt written by the same author | Reporting a result together with its limits |
+---
+
+## Milestone 5: Hybrid retrieval + reranking 🔨
+*Ticket: `tickets/T-010-hybrid-retrieval.md`*
+
+**Goal:** add keyword (sparse) search and a reranker next to semantic search, and keep each only if
+the retrieval evaluation shows it helps, measured against semantic-only on the same corpus (v2,
+1,592 chunks) and labels (v1.2). Also look for a better "not covered" signal than the 0.45 cosine
+threshold, whose margin is gone (`q-031` 0.520 vs lowest covered 0.526).
+
+| Step | Status | What we built | Why | Result |
+|---|---|---|---|---|
+| 1. Ticket + housekeeping | ✅ | T-010, branch, T-009 marked merged | Clean start | Pushed |
+| 2. Explain hybrid, fusion, reranking; open questions | 🔨 | Tables for the owner; library options checked against docs | The owner approves the design before code | Waiting for the owner |
+| 3. Harder labels (if approved) | ⏳ | Exact-term and near-topic uncovered questions | Today's set can't show an exact-term gain (exact_term recall@5 is already 1.0) | |
+| 4. Sparse index | ⏳ | BM25 sparse vectors computed locally, stored next to the dense ones | Keyword matching for exact terms; no Voyage tokens | |
+| 5. Fusion | ⏳ | Our own RRF over dense + sparse results | Combine the two rankings without comparing incompatible scores | |
+| 6. Reranker | ⏳ | Rerank the fused top candidates | Better ordering, and maybe a better abstention score | |
+| 7. Eval + PR | ⏳ | Semantic vs hybrid vs hybrid+rerank side by side, threshold behaviour, latency | Keep only what helps | |
+
 ---
 
 ## Milestones 4–8: what's next

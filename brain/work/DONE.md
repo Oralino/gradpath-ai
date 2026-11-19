@@ -5,7 +5,7 @@ Finished work and releases, newest first; closed tickets are linked here. Open w
 - [T-009 Fill the knowledge-base gaps](tickets/T-009-corpus-gaps.md): 10 sources (Docker,
   Kubernetes, GitHub Actions CI/CD, MDN caching, RabbitMQ, Kafka, behavioural interviews,
   LangChain, Hugging Face, OWASP LLM Top 10); docs template markup stripped; 1,592 chunks;
-  retrieval labels v1.2. PR open.
+  retrieval labels v1.2. Merged as `6390fef`.
 
 ## 2026-11-18
 - [T-006 Milestone 4: router + fallback](tickets/T-006-router-fallback.md): rules + Haiku router

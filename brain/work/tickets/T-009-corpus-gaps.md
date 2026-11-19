@@ -2,7 +2,7 @@
 Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 - **Type:** change
-- **Status:** done (PR open)
+- **Status:** done (merged, 6390fef)
 - **Opened:** 2026-11-18 · **Closed:** 2026-11-19
 - **GitHub Issue:** none
 
@@ -38,6 +38,12 @@ now points there (same content, no re-embedding).
 - Files touched: `knowledge_base/source_manifest.csv`, `backend/src/gradpath/ingestion/clean.py`,
   `backend/tests/test_ingestion.py`
 - Commits (hash, message):
+  - `4cecfcf` docs: open T-009, propose 10 sources for the corpus gaps, record the Milestone 4 merge (T-009)
+  - `ce75b73` feat: approve 10 corpus sources and strip docs template markup during cleaning (T-009)
+  - `164a938` docs: relabel two retrieval questions (v1.2) and record retrieval on corpus v2 (T-009)
+  - `f325b72` docs: link the corpus PR in T-009 (T-009)
+  - `f4c633b` test: expect 32 covered questions in retrieval labels v1.2 (T-009)
+  - `6390fef` merge of PR #5 into `main`
 
 ## Verification
 - Dry run (no embedding): all 35 new pages fetched; 638 new chunks, about 126K tokens; markup left
