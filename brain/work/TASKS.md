@@ -5,10 +5,17 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 
 ## Current
 - [ ] [T-011](tickets/T-011-frontend.md): Milestone 6, the Next.js frontend (in progress).
-- [ ] Milestone 6 (frontend): show a partial answer as partial. Today `ChatAnswer.status` is only
-      `answered` or `insufficient_evidence`, so an answer that opens with "the evidence doesn't cover
-      ..." (`q-031`, `q-049` in the abstention check) looks like a full answer. Options: a `partial`
-      status from the model, or a UI label; decide with `DESIGN.md`.
+- [ ] Milestone 6: a backend `partial` answer status (owner decision 2026-11-19). Today
+      `ChatAnswer.status` is only `answered` or `insufficient_evidence`, so an answer that opens with
+      "the evidence doesn't cover ..." (`q-031`, `q-049`) looks like a full answer. Own ticket.
+- [ ] Milestone 6: run id + status polling for workflow runs (owner decision 2026-11-19). Own ticket;
+      always-hard area (workflow limits).
+- [ ] Milestone 6 (backend, small): a "sources as of" date the UI can show (`DESIGN.md` Known gaps).
+
+Answer quality (owner decision 2026-11-19: before Milestone 7's public demo):
+- [ ] Answer eval set: ~20 questions with must-contain facts plus must-refuse cases, scored in code.
+- [ ] Grounding check: Haiku checks each claim against its cited chunk; report a "supported" rate.
+- [ ] Re-run the retrieval and answer evals as a release check when sources, prompts or models change.
 
 Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
 - [x] [T-007](tickets/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.

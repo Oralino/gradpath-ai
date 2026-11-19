@@ -3,8 +3,9 @@ How the Milestone 6 Next.js UI looks and behaves: tokens, components, screens, h
 What the product does is in `../product/REQUIREMENTS.md`; stack, API and data flow in
 `../engineering/ARCHITECTURE.md`; the XSS and output-handling rules this file turns into design rules
 are in `../engineering/SECURITY.md`; the work itself is ticket `../work/tickets/T-011-frontend.md`.
-Status: **draft for owner approval** (2026-11-19). Items marked "Owner decision needed" carry a
-recommendation.
+Status: **draft for owner approval** (2026-11-19). Owner decisions 2026-11-19: partial answers option A
+(backend `partial` status), long runs option B (run id + polling); the look is approved after a visual
+mock-up. Remaining "Owner decision needed" items carry a recommendation.
 
 **Identity: an annotated study notebook.** Warm paper, near-black ink, one teal ink for links. Every
 claim sits next to its evidence, the way a margin note sits next to a quote: the posting's own words,
@@ -432,13 +433,13 @@ revisit only if a later screen needs a combobox or menu.** Icons: about ten smal
 (main session decides between hand-drawn SVGs and a free icon package).
 
 ### Owner decisions needed
-1. **Partial answers.** (A) backend `partial` status: the answer model returns what the evidence does
+1. **Partial answers. Decided 2026-11-19: A.** (A) backend `partial` status: the answer model returns what the evidence does
    not cover, code sets `status: "partial"`; precise and testable, costs a schema, prompt and eval
    change and is one more model judgement to measure. (B) UI label from existing fields: no backend
    work, but nothing in `ChatAnswer` marks partiality, so it means matching phrases in the answer
    text (brittle) or showing only the general caveat. **Recommend A**; until it ships, show the
    caveat line under every answer.
-2. **Long runs.** (A) synchronous request, timer, expected range, static step list, "Stop waiting":
+2. **Long runs. Decided 2026-11-19: B.** (A) synchronous request, timer, expected range, static step list, "Stop waiting":
    no backend work, but the list cannot show real progress (it must not tick by time) and stopping
    only stops the browser waiting; the server keeps the run and the busy slot. (B) run id + status
    polling: real finished stages from `node_log`, a real stop if the server supports it, survives a
@@ -464,6 +465,9 @@ Don't:
 - A big green success screen, confetti, or "Your plan is ready!" for a non-`complete` status.
 - Fake progress: percentage bars, stages ticked by a timer, "almost there".
 - Tooltips that hold information, identical card grids for every list, animation on page load.
+- Motivational or marketing copy (owner, 2026-11-19): no inspirational quotes, slogans, taglines,
+  "Land your dream job!", "Let's crush it" or cheerful filler. Copy says what the screen does and
+  what happened, plainly.
 - Raw HTML, markdown rendering, auto-linked URLs or retrieval scores shown as the main signal.
 
 ## Known gaps

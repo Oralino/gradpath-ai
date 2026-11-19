@@ -15,14 +15,16 @@ shown as partial, never as complete) and clear errors. Model and retrieved text 
 rendered as plain text (`../../engineering/SECURITY.md`, "From Milestone 6").
 
 ## Decision
-Open, waiting for the owner (asked 2026-11-19):
-- `DESIGN.md` draft (design-advisor) for approval before any frontend code.
-- Partial answers: a `partial` status from the model (backend change) or a UI label from existing
-  fields.
-- Long workflow runs (80-300 s): keep the synchronous call with an honest progress view, or add a
-  run id with status polling (`ARCHITECTURE.md` plans the latter).
-- Whether answer-quality items 2-4 (answer eval set, grounding check, eval re-runs as a release
-  check) go into `TASKS.md`.
+Owner decisions 2026-11-19:
+- **Partial answers:** a backend `partial` status (the answer model also returns what the evidence
+  doesn't cover; code sets the status). Rejected: a UI-only label, because nothing in `ChatAnswer`
+  marks partiality, so it would mean brittle phrase matching. Own ticket (schema, prompt, tests).
+- **Long runs:** a run id with status polling (real finished stages from `node_log`, survives a
+  reload, matches `ARCHITECTURE.md`). Rejected: keeping the synchronous call, which can't show real
+  progress and can't really stop a run. Own ticket; the workflow's limits are an always-hard area.
+- **Answer-quality items 2-4** go into `TASKS.md`, to do before Milestone 7's public demo.
+- **Look:** approve `DESIGN.md` after a visual mock-up (private page with fake data, not in the repo).
+- **Copy:** no motivational quotes, slogans or marketing filler anywhere in the UI.
 
 Versions checked 2026-11-19 against the npm registry and the official install guides: Next.js
 16.4.6 (App Router, Turbopack default, Node >= 20.9; local Node is 24.13.1), React 19.3.1,
