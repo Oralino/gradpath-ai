@@ -4,7 +4,7 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] [T-009 Fill the knowledge-base gaps](tickets/T-009-corpus-gaps.md) (in progress; 10 sources proposed, waiting for the owner).
+- [ ] **(owner)** Review and merge the corpus PR (T-009).
 
 Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
 - [x] [T-007](tickets/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.
@@ -13,8 +13,12 @@ Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner
 - [ ] **(owner)** Two-factor authentication on GitHub, Anthropic, Voyage and LangSmith.
 
 ## Corpus (before Milestone 5)
-- [ ] **(owner + Claude)** Fill corpus gaps: behavioral interviews (STAR), caching, message queues,
-      Docker/Kubernetes, CI/CD, LLM/RAG tooling (LangChain, vector databases).
+- [x] Fill corpus gaps (T-009, 2026-11-19): 10 sources added.
+- [ ] Citations for raw GitHub files point at raw.githubusercontent.com; map them to the docs
+      sites' readable URLs.
+- [ ] Before Milestone 5: the 0.45 threshold no longer separates near-topic uncovered questions
+      (q-031 at 0.520 vs lowest covered 0.526); try reranking scores or retune on more uncovered
+      questions.
 - [ ] More new-grad backend job descriptions in `private/job_descriptions/` (one so far).
 
 ## Milestones

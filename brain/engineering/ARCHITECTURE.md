@@ -133,6 +133,9 @@ listed in `knowledge_base/source_manifest.csv` with its URL, licence and fetch U
 ingested without the owner's approval.
 
 First corpus (2026-11-17 dry run): 18 sources, 52 pages, 956 chunks, ~188K estimated tokens.
+Corpus v2 (2026-11-19, T-009): 27 approved sources, 87 pages, 1,592 chunks; adds Docker,
+Kubernetes, CI/CD, HTTP caching, RabbitMQ, Kafka, behavioural interviews and LLM/RAG
+(collection `ai_engineering`). Docs template markup (Hugo, Liquid, JSX) is stripped while cleaning.
 
 Retrieval (built): `RetrievalService.search` -> top-k chunks above `retrieval_min_score` (0.45,
 probe-calibrated), optional metadata filters and per-document cap; `insufficient` when none qualify.

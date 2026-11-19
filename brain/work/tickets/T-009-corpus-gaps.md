@@ -2,8 +2,8 @@
 Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 - **Type:** change
-- **Status:** in progress
-- **Opened:** 2026-11-18 · **Closed:**
+- **Status:** done (PR open)
+- **Opened:** 2026-11-18 · **Closed:** 2026-11-19
 - **GitHub Issue:** none
 
 ## Summary
@@ -43,3 +43,8 @@ now points there (same content, no re-embedding).
 - Dry run (no embedding): all 35 new pages fetched; 638 new chunks, about 126K tokens; markup left
   only inside code fences; existing sources: 10 Tech Interview Handbook chunks change (an ad
   component removed), nothing else. 14 new cleaner tests (439 total).
+- Real ingest (2026-11-19): 1,592 chunks indexed, 946 from the embedding cache, 646 embedded;
+  the one-time T-005 migration ran (alias `gradpath_kb` -> one rebuilt collection).
+- Retrieval eval: labels updated to v1.2 with the owner (q-030 URL, q-034 now covered); Recall@5
+  0.953, MRR 0.984, uncovered rejected 7/8; q-031 is a near-topic false accept at 0.520
+  (EVALUATION.md, "Retrieval on corpus v2").

@@ -534,6 +534,19 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   security boundary; limits, ids, routes and statuses are decided in code, and the models have no
   tools.
 
+## Corpus v2 and template cleanup (T-009)
+- **What changed:** 10 sources added for the gaps (Docker, Kubernetes, CI/CD, caching, message
+  queues, behavioural interviews, LLM/RAG); every licence checked on the repository itself.
+- **Decision: fetch raw Markdown from the docs repositories,** not the rendered sites: no site
+  chrome to strip, and the licence sits next to the file. The cost: docs sites write template
+  codes into their source (Hugo `{{< glossary_tooltip text="Pods" >}}`, Liquid
+  `{% data variables.product.prodname_actions %}`, JSX `<Step title="...">`). `clean_markdown`
+  replaces each with the words it stands for and drops the rest; code fences are untouched.
+- **Gotcha:** a larger corpus moved a near-topic uncovered question (Kubernetes liveness probes)
+  to 0.520, next to the lowest covered score (0.526): the fixed threshold has no margin left.
+- **Likely question:** *"Why not Wikipedia?"* Its servers refuse automated clients unless the
+  User-Agent carries contact details, which would put personal data in every request.
+
 ## Semantic first, hybrid as an experiment
 - **Decision:** start with vector search; add keyword (hybrid) retrieval and reranking only as measured
   experiments.
