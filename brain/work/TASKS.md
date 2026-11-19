@@ -4,10 +4,10 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] **(owner)** Review and merge the Milestone 5 PR (T-010).
-- [ ] Measure abstention at the answer step: for near-topic uncovered questions that clear the
-      0.45 threshold (`q-031`, `q-047`, `q-049`, `q-050`), does the RAG answer say "not covered"?
-      (Milestone 5 found no retrieval-side fix.)
+- [ ] Milestone 6 (frontend): show a partial answer as partial. Today `ChatAnswer.status` is only
+      `answered` or `insufficient_evidence`, so an answer that opens with "the evidence doesn't cover
+      ..." (`q-031`, `q-049` in the abstention check) looks like a full answer. Options: a `partial`
+      status from the model, or a UI label; decide with `DESIGN.md`.
 
 Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
 - [x] [T-007](tickets/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.

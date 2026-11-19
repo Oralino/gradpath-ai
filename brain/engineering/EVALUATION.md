@@ -408,3 +408,27 @@ What it shows:
   and the best they could do is match semantic.
 - Limits: 50 questions, one run; BM25 parameters fastembed's defaults (k1 1.2, b 0.75).
 
+### Answer-step abstention on near-topic questions (2026-11-19, T-010 follow-up)
+Milestone 5 found no retrieval-side fix for the four near-topic uncovered questions that clear the
+0.45 threshold, so this checks the next safety net: does the RAG answer (`rag.answer_question`,
+Sonnet via Claude Code on the owner's plan) refuse or admit the gap? Plus one covered control.
+One run each from the owner's terminal. Output: `evaluation/results/answer-abstention-20261119.json`.
+
+| Question | Best cosine | Status | What the answer did |
+|---|---|---|---|
+| `q-047` SKIP LOCKED | 0.488 | insufficient_evidence | Refused (model judged evidence insufficient) |
+| `q-050` Kafka consumer-group rebalancing | 0.538 | insufficient_evidence | Refused |
+| `q-031` Kubernetes liveness probes | 0.521 | answered | Opens with "the evidence doesn't cover how to configure liveness probes, so this is only a partial answer"; gives only cited facts (what a probe is, the three probe actions) and says what is missing |
+| `q-049` workflow_dispatch | 0.589 | answered | Says the evidence "doesn't explain how to use `workflow_dispatch`"; gives the cited fact that workflows can be triggered manually, names what is missing, points to the linked reference |
+| `q-043` maxSurge / maxUnavailable (covered control) | 0.650 | answered | Full, correct answer with 3 citations |
+
+What it shows:
+- **No invented answer in 4/4:** the answer step is a working safety net where the threshold isn't.
+  Two refusals, two honest partial answers whose every claim comes from a cited chunk.
+- **The gap is in how the result is labelled, not in what it says:** the two partial answers have
+  status `answered`, the same as a full answer. A user skimming the UI, or a caller reading only
+  `status`, would miss the caveat. Follow-up for Milestone 6 (TASKS.md): show partial answers as
+  partial.
+- The control still answers fully, so the model isn't refusing everything near the threshold.
+- Limits: 5 questions, one run, judged by reading; Sonnet answers can vary between runs.
+

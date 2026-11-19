@@ -1,0 +1,85 @@
+[
+  {
+    "id": "q-031",
+    "question": "How do I configure liveness probes for a Kubernetes deployment?",
+    "status": "answered",
+    "answer": "The evidence doesn't cover how to configure liveness probes, so this is only a partial answer.\n\nWhat it does say:\n- A probe is a diagnostic the kubelet runs periodically on a container.\n- The kubelet can run it in one of three ways: `ExecAction` (done with the help of the container runtime), `TCPSocketAction` (checked directly by the kubelet), or `HTTPGetAction` (checked directly by the kubelet).\n- It points to the Pod Lifecycle documentation (container probes section) for more detail.\n- Readiness probe failures are one reason a Deployment can get stuck rolling out. You can detect a stall with `.spec.progressDeadlineSeconds`.\n\nWhat it doesn't cover: the liveness probe YAML fields, where they go in a Deployment spec, and what happens when a liveness probe fails. The Pod Lifecycle docs it links to are the place to look.",
+    "citations": [
+      {
+        "title": "Kubernetes Documentation: Concepts",
+        "section": "Container probes",
+        "score": 0.521
+      },
+      {
+        "title": "Kubernetes Documentation: Concepts",
+        "section": "Deployment status > Failed Deployment",
+        "score": 0.457
+      }
+    ],
+    "note": null,
+    "seconds": 5.5
+  },
+  {
+    "id": "q-047",
+    "question": "What does SKIP LOCKED do in a PostgreSQL SELECT FOR UPDATE query?",
+    "status": "insufficient_evidence",
+    "answer": "The GradPath knowledge base doesn't cover this question well enough to answer it with sources. Try rephrasing it, or ask about backend engineering, databases, APIs, testing, Git, data structures or interview preparation.",
+    "citations": [],
+    "note": "The model judged the retrieved evidence insufficient.",
+    "seconds": 3.7
+  },
+  {
+    "id": "q-049",
+    "question": "How do I trigger a GitHub Actions workflow manually with workflow_dispatch?",
+    "status": "answered",
+    "answer": "The evidence confirms that workflows can be triggered manually, but it doesn't explain how to use `workflow_dispatch` specifically. The docs say an event can trigger a workflow on a schedule, by posting to a REST API (repository dispatch), or manually. A CD workflow can likewise be configured to run manually. The evidence doesn't include the `workflow_dispatch` YAML syntax, any inputs, or the UI steps (such as a \"Run workflow\" button). For those, see the \"Events that trigger workflows\" reference page that the docs link to.",
+    "citations": [
+      {
+        "title": "GitHub Docs: Actions, continuous integration and deployment",
+        "section": "The components of GitHub Actions > Events",
+        "score": 0.589
+      },
+      {
+        "title": "GitHub Docs: Actions, continuous integration and deployment",
+        "section": "About continuous deployment using GitHub Actions",
+        "score": 0.538
+      }
+    ],
+    "note": null,
+    "seconds": 58.4
+  },
+  {
+    "id": "q-050",
+    "question": "How do Kafka consumer groups rebalance partitions between consumers?",
+    "status": "insufficient_evidence",
+    "answer": "The GradPath knowledge base doesn't cover this question well enough to answer it with sources. Try rephrasing it, or ask about backend engineering, databases, APIs, testing, Git, data structures or interview preparation.",
+    "citations": [],
+    "note": "The model judged the retrieved evidence insufficient.",
+    "seconds": 2.3
+  },
+  {
+    "id": "q-043 (control, covered)",
+    "question": "What do maxSurge and maxUnavailable control in a Kubernetes Deployment?",
+    "status": "answered",
+    "answer": "Both are optional fields under `.spec.strategy.rollingUpdate` that set the limits for a rolling update of a Deployment's Pods.\n\n- **maxUnavailable**: the maximum number of Pods that can be unavailable during the update. It can be an absolute number (e.g. 5) or a percentage of desired Pods (e.g. 10%). Percentages are rounded down. The default is 25%. At 30%, the old ReplicaSet can be scaled down to 70% of desired Pods right away. At least 70% of desired Pods stay available throughout the update.\n- **maxSurge**: the maximum number of Pods that can be created over the desired number. It can also be an absolute number or a percentage. Percentages are rounded up. The default is 25%. At 30%, the new ReplicaSet can scale up immediately, so the total of old and new Pods never exceeds 130% of desired Pods.\n\nNeither value can be 0 if the other is 0.\n\nTerminating Pods aren't counted when Kubernetes calculates `availableReplicas`. You may therefore see more Pods than expected during a rollout. Resource use can exceed `replicas + maxSurge` until the terminating Pods' `terminationGracePeriodSeconds` expires.",
+    "citations": [
+      {
+        "title": "Kubernetes Documentation: Concepts",
+        "section": "Writing a Deployment Spec > Strategy",
+        "score": 0.625
+      },
+      {
+        "title": "Kubernetes Documentation: Concepts",
+        "section": "Writing a Deployment Spec > Strategy",
+        "score": 0.65
+      },
+      {
+        "title": "Kubernetes Documentation: Concepts",
+        "section": "Updating a Deployment",
+        "score": 0.638
+      }
+    ],
+    "note": null,
+    "seconds": 53.5
+  }
+]
