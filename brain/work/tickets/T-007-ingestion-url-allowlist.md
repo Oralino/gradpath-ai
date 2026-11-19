@@ -2,7 +2,7 @@
 Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 - **Type:** bug
-- **Status:** done
+- **Status:** done (merged, 56fd164)
 - **Opened:** 2026-11-18 · **Closed:** 2026-11-18
 - **GitHub Issue:** none
 

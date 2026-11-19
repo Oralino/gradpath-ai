@@ -1,10 +1,16 @@
 # DONE.md
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
+## 2026-11-19
+- [T-009 Fill the knowledge-base gaps](tickets/T-009-corpus-gaps.md): 10 sources (Docker,
+  Kubernetes, GitHub Actions CI/CD, MDN caching, RabbitMQ, Kafka, behavioural interviews,
+  LangChain, Hugging Face, OWASP LLM Top 10); docs template markup stripped; 1,592 chunks;
+  retrieval labels v1.2. PR open.
+
 ## 2026-11-18
 - [T-006 Milestone 4: router + fallback](tickets/T-006-router-fallback.md): rules + Haiku router
   (30/30 labels), labelled workflow fallback with a time budget, `POST /api/assist` with a route
-  log, threat model `SECURITY.md`; adaptive served 4/4 in the comparison; 425 tests. PR open.
+  log, threat model `SECURITY.md`; adaptive served 4/4 in the comparison; 425 tests. Merged as `56fd164`.
 - [T-008 Tag neutraliser misses invisible and fullwidth variants](tickets/T-008-tag-neutraliser-unicode.md):
   untrusted text normalised (NFKC, format characters removed); look-alike openers neutralised.
 - [T-007 Ingestion redirects could reach any host](tickets/T-007-ingestion-url-allowlist.md):

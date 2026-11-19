@@ -120,8 +120,72 @@ def clean_html(html: str) -> tuple[str, str]:
     return title, _collapse("\n\n".join(out))
 
 
+# Docs sites write templates into their Markdown source (T-009): Hugo shortcodes (Kubernetes,
+# Docker: {{< glossary_tooltip text="Pods" >}}), Liquid tags (GitHub Docs:
+# {% data variables.product.prodname_actions %}) and MDX/JSX components on their own line
+# (LangChain, RabbitMQ: <Step title="...">). Left in, they are noise in chunks and embeddings.
+SHORTCODE_RE = re.compile(r"\{\{[<%]\s*(/?)\s*([\w-]+)([^}]*?)\s*[>%]\}\}")
+LIQUID_RE = re.compile(r"\{%-?\s*(\w+)([^%]*?)-?%\}")
+JSX_LINE_RE = re.compile(r"^\s*<(/?)([A-Z][\w.]*)((?:\s[^>]*)?)\s*/?>\s*$")
+ATTR_RE = re.compile(r'(\w+)="([^"]*)"')
+CALLOUTS = {"note": "Note:", "caution": "Caution:", "warning": "Warning:", "tip": "Tip:"}
+PRODUCT_NAMES = {
+    "prodname_actions": "GitHub Actions",
+    "prodname_dotcom": "GitHub",
+    "github": "GitHub",
+    "prodname_ghe_server": "GitHub Enterprise Server",
+    "prodname_ghe_cloud": "GitHub Enterprise Cloud",
+}
+
+
+def _attrs(raw: str) -> dict[str, str]:
+    return dict(ATTR_RE.findall(raw))
+
+
+def _shortcode(m: re.Match) -> str:
+    """A Hugo shortcode -> the words it stands for, or nothing."""
+    closing, name, attrs = m.group(1), m.group(2).lower(), _attrs(m.group(3))
+    if closing:
+        return ""
+    if name == "glossary_tooltip":
+        return attrs.get("text") or attrs.get("term_id", "").replace("-", " ")
+    if name in CALLOUTS:
+        return CALLOUTS[name]
+    if name in ("tab", "button"):
+        label = attrs.get("name") or attrs.get("text", "")
+        return f"{label}:" if name == "tab" and label else label
+    return ""  # code_sample, feature-state, param, heading, tabs, ...: no readable text here
+
+
+def _liquid(m: re.Match) -> str:
+    """A Liquid tag -> a product name for `data variables...`, nothing for anything else
+    (`data reusables...` points at text we don't have; if/raw/endif only control rendering)."""
+    tag, rest = m.group(1), m.group(2).strip()
+    if tag == "data" and rest.startswith("variables."):
+        key = rest.rsplit(".", 1)[-1]
+        return PRODUCT_NAMES.get(key, key.removeprefix("prodname_").replace("_", " "))
+    return ""
+
+
+def _jsx_line(m: re.Match) -> str:
+    """A JSX component alone on a line -> its title or label, or nothing."""
+    if m.group(1):
+        return ""
+    attrs = _attrs(m.group(3))
+    return attrs.get("title") or attrs.get("label") or ""
+
+
+def strip_templates(line: str) -> str:
+    """Remove Hugo, Liquid and JSX template markup from one line outside code fences; called
+    by `clean_markdown`. Keeps the readable text the markup stood for."""
+    line = SHORTCODE_RE.sub(_shortcode, line)
+    line = LIQUID_RE.sub(_liquid, line)
+    return JSX_LINE_RE.sub(_jsx_line, line)
+
+
 def clean_markdown(md: str) -> tuple[str, str]:
-    """Markdown -> (title_guess, text): drop front matter, HTML comments, MDX import/export."""
+    """Markdown -> (title_guess, text): drop front matter, HTML comments, MDX import/export and
+    template markup (`strip_templates`). Code fences are kept as they are."""
     md = md.replace("\r\n", "\n")
     md = FRONT_MATTER_RE.sub("", md, count=1)
     md = COMMENT_RE.sub("", md)
@@ -132,8 +196,13 @@ def clean_markdown(md: str) -> tuple[str, str]:
             in_fence = not in_fence
         elif not in_fence and MDX_LINE_RE.match(line):
             continue
-        elif not in_fence and line.lstrip().startswith("#"):
-            line = HEADING_ID_RE.sub("", line)  # "## Title {#title-id}" -> "## Title"
+        elif not in_fence:
+            stripped = strip_templates(line)
+            if stripped.strip() == "" and line.strip() != "":
+                continue  # the line held only markup
+            line = stripped
+            if line.lstrip().startswith("#"):
+                line = HEADING_ID_RE.sub("", line)  # "## Title {#title-id}" -> "## Title"
         lines.append(line)
     text = _collapse("\n".join(lines))
     match = re.search(r"^#\s+(.+)$", text, re.M)

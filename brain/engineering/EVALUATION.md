@@ -5,7 +5,7 @@ date, the configuration and the dataset version. Design is in `ARCHITECTURE.md`.
 ## Datasets (in `evaluation/`)
 | File | Contents | Size |
 |---|---|---|
-| `retrieval_questions.jsonl` | Questions with their relevant pages or sections (v1.1, 2026-11-18) | 40 (31 covered, 9 uncovered) |
+| `retrieval_questions.jsonl` | Questions with their relevant pages or sections (v1.2, 2026-11-19) | 40 (32 covered, 8 uncovered) |
 | `routing_cases.jsonl` | Requests labelled with the expected route and action (run, needs input, unsupported), tagged; owner-approved 2026-11-18 | 30 |
 | `workflow_cases.jsonl` | JD + sample profile cases with expected behaviour, scored in code (2026-11-18) | 4 |
 | `profiles/sample_*.json` | Fictional profiles: new grad (demos, tests, traces), sparse, injection | 3 |
@@ -14,7 +14,7 @@ date, the configuration and the dataset version. Design is in `ARCHITECTURE.md`.
 Datasets may also be uploaded to LangSmith for side-by-side experiment views; the files here are the
 source.
 
-## Retrieval dataset format (`retrieval_questions.jsonl`, v1.1)
+## Retrieval dataset format (`retrieval_questions.jsonl`, v1.2)
 One JSON object per line:
 
 | Field | Meaning |
@@ -48,6 +48,10 @@ typo can't silently widen a target to the whole page.
 **Versions:** v1 (2026-11-18): 30 covered, 10 uncovered. v1.1 (same day): `q-035` (CORS) relabelled
 covered after the first run showed MDN's "Relaxing the origin constraint" paragraph answers it in
 part; tag `partial`. A factual labelling error, fixed before any baseline was recorded.
+v1.2 (2026-11-19, owner approved, T-009): `q-030` points at the OWASP page's new address
+(`api-security.owasp.org`, same page); `q-034` (CI/CD with GitHub Actions) relabelled covered by the
+new GitHub Docs pages. `q-031` (Kubernetes liveness probes) stays uncovered: the new pages mention
+liveness only in passing.
 
 **Runner:** `uv run python -m gradpath.evaluation.retrieval_eval` (from `backend/`, API stopped).
 Embeds all questions in one Voyage call, searches the raw top-K with no threshold (ranking metrics
@@ -276,3 +280,29 @@ What it shows:
 Unchanged: Recall@5 0.968, Precision@5 0.645, MRR 0.984; threshold 0.45 keeps 100% covered and
 rejects 100% uncovered; same two misses. Milestone 4 didn't touch retrieval (T-008 changes only
 prompt text). Output: `evaluation/results/retrieval-20261118-212457.json`.
+
+### Retrieval on corpus v2 (2026-11-19, dataset v1.2, T-009)
+After adding 10 sources (1,592 chunks, from 956). Output:
+`evaluation/results/retrieval-20261119-024443.json` (an earlier run the same night on labels v1.1,
+`retrieval-20261119-013649.json`, showed why the labels had to change: q-030's page had moved and
+q-034 was now covered).
+
+| Metric | Corpus v1, labels v1.1 | Corpus v2, labels v1.2 |
+|---|---|---|
+| Recall@5 | 0.968 | 0.953 |
+| Precision@5 | 0.645 | 0.631 |
+| MRR | 0.984 | 0.984 |
+| Covered kept at 0.45 | 100% | 100% |
+| Uncovered rejected at 0.45 | 100% (9/9) | 88% (7/8) |
+| Lowest covered / highest uncovered best score | 0.526 / 0.401 | 0.526 / 0.520 |
+
+What it shows:
+- The 31 original covered questions score as before (same two misses, `q-001`, `q-027`); the
+  recall change is the new `q-034`, which found one of its two labelled pages in the top 5.
+- **The threshold's safety margin is gone:** `q-031` (Kubernetes liveness probes, not covered)
+  now scores 0.520 against nearby Kubernetes text, just under the lowest covered question
+  (0.526). A larger corpus puts near-topic text close to every question; a fixed cosine
+  threshold separates "covered" from "nearby" less well. Candidate for Milestone 5: reranking
+  scores, or a threshold tuned on more uncovered questions.
+- Limits: 40 questions, one run.
+

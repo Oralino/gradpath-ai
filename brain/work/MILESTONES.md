@@ -13,7 +13,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 1 | RAG foundation | ✅ | Load sources, answer with citations, analyse a job description | Cited answers, "not covered" answers, 40+ tests |
 | 2 | Retrieval evaluation + tracing | ✅ | Measure search quality | Recall@5 0.97, MRR 0.98, threshold checked, LangSmith traces, CI |
 | 3 | Agentic workflow | ✅ | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop; 4/4 workflow eval cases; `POST /api/career/prepare` |
-| 4 | Router + fallback | ✅ (PR open) | Pick the cheapest path that works | 30/30 routing labels; adaptive served 4/4 (3/4 strict) vs 2/4 for always-RAG or always-workflow; labelled fallback; `POST /api/assist` |
+| 4 | Router + fallback | ✅ | Pick the cheapest path that works | 30/30 routing labels; adaptive served 4/4 (3/4 strict) vs 2/4 for always-RAG or always-workflow; labelled fallback; `POST /api/assist` |
 | 5 | Hybrid retrieval + reranking | ⏳ | Improve search for exact terms | Before/after metrics vs semantic-only |
 | 6 | Frontend | ⏳ | Make it usable | Next.js app designed from `DESIGN.md` |
 | 7 | Demo and live modes | ⏳ | A public site that costs nothing | Recorded demo runs; live mode with a visitor's key |
@@ -162,7 +162,7 @@ critic, with a bounded revision loop, as a LangGraph workflow behind `POST /api/
 
 ---
 
-## Milestone 4: Router + fallback ✅ (PR open)
+## Milestone 4: Router + fallback ✅
 *Ticket: `tickets/T-006-router-fallback.md`*
 
 **Goal:** pick traditional RAG or the workflow per request and record why; when the workflow can't
@@ -176,7 +176,7 @@ finish, return a labelled partial result instead of an error; measure routing ac
 | 4. Router | ✅ code | `router/`: rules for certain cases, Haiku names the kind, a fixed table picks route and action, safe default RAG; message HTML-escaped; threat model `SECURITY.md` from the owner's security guides | The cheapest path that works, and a route text can't steer | 46 new tests (297 total); rules decide 10 of 30 labels, all correctly (11 before a review fix held back "between"); code review: 5 fixes (mixed questions, comparisons, invisible-character tags, whitespace, log status) |
 | 5. Fallback | ✅ code | `run_workflow` streams the graph and keeps the last finished step; a failed stage, an unavailable service, a rate limit, the loop limit or the 300 s budget ends in `status: "fallback"` with finished and unfinished stages, a fixed message, retrieved sources per requirement and at most one cited RAG answer | Never present a partial answer as complete, and never turn a failure into a bare error | 24 new tests (389 total); code review: 6 fixes (fallback could raise, retried a failed service, stale critic issues after a revision, stage lists, wrong-key and rate-limit cases, generator closing); QA clean |
 | 6. `POST /api/assist` + route log | ✅ code | One endpoint: route, then RAG, the workflow, or a fixed needs-input / unsupported reply; the decision comes back with the result; chat cap for routing and RAG, career cap for the workflow; one JSON line per request in `logs/routes.jsonl` (no request text); router traced; `router.cli` | The adaptive entry point the frontend will use, and the data for routing stats | 18 new tests (407 total); code review: no bugs; fixed: log capped and rotated, busy vs failed requests told apart in the log, explicit check instead of `assert` |
-| 7. Routing eval + comparison + PR | ✅ | `routing_eval` (rules-only free mode, `--rescore`), `routing_compare` (each path runs once, reused across strategies; "served" decided in code), release checks | Measure routing separately from answer quality, and test whether adaptive is really better (spec 2A) | 30/30 labels correct (10 by rules, 20 by Haiku, 2.2 s each); adaptive served 4/4 in 177 s and 15 calls vs always-workflow 2/4 in 320 s and 21 calls, always-RAG 2/4; retrieval unchanged; 425 tests; QA clean; PR open |
+| 7. Routing eval + comparison + PR | ✅ | `routing_eval` (rules-only free mode, `--rescore`), `routing_compare` (each path runs once, reused across strategies; "served" decided in code), release checks | Measure routing separately from answer quality, and test whether adaptive is really better (spec 2A) | 30/30 labels correct (10 by rules, 20 by Haiku, 2.2 s each); adaptive served 4/4 in 177 s and 15 calls vs always-workflow 2/4 in 320 s and 21 calls, always-RAG 2/4; retrieval unchanged; 425 tests; QA clean; merged as `56fd164` (PR #4, CI green) |
 
 
 ### Problems we hit and how we solved them
