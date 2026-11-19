@@ -14,7 +14,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 2 | Retrieval evaluation + tracing | ✅ | Measure search quality | Recall@5 0.97, MRR 0.98, threshold checked, LangSmith traces, CI |
 | 3 | Agentic workflow | ✅ | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop; 4/4 workflow eval cases; `POST /api/career/prepare` |
 | 4 | Router + fallback | ✅ | Pick the cheapest path that works | 30/30 routing labels; adaptive served 4/4 (3/4 strict) vs 2/4 for always-RAG or always-workflow; labelled fallback; `POST /api/assist` |
-| 5 | Hybrid retrieval + reranking | 🔨 | Improve search for exact terms | Before/after metrics vs semantic-only |
+| 5 | Hybrid retrieval + reranking | ✅ | Improve search for exact terms | Measured and rejected: semantic 0.961 Recall@5 beat hybrid (0.921) and both rerankers; stays semantic-only |
 | 6 | Frontend | ⏳ | Make it usable | Next.js app designed from `DESIGN.md` |
 | 7 | Demo and live modes | ⏳ | A public site that costs nothing | Recorded demo runs; live mode with a visitor's key |
 | 8 | Deploy | ⏳ | A live link | Vercel + Render + Qdrant Cloud (free tiers) |
@@ -192,7 +192,7 @@ finish, return a labelled partial result instead of an error; measure routing ac
 | 30/30 routing accuracy looks too good | Recorded with its bias: labels and prompt written by the same author | Reporting a result together with its limits |
 ---
 
-## Milestone 5: Hybrid retrieval + reranking 🔨
+## Milestone 5: Hybrid retrieval + reranking ✅
 *Ticket: `tickets/T-010-hybrid-retrieval.md`*
 
 **Goal:** add keyword (sparse) search and a reranker next to semantic search, and keep each only if
@@ -203,12 +203,22 @@ threshold, whose margin is gone (`q-031` 0.520 vs lowest covered 0.526).
 | Step | Status | What we built | Why | Result |
 |---|---|---|---|---|
 | 1. Ticket + housekeeping | ✅ | T-010, branch, T-009 marked merged | Clean start | Pushed |
-| 2. Explain hybrid, fusion, reranking; open questions | 🔨 | Tables for the owner; library options checked against docs | The owner approves the design before code | Waiting for the owner |
+| 2. Explain hybrid, fusion, reranking; open questions | ✅ | Tables for the owner; library options checked against docs | The owner approves the design before code | Approved 2026-11-19: local reranker, fastembed BM25, own RRF, labels first, +300 ms budget |
 | 3. Harder labels + baseline | ✅ | Labels v1.3: 6 exact-term and 4 near-topic uncovered questions (owner approved); semantic baseline re-run | Today's set couldn't show an exact-term gain | Semantic ranks all 6 new exact-term questions first (Recall@5 0.961); the threshold fails: 3 of 4 new uncovered clear 0.45, and `q-041` scores 0.393 |
 | 4. Sparse index | ✅ measured | `retrieval/sparse.py`: fastembed BM25 vectors in an in-memory Qdrant index (IDF modifier) over the same chunks; the real index untouched until the eval says keep | Keyword matching for exact terms; no Voyage tokens | BM25 alone: Recall@5 0.855, MRR 0.755 |
 | 5. Fusion | ✅ measured | Our own `rrf_fuse` (k=60); `retrieval_eval --hybrid 20` compares semantic, BM25 and hybrid on one embedding call, all thresholded on cosine | Combine the two rankings without comparing incompatible scores | **Didn't help:** hybrid Recall@5 0.921 and MRR 0.914 vs semantic 0.961 / 0.987; fixed no miss, added two; abstention unchanged; +11-15 ms |
 | 6. Reranker (moved first) | ✅ measured | `retrieval/rerank.py` (local fastembed cross-encoder, 0..1 score) and `retrieval_eval --rerank 10,20 [--rerank-model]`: semantic and reranked from one embedding call | Better ordering, and maybe a better abstention score | **Didn't help:** MiniLM-L-6 lowered Recall@5 0.961 -> 0.921 and MRR 0.987 -> 0.904; bge-reranker-base kept recall but lowered MRR, cost 660-1500 ms per question, and fixed no abstention case (`q-049` scored 0.996). Not added to the service |
-| 7. Eval + PR | ⏳ | Semantic vs hybrid vs hybrid+rerank side by side, threshold behaviour, latency | Keep only what helps | |
+| 7. Decision + PR | ✅ | Owner decision 2026-11-19: stay semantic-only; experiments kept in the eval; release checks | Keep only what helps | Semantic-only kept; PR to `main` |
+
+### Problems we hit and how we solved them
+
+| Problem | What we did | Why it's worth mentioning |
+|---|---|---|
+| The existing exact-term questions already scored 1.0, so hybrid couldn't show a gain | Added 6 harder exact-term and 4 near-topic uncovered questions before measuring (labels v1.3) | A test that can't fail proves nothing |
+| The new labels showed the real weakness was "not covered", not ranking | Moved the reranker first, since its score might be a better abstention signal | Let the measurement pick the order of work |
+| Both rerankers were near-certain about on-topic chunks that don't answer (0.999) | Measured, recorded, not adopted | A popular component can make a system worse |
+| Hybrid chunks found only by BM25 had no cosine score, so the threshold wasn't comparable | Looked up their cosine from the stored vectors (`dense_scores`) | Compare variants on the same yardstick |
+| The textbook reason for hybrid (embeddings miss exact terms) didn't hold here | Kept semantic-only and wrote down when to re-test | Decisions are about this data, not general advice |
 
 ---
 
@@ -217,7 +227,7 @@ threshold, whose margin is gone (`q-031` 0.520 vs lowest covered 0.526).
 | # | Milestone | What it will do | Why it matters |
 |---|---|---|---|
 | 4 | Router + fallback | Choose RAG or the workflow per request and record why; labelled partial answers on failure; measure routing accuracy | Use the cheapest path that works; never present a partial answer as complete |
-| 5 | Hybrid retrieval + reranking | Add keyword search and reranking; keep them only if the evaluation shows they help | Exact terms ("MVCC", "404") are where semantic search is weakest |
+| 5 | Hybrid retrieval + reranking ✅ | Measured keyword search and reranking against semantic-only; neither helped, so neither was kept | Shows decisions backed by measurement, not tutorials |
 | 6 | Frontend | `DESIGN.md` first, then Next.js: inputs, requirements, gaps, roadmap with citations, status and errors | Makes the system usable and demoable |
 | 7 | Demo and live modes | Recorded runs with a sample profile; live mode with a visitor's own key, never stored or logged | A public portfolio site that costs nothing |
 | 8 | Deploy | Vercel, Render, Qdrant Cloud (free); release checks; README with diagram and demo steps | A live link employers can open |

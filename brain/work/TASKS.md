@@ -4,7 +4,10 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] [T-010 Milestone 5: hybrid retrieval + reranking](tickets/T-010-hybrid-retrieval.md) (in progress).
+- [ ] **(owner)** Review and merge the Milestone 5 PR (T-010).
+- [ ] Measure abstention at the answer step: for near-topic uncovered questions that clear the
+      0.45 threshold (`q-031`, `q-047`, `q-049`, `q-050`), does the RAG answer say "not covered"?
+      (Milestone 5 found no retrieval-side fix.)
 
 Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
 - [x] [T-007](tickets/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.
@@ -16,9 +19,8 @@ Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner
 - [x] Fill corpus gaps (T-009, 2026-11-19): 10 sources added.
 - [ ] Citations for raw GitHub files point at raw.githubusercontent.com; map them to the docs
       sites' readable URLs.
-- [ ] Before Milestone 5: the 0.45 threshold no longer separates near-topic uncovered questions
-      (q-031 at 0.520 vs lowest covered 0.526); try reranking scores or retune on more uncovered
-      questions.
+- [x] Before Milestone 5: the 0.45 threshold no longer separates near-topic uncovered questions.
+      Reranker scores tried in T-010: no better. Follow-up moved to "Current" (answer-step abstention).
 - [ ] More new-grad backend job descriptions in `private/job_descriptions/` (one so far).
 
 ## Milestones

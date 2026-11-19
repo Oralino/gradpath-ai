@@ -2,8 +2,8 @@
 Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 - **Type:** feature
-- **Status:** in progress
-- **Opened:** 2026-11-19 · **Closed:**
+- **Status:** done (PR open)
+- **Opened:** 2026-11-19 · **Closed:** 2026-11-19
 - **GitHub Issue:** none
 
 ## Summary
@@ -38,14 +38,35 @@ Checked 2026-11-19: `qdrant-client==1.20.0` local mode supports sparse vectors w
 `query_points` with `prefetch`, and RRF/DBSF fusion (source read); fastembed 0.9.1 (2026-10-24)
 fits qdrant-client's `fastembed>=0.9,<0.10` extra and Python 3.13.
 
+**Outcome (owner decision 2026-11-19): retrieval stays semantic-only.** On labels v1.3 semantic
+scored Recall@5 0.961 / MRR 0.987; BM25 + RRF hybrid 0.921 / 0.914 (fixed no miss, added two);
+MiniLM rerank 0.921 / 0.904; bge rerank 0.961 / 0.921 at 660-1500 ms. Neither reranker separated
+covered from near-topic uncovered better than cosine. Built order changed by the owner: reranker
+before BM25, once v1.3 showed abstention was the weakness. The BM25 index was built in memory for
+the eval instead of in the real index, so nothing was re-indexed for a part that might be dropped.
+Rejected: shipping hybrid off by default (maintenance for a measured loss); tuning RRF weights or
+reranker thresholds on 38 covered questions (overfitting). Follow-up: measure abstention at the
+answer step (TASKS.md).
+
 Constraints: zero cost (sparse vectors computed locally, re-indexing reuses the embedding cache, no
 re-embedding); our own code owns fusion, reranking and evaluation (no LangChain retrievers).
 
 ## Changes
 - Branch: `feat/t-010-hybrid-retrieval`
 - PR:
-- Files touched:
+- Files touched: `backend/src/gradpath/retrieval/rerank.py` (new), `retrieval/sparse.py` (new),
+  `retrieval/service.py` (`dense_scores`), `evaluation/retrieval_eval.py` (`--rerank`, `--hybrid`,
+  shared search/scoring helpers, comparison report), `backend/tests/test_rerank.py`,
+  `test_hybrid.py` (new), `test_evaluation.py`, `backend/pyproject.toml` + `uv.lock`
+  (`fastembed==0.9.1`), `evaluation/retrieval_questions.jsonl` (v1.3), `evaluation/results/`
+  (4 runs), docs (`EVALUATION.md`, `WALKTHROUGH.md`, `ARCHITECTURE.md`, `REQUIREMENTS.md`,
+  `MILESTONES.md`, `TASKS.md`, `DONE.md`, `CLAUDE.md`)
 - Commits (hash, message):
+  - `390fc29` docs: open T-010 for Milestone 5 and record the corpus merge (T-010)
+  - `a470002` docs: record the Milestone 5 design decisions in T-010 (T-010)
+  - `efc9a8d` feat: add 10 exact-term and near-topic retrieval labels (v1.3) and record the semantic baseline (T-010)
+  - `0d19e14` feat: add a local cross-encoder reranker experiment to the retrieval eval and record that it doesn't help (T-010)
+  - `a7b9e44` feat: add a BM25 + RRF hybrid experiment to the retrieval eval and record that it doesn't help (T-010)
 
 ## Verification
 - Labels v1.3 (owner approved 2026-11-19): 50 questions load and validate; 439 tests pass; ruff clean.

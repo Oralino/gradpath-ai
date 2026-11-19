@@ -2,6 +2,10 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-19
+- [T-010 Milestone 5: hybrid retrieval + reranking](tickets/T-010-hybrid-retrieval.md): labels
+  v1.3 (50 questions); local rerankers (MiniLM, bge) and BM25 + RRF hybrid measured against
+  semantic-only; neither helped (semantic Recall@5 0.961 / MRR 0.987 vs hybrid 0.921 / 0.914);
+  retrieval stays semantic-only, experiments kept in the eval; 455 tests. PR open.
 - [T-009 Fill the knowledge-base gaps](tickets/T-009-corpus-gaps.md): 10 sources (Docker,
   Kubernetes, GitHub Actions CI/CD, MDN caching, RabbitMQ, Kafka, behavioural interviews,
   LangChain, Hugging Face, OWASP LLM Top 10); docs template markup stripped; 1,592 chunks;

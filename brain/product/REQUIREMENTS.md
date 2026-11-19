@@ -56,7 +56,7 @@ read-only towards the web). Hiring predictions.
 | LLM | Claude. Locally through Claude Code on the owner's Pro plan; API mode with an Anthropic key |
 | Embeddings | Voyage AI free tier, no payment method (3 requests / ~10K tokens per minute; 200M free tokens per model, not refreshed) |
 | Vector store | Qdrant: local embedded mode for development, Qdrant Cloud free tier when deployed |
-| Retrieval | Semantic first; hybrid (vector + keyword) and reranking added as measured experiments |
+| Retrieval | Semantic first; hybrid (vector + keyword) and reranking added as measured experiments. Owner decision 2026-11-19 (T-010): both measured worse, retrieval stays semantic-only |
 | Frameworks | LangGraph for the workflow; LangChain for standard building blocks (owner wants LangChain experience); own code for retrieval logic, routing, fallback, evaluation |
 | Tracing / eval | LangSmith free Developer plan, optional; no credit card on the account |
 | Backend / UI | FastAPI + Next.js (Tailwind). No Streamlit prototype |

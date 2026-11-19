@@ -552,3 +552,38 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   experiments.
 - **Why:** gives a real before/after comparison instead of assuming more complexity is better. Qdrant
   supports sparse vectors, so hybrid needs no second store.
+
+## Milestone 5: why GradPath stays semantic-only (T-010)
+- **What was tried:** BM25 keyword search (`retrieval/sparse.py`: fastembed `Qdrant/bm25`, IDF in
+  Qdrant) fused with semantic results by our own Reciprocal Rank Fusion (`rrf_fuse`, k=60); and two
+  local cross-encoder rerankers (`retrieval/rerank.py`: MiniLM-L-6, bge-reranker-base). All run
+  locally, no API tokens. The eval compares them on one embedding call:
+  `retrieval_eval --hybrid 20` and `--rerank 10,20 [--rerank-model ...]`.
+- **How it was made fair:** first added 6 exact-term questions (the textbook case for hybrid) and 4
+  near-topic uncovered ones (labels v1.3), so the test could show a gain if there was one. Every
+  hybrid chunk keeps its cosine score (`RetrievalService.dense_scores` looks it up for chunks only
+  BM25 found), so the "not covered" threshold means the same thing in each variant.
+- **Result:** semantic won. Recall@5 / MRR: semantic 0.961 / 0.987, hybrid 0.921 / 0.914, BM25
+  alone 0.855 / 0.755, MiniLM rerank 0.921 / 0.904, bge rerank 0.961 / 0.921 (and 660-1500 ms).
+  Voyage embeddings already rank all 13 exact-term questions first, so keyword search had nothing
+  to rescue and only added near-miss chunks. The rerankers were near-certain about on-topic chunks
+  that don't answer the question (`q-049` 0.999), so they didn't fix abstention either.
+- **Rejected:** shipping hybrid off by default (code to maintain for a measured loss); tuning RRF
+  weights or reranker thresholds on 38 covered questions (would fit noise; at best ties semantic).
+  The experiment code stays in the eval so the comparison can be re-run in one command.
+- **Gotchas:** the hybrid eval builds an in-memory BM25 index from `knowledge_base/processed/`, so
+  it needs those files to match the live index (it refuses chunks the dense index doesn't have).
+  `Bm25Encoder.fit` uses fastembed 0.9.1's internal tokeniser to measure average chunk length.
+- **Likely questions:**
+  - *"Why no hybrid search? Everyone recommends it."* Because we measured it: on this corpus and
+    these questions it lowered recall and MRR. Hybrid helps when embeddings miss exact strings;
+    ours didn't. I'd re-test if the corpus gained API references or error-code tables, or users
+    typed bare keywords.
+  - *"Why RRF and not adding scores?"* Cosine (0-1) and BM25 (0-unbounded) are on different
+    scales; RRF uses only ranks, so it needs no normalisation.
+  - *"Why did the reranker hurt?"* MS MARCO cross-encoders were trained on short web passages;
+    our chunks are 1,200-character Markdown sections, and a chunk on the right topic looks like an
+    answer to them. Not investigated further.
+  - *"So what about 'not covered'?"* Still open: 4 of 12 uncovered questions clear 0.45. The next
+    safety net is the answer step, where the model must say the evidence doesn't answer; that is
+    measured next.
