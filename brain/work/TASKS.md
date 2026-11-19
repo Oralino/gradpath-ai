@@ -4,6 +4,7 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
+- [ ] [T-011](tickets/T-011-frontend.md): Milestone 6, the Next.js frontend (in progress).
 - [ ] Milestone 6 (frontend): show a partial answer as partial. Today `ChatAnswer.status` is only
       `answered` or `insufficient_evidence`, so an answer that opens with "the evidence doesn't cover
       ..." (`q-031`, `q-049` in the abstention check) looks like a full answer. Options: a `partial`

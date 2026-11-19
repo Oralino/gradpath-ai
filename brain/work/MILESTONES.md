@@ -15,7 +15,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 3 | Agentic workflow | ✅ | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop; 4/4 workflow eval cases; `POST /api/career/prepare` |
 | 4 | Router + fallback | ✅ | Pick the cheapest path that works | 30/30 routing labels; adaptive served 4/4 (3/4 strict) vs 2/4 for always-RAG or always-workflow; labelled fallback; `POST /api/assist` |
 | 5 | Hybrid retrieval + reranking | ✅ | Improve search for exact terms | Measured and rejected: semantic 0.961 Recall@5 beat hybrid (0.921) and both rerankers; stays semantic-only |
-| 6 | Frontend | ⏳ | Make it usable | Next.js app designed from `DESIGN.md` |
+| 6 | Frontend | 🔨 | Make it usable | Next.js app designed from `DESIGN.md` |
 | 7 | Demo and live modes | ⏳ | A public site that costs nothing | Recorded demo runs; live mode with a visitor's key |
 | 8 | Deploy | ⏳ | A live link | Vercel + Render + Qdrant Cloud (free tiers) |
 
@@ -219,6 +219,21 @@ threshold, whose margin is gone (`q-031` 0.520 vs lowest covered 0.526).
 | Both rerankers were near-certain about on-topic chunks that don't answer (0.999) | Measured, recorded, not adopted | A popular component can make a system worse |
 | Hybrid chunks found only by BM25 had no cosine score, so the threshold wasn't comparable | Looked up their cosine from the stored vectors (`dense_scores`) | Compare variants on the same yardstick |
 | The textbook reason for hybrid (embeddings miss exact terms) didn't hold here | Kept semantic-only and wrote down when to re-test | Decisions are about this data, not general advice |
+
+---
+
+## Milestone 6: Frontend 🔨
+*Ticket: `tickets/T-011-frontend.md`*
+
+**Goal:** make GradPath usable from a browser: questions, job analysis and the full preparation
+workflow, with clickable citations, honest statuses (fallback and partial answers shown as
+partial) and clear errors. `DESIGN.md` comes first; the owner approves it before any code.
+
+| Step | Status | What we built | Why | Result |
+|---|---|---|---|---|
+| 1. Ticket + housekeeping | ✅ | T-011, branch `feat/t-011-frontend` | Clean start | Pushed |
+| 2. Plan + open questions | 🔨 | Screens, API mapping, long-run and partial-answer handling, security rules, versions checked | The owner approves the design before code | Waiting for the owner |
+| 3. `DESIGN.md` | 🔨 | design-advisor draft | One agreed look before building | Waiting for the owner |
 
 ---
 
