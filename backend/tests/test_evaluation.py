@@ -91,7 +91,7 @@ def test_duplicate_ids_are_rejected(tmp_path):
 def test_the_real_dataset_loads():
     questions = load_questions(DEFAULT_DATASET)
     assert len(questions) == 40
-    assert sum(q.covered for q in questions) == 31  # v1.1: q-035 relabelled covered
+    assert sum(q.covered for q in questions) == 32  # v1.1: q-035 covered; v1.2: q-034 covered
 
 
 # --- runner --------------------------------------------------------------------------------
