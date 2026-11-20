@@ -57,6 +57,19 @@ def post(c: TestClient, **body):
     return c.post("/api/assist", json=body)
 
 
+def poll_until_finished(c: TestClient, run_id: str, timeout_s: float = 20.0) -> dict:
+    """Poll a background run (T-016) until it is no longer running."""
+    import time
+
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        data = c.get(f"/api/career/runs/{run_id}").json()
+        if data["status"] != "running":
+            return data
+        time.sleep(0.02)
+    raise AssertionError("run did not finish")
+
+
 def test_definition_goes_to_rag_without_a_routing_call(kb_service, route_log):
     fast, smart = FakeChatModel(), FakeChatModel(responses=[ANSWER])
     resp = post(client(kb_service, fast, smart), message="What is a sql index?")
@@ -71,19 +84,22 @@ def test_definition_goes_to_rag_without_a_routing_call(kb_service, route_log):
     assert "sql index" not in route_log.read_text(encoding="utf-8")  # no request text
 
 
-def test_personal_plan_with_both_inputs_runs_the_workflow(kb_service, route_log):
+def test_personal_plan_with_both_inputs_starts_a_background_run(kb_service, route_log):
+    # T-016: the workflow no longer blocks the request; the response carries a run id to poll.
     fast = FakeChatModel(responses=[EXTRACTION, QUESTIONS, {"issues": []}])
     smart = FakeChatModel(responses=[GAPS_REPLY, ROADMAP_FULL])
+    c = client(kb_service, fast, smart)
     resp = post(
-        client(kb_service, fast, smart),
-        message="Make me a study roadmap for this job.",
-        job_description=JD,
-        profile=PROFILE,
+        c, message="Make me a study roadmap for this job.", job_description=JD, profile=PROFILE
     )
     data = resp.json()
-    assert data["decision"]["route"] == "agentic_workflow" and data["outcome"] == "prepared"
-    assert data["result"]["status"] == "complete"
-    assert lines(route_log)[0]["status"] == "complete"
+    assert data["decision"]["route"] == "agentic_workflow" and data["outcome"] == "started"
+    assert data["run_id"] and data["result"] is None
+    run = poll_until_finished(c, data["run_id"])
+    assert run["status"] == "done" and run["result"]["status"] == "complete"
+    assert all(s["state"] == "done" for s in run["stages"])
+    [entry] = lines(route_log)
+    assert entry["outcome"] == "started" and entry["status"] is None
 
 
 def test_missing_profile_asks_for_it_and_runs_nothing(kb_service, route_log):
@@ -218,18 +234,22 @@ def test_unexpected_error_is_logged_by_type(kb_service, route_log, monkeypatch):
     assert "secret detail" not in route_log.read_text(encoding="utf-8")
 
 
-def test_workflow_fallback_reason_reaches_the_log(kb_service, route_log):
+def test_workflow_fallback_reaches_the_poll(kb_service, route_log):
     fast = FakeChatModel(responses=["not json"])  # job analysis fails twice -> fallback
+    c = client(kb_service, fast, FakeChatModel())
     resp = post(
-        client(kb_service, fast, FakeChatModel()),
+        c,
         message="Make me a study roadmap for this job.",
         job_description=JD,
         profile=PROFILE,
         corrections=["I used PostgreSQL in a class project."],
     )
-    assert resp.json()["result"]["status"] == "fallback"
-    [entry] = lines(route_log)
-    assert entry["status"] == "fallback" and entry["fallback_reason"] == "stage_failed"
+    run = poll_until_finished(c, resp.json()["run_id"])
+    assert run["status"] == "done"
+    assert run["result"]["status"] == "fallback"
+    assert run["result"]["fallback"]["reason"] == "stage_failed"
+    [entry] = lines(route_log)  # the route log records the start; the run's outcome is in the poll
+    assert entry["outcome"] == "started"
 
 
 def test_route_log_rotates_when_full(tmp_path):

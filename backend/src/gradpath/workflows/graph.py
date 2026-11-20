@@ -199,8 +199,13 @@ def run_workflow(
     impl: NodeSet | None = None,
     time_budget_s: float | None = None,
     clock: Callable[[], float] = time.monotonic,
+    on_step: Callable[[list[str]], None] | None = None,
 ) -> CareerPrepResult:
     """Validate the input (`WorkflowInput`), run the graph once and return its result.
+
+    `on_step` (T-016) gets a copy of `node_log` after each finished step, so a background run
+    (`workflows/runs.py`) can report progress. It only observes: an error in it is logged by type
+    and ignored, never changing the run's limits or result.
 
     `max_revisions` and `time_budget_s` come from settings, never from the request. Raises
     pydantic.ValidationError for bad input. Once the graph is running, nothing it raises reaches
@@ -244,6 +249,11 @@ def run_workflow(
         with contextlib.closing(steps):
             for values in steps:
                 last = values
+                if on_step is not None:
+                    try:
+                        on_step(list(values.get("node_log", [])))
+                    except Exception as exc:  # progress reporting must never break a run
+                        log.warning("on_step failed (%s)", type(exc).__name__)
                 if "result" in values:
                     break
                 over = time_budget_s is not None and clock() - start > time_budget_s
