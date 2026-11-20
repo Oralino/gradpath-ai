@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Assistant } from "@/components/Assistant";
+import { planResult, runStatus } from "@/components/planFixtures";
 import { saveProfile } from "@/lib/profileStore";
 import type { AssistResponse, Citation } from "@/lib/types";
 
@@ -301,9 +302,9 @@ describe("results", () => {
   test.each([
     ["complete", "Preparation plan", "Checked"],
     ["complete_with_limitations", "Preparation plan, with open issues", "Finished with open issues"],
-    ["partial", "Partial preparation plan", "Partial: not fully checked"],
+    ["partial", "Partial preparation plan", "Partial plan: not fully checked"],
     ["fallback", "Partial result: the run stopped early", "Stopped early: partial result"],
-  ])("prepared %s shows its temporary heading and badge", async (status, heading, badge) => {
+  ])("prepared %s shows the plan with its heading and status words", async (status, heading, badge) => {
     mockFetch(async () =>
       jsonResponse(
         200,
@@ -330,7 +331,7 @@ describe("results", () => {
     ask();
     await screen.findByRole("heading", { name: heading });
     expect(screen.getByText(badge)).toBeTruthy();
-    expect(screen.getByText("The full plan view comes with the Plan screen.")).toBeTruthy();
+    expect(screen.getByRole("navigation", { name: "Plan sections" })).toBeTruthy();
   });
 });
 
@@ -418,7 +419,7 @@ describe("review fixes", () => {
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
   });
 
-  test("prepared with unresolved issues shows the open-issues line", async () => {
+  test("prepared with a minor unresolved issue shows it in a disclosure", async () => {
     mockFetch(async () =>
       jsonResponse(
         200,
@@ -443,7 +444,8 @@ describe("review fixes", () => {
     render(<Assistant />);
     typeMessage("Plan for this role");
     ask();
-    await screen.findByText("1 open issue: shown when the Plan screen is built.");
+    await screen.findByText("1 minor note");
+    expect(screen.getByText("m")).toBeTruthy();
   });
 
   test("missing answer or message falls back to the fixed copy", async () => {
@@ -625,21 +627,12 @@ describe("saved profile", () => {
     expect(screen.queryByRole("button", { name: "Use your saved profile" })).toBeNull();
   });
 
-  test("picks up a posting from the Analyse screen once and clears it", () => {
+  test("leaves a handed-over posting for the Plan screen", () => {
     window.sessionStorage.setItem("gradpath-posting", "A handed-over posting that is long enough to pass the minimum.");
     render(<Assistant />);
-    expect(screen.getByText("Job posting: pasted, 62 chars")).toBeTruthy();
-    expect(window.sessionStorage.getItem("gradpath-posting")).toBeNull();
-  });
-
-  test("ignores a handed-over posting that is empty or too long, and still clears it", () => {
-    for (const value of ["", "x".repeat(20001), "too short"]) {
-      window.sessionStorage.setItem("gradpath-posting", value);
-      render(<Assistant />);
-      expect(screen.getByText("Job posting: none")).toBeTruthy();
-      expect(window.sessionStorage.getItem("gradpath-posting")).toBeNull();
-      cleanup();
-    }
+    expect(screen.getByText("Job posting: none")).toBeTruthy();
+    expect(window.sessionStorage.getItem("gradpath-posting")).not.toBeNull();
+    window.sessionStorage.clear();
   });
 
   test("a throwing sessionStorage does not break the screen", () => {
@@ -649,5 +642,98 @@ describe("saved profile", () => {
     render(<Assistant />);
     expect(screen.getByText("Job posting: none")).toBeTruthy();
     spy.mockRestore();
+  });
+});
+
+describe("started (background workflow run, T-016)", () => {
+  const RUN = "0b6f4a1e-2c3d-4e5f-8a9b-0c1d2e3f4a5b";
+  const started = () =>
+    assist({
+      outcome: "started",
+      answer: null,
+      run_id: RUN,
+      decision: { ...assist().decision, route: "agentic_workflow", kind: "job_preparation" },
+    });
+
+  function routed(poll: () => Response) {
+    const fn = vi.fn(async (url: string) => (url === "/api/assist" ? jsonResponse(200, started()) : poll()));
+    vi.stubGlobal("fetch", fn);
+    return fn;
+  }
+
+  test("shows live progress, then the plan in place, with focus on its h2", async () => {
+    let polls = 0;
+    const fn = routed(() => {
+      polls += 1;
+      return polls === 1
+        ? jsonResponse(200, runStatus())
+        : jsonResponse(200, runStatus({ status: "done", result: planResult() }));
+    });
+    render(<Assistant />);
+    typeMessage("Plan for this role");
+    ask();
+    await screen.findByRole("heading", { name: "Preparing your plan" });
+    expect(screen.getByText("Preparation workflow · chosen by rules")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Ask" }) as HTMLButtonElement).disabled).toBe(true);
+    const heading = await screen.findByRole("heading", { level: 2, name: "Preparation plan" }, { timeout: 4000 });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+    expect(fn.mock.calls.some(([url]) => url === `/api/career/runs/${RUN}`)).toBe(true);
+    expect(window.sessionStorage.getItem("gradpath-run")).toBeNull();
+  });
+
+  test("Stop waiting re-enables Ask; a failed run offers Try again", async () => {
+    let fail = false;
+    routed(() => jsonResponse(200, fail ? runStatus({ status: "failed", error: "The preparation run could not finish. Try again in a few minutes." }) : runStatus()));
+    render(<Assistant />);
+    typeMessage("Plan for this role");
+    ask();
+    await screen.findByText("running");
+    fireEvent.click(screen.getByRole("button", { name: "Stop waiting" }));
+    await screen.findByRole("button", { name: "Check again" });
+    expect((screen.getByRole("button", { name: "Ask" }) as HTMLButtonElement).disabled).toBe(false);
+    fail = true;
+    fireEvent.click(screen.getByRole("button", { name: "Check again" }));
+    await screen.findByRole("heading", { name: "The preparation run failed" });
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+  });
+
+  test("started without a run id shows the no-result panel", async () => {
+    mockFetch(async () => jsonResponse(200, { ...started(), run_id: null }));
+    render(<Assistant />);
+    typeMessage("Plan for this role");
+    ask();
+    await screen.findByText("The server returned no result for this request.");
+  });
+  test("attaches to the run id and announces stage changes in the live region", async () => {
+    const fn = routed(() => jsonResponse(200, runStatus()));
+    render(<Assistant />);
+    typeMessage("Plan for this role");
+    ask();
+    await screen.findByText("running");
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toBe(
+        "Done: Read the job posting, Read your profile. Now: Search the knowledge base.",
+      ),
+    );
+    const polls = fn.mock.calls.filter(([url]) => url !== "/api/assist");
+    expect(polls[0][0]).toBe(`/api/career/runs/${RUN}`);
+  });
+
+  test("a 404 mid-run says the run expired and offers a new start", async () => {
+    let polls = 0;
+    const fn = routed(() => {
+      polls += 1;
+      return polls === 1 ? jsonResponse(200, runStatus()) : jsonResponse(404, { detail: "not found" });
+    });
+    render(<Assistant />);
+    typeMessage("Plan for this role");
+    ask();
+    await screen.findByText("running");
+    const heading = await screen.findByRole("heading", { name: "This run has expired" }, { timeout: 4000 });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+    expect((screen.getByRole("button", { name: "Ask" }) as HTMLButtonElement).disabled).toBe(false);
+    const before = fn.mock.calls.filter(([url]) => url === "/api/assist").length;
+    fireEvent.click(screen.getByRole("button", { name: "Start a new run" }));
+    await waitFor(() => expect(fn.mock.calls.filter(([url]) => url === "/api/assist").length).toBe(before + 1));
   });
 });

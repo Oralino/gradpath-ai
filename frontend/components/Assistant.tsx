@@ -6,22 +6,20 @@ import { CharCount } from "@/components/CharCount";
 import { CitationList } from "@/components/CitationList";
 import { ModelText } from "@/components/ModelText";
 import { primaryButton, secondaryButton, textButton } from "@/components/buttonStyles";
-import {
-  CheckIcon,
-  HalfCircleIcon,
-  InfoIcon,
-  OctagonIcon,
-  TriangleIcon,
-} from "@/components/icons";
+import { CheckIcon, HalfCircleIcon, InfoIcon, OctagonIcon, TriangleIcon } from "@/components/icons";
+import { PlanProgress, PlanRunProblem, isProblemPhase, isProgressPhase } from "@/components/PlanProgress";
+import { PlanResult } from "@/components/PlanResult";
 import { RouteLine } from "@/components/RouteLine";
-import { StatusBadge, type Tone } from "@/components/StatusBadge";
+import { StatusBadge } from "@/components/StatusBadge";
 import { StatusPanel } from "@/components/StatusPanel";
 import { api, ApiError, MESSAGES } from "@/lib/api";
 import { charCount } from "@/lib/charCount";
 import { formatElapsed } from "@/lib/formatElapsed";
+import { BUSY_BODY, BUSY_HEADING, PLAN_STATUS, PROGRESS_HEADING } from "@/lib/plan";
 import { loadProfile } from "@/lib/profileStore";
 import { SAMPLE_PROFILE, SAMPLE_PROFILE_LABEL } from "@/lib/sampleProfile";
-import type { AssistRequest, AssistResponse, CareerStatus, UserProfile } from "@/lib/types";
+import type { AssistRequest, AssistResponse, UserProfile } from "@/lib/types";
+import { usePlanRun, type PlanRun } from "@/lib/usePlanRun";
 
 const MESSAGE_MIN = 3;
 const MESSAGE_MAX = 2000;
@@ -34,30 +32,8 @@ const EXAMPLES = [
   "How should a service shut down gracefully?",
 ];
 
-const BUSY_HEADING = "Another preparation run is in progress.";
 const NO_RESULT = "The server returned no result for this request.";
 const NO_CONTENT = "The server returned no content for this request.";
-const BUSY_BODY ="Only one runs at a time on this server. Try again in a few minutes.";
-
-// Result headings change with the workflow status (DESIGN.md, Honesty states).
-const PREPARED: Record<CareerStatus, { heading: string; tone: Tone; badge: string }> = {
-  complete: { heading: "Preparation plan", tone: "positive", badge: "Checked" },
-  complete_with_limitations: {
-    heading: "Preparation plan, with open issues",
-    tone: "caution",
-    badge: "Finished with open issues",
-  },
-  partial: {
-    heading: "Partial preparation plan",
-    tone: "caution",
-    badge: "Partial: not fully checked",
-  },
-  fallback: {
-    heading: "Partial result: the run stopped early",
-    tone: "stopped",
-    badge: "Stopped early: partial result",
-  },
-};
 
 const SAVED_PROFILE_LABEL = "Your saved profile";
 
@@ -78,13 +54,16 @@ function resultHeading(response: AssistResponse): string {
   }
   if (response.outcome === "needs_input") return "More input needed";
   if (response.outcome === "unsupported") return "Not supported yet";
-  return response.result ? PREPARED[response.result.status].heading : "No result returned";
+  if (response.outcome === "started") return response.run_id ? PROGRESS_HEADING : "No result returned";
+  return response.result ? PLAN_STATUS[response.result.status].heading : "No result returned";
 }
 
 // The Ask screen (DESIGN.md, Screens 1): composer, loading, and every outcome of POST /api/assist.
 // Client component because it holds form state, the request and focus. All model, retrieved and
-// user text is rendered as React text children only (DESIGN.md, Security rules).
+// user text is rendered as React text children only (DESIGN.md, Security rules). A workflow route
+// answers "started" with a run id; usePlanRun then polls it (in memory only) for live stages.
 export function Assistant() {
+  const run = usePlanRun();
   const [message, setMessage] = useState("");
   const [job, setJob] = useState("");
   const [jobOpen, setJobOpen] = useState(false);
@@ -112,27 +91,6 @@ export function Assistant() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSavedProfile(loadProfile()?.profile ?? null);
-  }, []);
-
-  // Pick up a posting handed over by the Analyse screen: used once, then removed. TODO(T-011 Plan
-  // screen): point the hand-off at /plan.
-  useEffect(() => {
-    try {
-      const handed = window.sessionStorage.getItem("gradpath-posting");
-      if (typeof handed === "string") {
-        const len = charCount(handed);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (len >= JOB_MIN && len <= JOB_MAX) setJob(handed);
-      }
-    } catch {
-      // storage unavailable: the visitor can paste the posting again
-    } finally {
-      try {
-        window.sessionStorage.removeItem("gradpath-posting");
-      } catch {
-        // nothing to clean up
-      }
-    }
   }, []);
 
   // Elapsed-time ticker while a request runs. Not announced (DESIGN.md, Accessibility).
@@ -213,6 +171,7 @@ export function Assistant() {
 
     const controller = new AbortController();
     controllerRef.current = controller;
+    run.reset();
     setResponse(null);
     setError(null);
     setElapsed(0);
@@ -222,6 +181,7 @@ export function Assistant() {
       const result = await api.assist(body, controller.signal);
       if (controller.signal.aborted) return;
       setResponse(result);
+      if (result.outcome === "started" && result.run_id) run.attach(result.run_id);
       setLive(result.outcome === "answered" && result.answer?.status === "answered" ? "Answer ready" : resultHeading(result));
     } catch (caught) {
       if (controller.signal.aborted) return; // "Stop waiting": back to the form, no error
@@ -275,6 +235,7 @@ export function Assistant() {
   for (const label of serverLabels) summary.push(`${label}: the server did not accept this. Check it and try again.`);
 
   const showEmpty = !response && !error && !loading;
+  const runBusy = run.phase === "starting" || run.phase === "running";
   const messageDescribedBy = ["message-count", fieldErrors.message ? "message-error" : ""]
     .filter(Boolean)
     .join(" ");
@@ -440,14 +401,14 @@ export function Assistant() {
               </button>
             </>
           )}
-          <button type="submit" className={primaryButton} disabled={loading}>
+          <button type="submit" className={primaryButton} disabled={loading || runBusy}>
             Ask
           </button>
         </div>
       </form>
 
       <div role="status" className="sr-only">
-        {live}
+        {run.phase !== "idle" ? run.announcement : live}
       </div>
 
       {error && <ErrorPanel error={error} headingRef={headingRef} onRetry={() => void submit()} />}
@@ -463,6 +424,7 @@ export function Assistant() {
             onUseSample={() => setProfileChoice("sample")}
             onUseSaved={savedProfile ? () => setProfileChoice("saved") : undefined}
             onRetry={() => void submit()}
+            run={run}
             profileOn={profileChoice !== "none"}
             jobSet={jobSet}
           />
@@ -504,16 +466,18 @@ function Result({
   onUseSample,
   onUseSaved,
   onRetry,
+  run,
   profileOn,
   jobSet,
 }: {
   response: AssistResponse;
-  headingRef: React.Ref<HTMLHeadingElement>;
+  headingRef: React.RefObject<HTMLHeadingElement | null>;
   onNarrow: () => void;
   onPasteJob: () => void;
   onUseSample: () => void;
   onUseSaved?: () => void;
   onRetry: () => void;
+  run: PlanRun;
   profileOn: boolean;
   jobSet: boolean;
 }) {
@@ -614,9 +578,9 @@ function Result({
     );
   }
 
-  if (response.outcome === "prepared") {
-    // TODO(T-011 Plan screen): replace this placeholder with the full plan view.
-    if (!response.result) {
+  if (response.outcome === "prepared" || response.outcome === "started") {
+    const missingResult = response.outcome === "prepared" ? !response.result : !response.run_id;
+    if (missingResult) {
       return (
         <StatusPanel tone="stopped" heading={heading} headingRef={headingRef}>
           <p>{NO_RESULT}</p>
@@ -626,28 +590,14 @@ function Result({
         </StatusPanel>
       );
     }
-    const status = PREPARED[response.result.status];
-    const openIssues = response.result.unresolved_issues.length;
-    const icon =
-      status.tone === "positive" ? <CheckIcon /> : status.tone === "stopped" ? <OctagonIcon /> : <HalfCircleIcon />;
-    return (
-      <section className="space-y-3 rounded-md border border-rule bg-surface p-4 sm:p-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 ref={headingRef} tabIndex={-1} className="text-heading">
-            {heading}
-          </h2>
-          <StatusBadge tone={status.tone} icon={icon}>
-            {status.badge}
-          </StatusBadge>
-        </div>
-        <p className="text-small text-ink-muted">The full plan view comes with the Plan screen.</p>
-        {openIssues > 0 && (
-          <p className="text-meta text-ink-muted">
-            {openIssues} open {openIssues === 1 ? "issue" : "issues"}: shown when the Plan screen is built.
-          </p>
-        )}
-      </section>
-    );
+    if (response.outcome === "prepared" && response.result) {
+      return <PlanResult result={response.result} headingRef={headingRef} />;
+    }
+    // started: live progress, then the plan or what went wrong (DESIGN.md, Long runs).
+    if (isProgressPhase(run.phase)) return <PlanProgress run={run} />;
+    if (isProblemPhase(run.phase)) return <PlanRunProblem run={run} onRetry={onRetry} />;
+    if (run.phase === "done" && run.result) return <PlanResult result={run.result} autoFocus />;
+    return null;
   }
 
   // unsupported (or an answered response with no answer body): fixed copy if the server sent none

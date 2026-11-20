@@ -203,7 +203,7 @@ describe("JobAnalysisView", () => {
     await screen.findByRole("heading", { level: 2, name: "Backend Engineer" });
     fireEvent.click(screen.getByRole("button", { name: "Build a preparation plan from this posting" }));
     expect(window.sessionStorage.getItem("gradpath-posting")).toBe(LONG);
-    expect(push).toHaveBeenCalledWith("/");
+    expect(push).toHaveBeenCalledWith("/plan");
   });
 
   test("two chunks from one page and section give one chip", async () => {

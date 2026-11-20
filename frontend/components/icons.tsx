@@ -93,3 +93,13 @@ export function DashIcon({ size = 14 }: IconProps) {
     </Svg>
   );
 }
+
+// The question circle: "Low confidence" (DESIGN.md, Status badge and Confidence).
+export function QuestionIcon({ size = 14 }: IconProps) {
+  return (
+    <Svg size={size}>
+      <circle cx="8" cy="8" r="5.5" />
+      <path d="M6.4 6.4a1.7 1.7 0 0 1 3.2.6c0 1.1-1.6 1.4-1.6 2.4M8 11.3v.1" />
+    </Svg>
+  );
+}

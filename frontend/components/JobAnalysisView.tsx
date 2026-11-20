@@ -3,11 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CharCount } from "@/components/CharCount";
+import { CitationChip, dedupeByUrl } from "@/components/CitationChip";
 import { primaryButton, secondaryButton } from "@/components/buttonStyles";
 import {
   CheckIcon,
   DashIcon,
-  ExternalLinkIcon,
   HalfCircleIcon,
   HollowCircleIcon,
   OctagonIcon,
@@ -19,7 +19,6 @@ import { StatusPanel } from "@/components/StatusPanel";
 import { api, ApiError, MESSAGES } from "@/lib/api";
 import { charCount } from "@/lib/charCount";
 import { formatElapsed } from "@/lib/formatElapsed";
-import { displayHost, safeExternalUrl } from "@/lib/safeUrl";
 import { SAMPLE_POSTING } from "@/lib/samplePosting";
 import type { AnalyzedRequirement, Citation, Coverage, JobAnalysis } from "@/lib/types";
 
@@ -28,7 +27,6 @@ const JOB_MAX = 20000;
 const BUSY_HEADING = "Another preparation run is in progress.";
 const BUSY_BODY = "Only one runs at a time on this server. Try again in a few minutes.";
 const HANDOFF_KEY = "gradpath-posting";
-const CHIP_TITLE_MAX = 40;
 
 const COVERAGE: Record<Coverage, { tone: Tone; words: string; icon: React.ReactNode }> = {
   covered: { tone: "positive", words: "Covered", icon: <CheckIcon /> },
@@ -161,15 +159,14 @@ export function JobAnalysisView() {
     textareaRef.current?.focus();
   }
 
-  // Hands the posting to the Ask screen through sessionStorage (read once there).
-  // TODO(T-011 Plan screen): point this at /plan
+  // Hands the posting to the Plan screen through sessionStorage (read once there by PlanView).
   function buildPlan() {
     try {
       window.sessionStorage.setItem(HANDOFF_KEY, posting.trim());
     } catch {
       // storage unavailable: the visitor pastes the posting again on the next screen
     }
-    router.push("/");
+    router.push("/plan");
   }
 
   return (
@@ -337,13 +334,7 @@ function RequirementRow({ item }: { item: AnalyzedRequirement }) {
     const wanted = new Set(item.note_citations);
     chips = item.sources.filter((s) => wanted.has(s.chunk_id));
   }
-  // One chip per page (source_url); the first citation's section wins, in citation order.
-  const seenUrls = new Set<string>();
-  chips = chips.filter((c) => {
-    if (seenUrls.has(c.source_url)) return false;
-    seenUrls.add(c.source_url);
-    return true;
-  });
+  chips = dedupeByUrl(chips);
 
   return (
     <li className="space-y-2 rounded-md border border-rule p-3">
@@ -387,37 +378,5 @@ function RequirementRow({ item }: { item: AnalyzedRequirement }) {
         </details>
       )}
     </li>
-  );
-}
-
-// Compact citation (DESIGN.md, Citation chip): "Title: Section" cut at 40 characters, the full
-// label in the accessible name and title, hostname after it. A link only if safeExternalUrl
-// accepts the URL.
-function CitationChip({ citation }: { citation: Citation }) {
-  const url = safeExternalUrl(citation.source_url);
-  const label = citation.section ? `${citation.title}: ${citation.section}` : citation.title;
-  const chars = Array.from(label);
-  const short = chars.length > CHIP_TITLE_MAX ? `${chars.slice(0, CHIP_TITLE_MAX).join("")}…` : label;
-  const box = "inline-flex items-center gap-1 rounded-sm border border-rule bg-sunken px-2 py-0.5 text-small";
-  if (!url) {
-    return (
-      <span className={box} title={label}>
-        {short}
-      </span>
-    );
-  }
-  return (
-    <a
-      href={url.href}
-      target="_blank"
-      rel="noopener noreferrer"
-      title={label}
-      aria-label={`${label} (opens in new tab)`}
-      className={`${box} text-link underline`}
-    >
-      {short}
-      <span className="text-meta text-ink-muted no-underline">{displayHost(url)}</span>
-      <ExternalLinkIcon size={12} />
-    </a>
   );
 }

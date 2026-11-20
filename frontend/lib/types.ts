@@ -244,8 +244,32 @@ export interface AssistRequest {
 
 export interface AssistResponse {
   decision: RouteDecision;
-  outcome: "answered" | "prepared" | "needs_input" | "unsupported";
+  // "started": the workflow runs in the background; poll /api/career/runs/{run_id} (T-016).
+  outcome: "answered" | "prepared" | "started" | "needs_input" | "unsupported";
   message: string | null; // fixed server text
   answer: ChatAnswer | null;
   result: CareerPrepResult | null;
+  run_id?: string | null;
+}
+
+// ---------- /api/career/runs (T-016, workflows/runs.py) ----------
+
+export interface RunStarted {
+  run_id: string; // uuid4
+}
+
+export type StageState = "done" | "running" | "waiting";
+
+export interface RunStage {
+  name: string; // a graph node name; unknown names are shown de-snake-cased
+  state: StageState;
+}
+
+export interface RunStatus {
+  status: "running" | "done" | "failed";
+  elapsed_s: number;
+  stages: RunStage[];
+  revisions: number;
+  result: CareerPrepResult | null; // set once status is "done"
+  error: string | null; // fixed server text
 }

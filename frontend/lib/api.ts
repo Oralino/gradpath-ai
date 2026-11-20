@@ -11,6 +11,8 @@ import type {
   ChatRequest,
   JobAnalysis,
   ResumeImport,
+  RunStarted,
+  RunStatus,
   WorkflowInput,
 } from "@/lib/types";
 
@@ -79,21 +81,31 @@ export async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError(kind, status, detail ?? MESSAGES[kind]);
 }
 
-async function post<T>(path: string, payload: unknown, signal?: AbortSignal): Promise<T> {
+// One request; network failures and non-OK statuses become ApiError, an abort stays an AbortError.
+// Called by post() and get().
+async function request<T>(path: string, init: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal,
-    });
+    response = await fetch(path, init);
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new ApiError("network", null, MESSAGES.network);
   }
   if (!response.ok) throw await toApiError(response);
   return (await response.json()) as T;
+}
+
+function post<T>(path: string, payload: unknown, signal?: AbortSignal): Promise<T> {
+  return request<T>(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal,
+  });
+}
+
+function get<T>(path: string, signal?: AbortSignal): Promise<T> {
+  return request<T>(path, { method: "GET", signal });
 }
 
 export const api = {
@@ -106,4 +118,10 @@ export const api = {
     post<ResumeImport>("/api/profile/from-resume", body, signal),
   prepare: (body: WorkflowInput, signal?: AbortSignal) =>
     post<CareerPrepResult>("/api/career/prepare", body, signal),
+  // Background run with live stages (T-016): 202 with a run id, or 503 busy.
+  startRun: (body: WorkflowInput, signal?: AbortSignal) =>
+    post<RunStarted>("/api/career/runs", body, signal),
+  // 404 means unknown or expired (ApiError status 404).
+  getRun: (runId: string, signal?: AbortSignal) =>
+    get<RunStatus>(`/api/career/runs/${encodeURIComponent(runId)}`, signal),
 };
