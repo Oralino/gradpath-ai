@@ -36,7 +36,7 @@ export function StatusPanel({
     <section className={`rounded-md border-l-4 p-4 sm:p-6 ${PANEL[tone]}`}>
       <div className="flex items-center gap-2">
         {defaultIcon(tone)}
-        <h2 ref={headingRef} tabIndex={-1} className="text-heading">
+        <h2 ref={headingRef} tabIndex={-1} className="text-title">
           {heading}
         </h2>
       </div>

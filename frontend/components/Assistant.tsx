@@ -175,7 +175,7 @@ export function Assistant() {
     setResponse(null);
     setError(null);
     setElapsed(0);
-    setLive("Working on it");
+    setLive("Searching the knowledge base and writing an answer");
     setLoading(true);
     try {
       const result = await api.assist(body, controller.signal);
@@ -394,7 +394,7 @@ export function Assistant() {
           {loading && (
             <>
               <p className="mr-auto text-small text-ink-muted">
-                Working on it... <span className="tabular-nums">{formatElapsed(elapsed)}</span>
+                Searching the knowledge base and writing an answer... <span className="tabular-nums">{formatElapsed(elapsed)}</span>
               </p>
               <button type="button" ref={stopRef} className={secondaryButton} onClick={stopWaiting}>
                 Stop waiting
@@ -513,7 +513,7 @@ function Result({
     return (
       <section className="space-y-3 rounded-md border border-rule bg-surface p-4 sm:p-6">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 ref={headingRef} tabIndex={-1} className="text-heading">
+          <h2 ref={headingRef} tabIndex={-1} className="text-title">
             {heading}
           </h2>
           {answer.status === "partial" ? (

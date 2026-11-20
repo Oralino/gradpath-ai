@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 // before React hydrates, which is expected.
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={atkinson.variable} suppressHydrationWarning>
+    <html lang="en" className={`${atkinson.variable} motion-safe:scroll-smooth`} suppressHydrationWarning>
       <head>
         {/* eslint-disable-next-line @next/next/no-sync-scripts -- must run before first paint */}
         <script src="/theme-init.js" />

@@ -188,7 +188,7 @@ describe("JobAnalysisView", () => {
     render(<JobAnalysisView />);
     type(LONG);
     analyse();
-    expect(await screen.findByText(/Reading the posting and searching the knowledge base/)).toBeTruthy();
+    expect((await screen.findAllByText(/Reading the posting and searching the knowledge base/)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Stop waiting" }));
     await waitFor(() => expect(screen.queryByRole("button", { name: "Stop waiting" })).toBeNull());
     expect(screen.queryByText("The request failed")).toBeNull();
@@ -217,8 +217,8 @@ describe("JobAnalysisView", () => {
     expect(screen.getAllByRole("link", { name: /Indexes/ })).toHaveLength(1);
   });
 
-  test("a data: url is plain text, and a long unicode title is cut at 40 characters", async () => {
-    const title = "é".repeat(45);
+  test("a data: url is plain text, and a long unicode title is cut at 60 characters", async () => {
+    const title = "é".repeat(65);
     mockFetch(async () =>
       jsonResponse(200, analysis({ requirements: [
         req({ skill: "A", sources: [cite({ title: "Data page", source_url: "data:text/html,hi" })] }),
@@ -232,8 +232,8 @@ describe("JobAnalysisView", () => {
     expect(screen.getByText("Data page: Multicolumn")).toBeTruthy();
     expect(screen.queryByRole("link", { name: /Data page/ })).toBeNull();
     const link = screen.getByRole("link", { name: `${title}: Multicolumn (opens in new tab)` });
-    expect(link.textContent).toContain("é".repeat(40) + "…");
-    expect(link.textContent).not.toContain("é".repeat(41));
+    expect(link.textContent).toContain("é".repeat(60) + "…");
+    expect(link.textContent).not.toContain("é".repeat(61));
     expect(link.getAttribute("title")).toBe(`${title}: Multicolumn`);
   });
 

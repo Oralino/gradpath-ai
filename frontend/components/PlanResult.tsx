@@ -93,7 +93,7 @@ function IssueList({ issues }: { issues: CritiqueIssue[] }) {
   return (
     <ul className="space-y-2">
       {issues.map((issue, i) => (
-        <li key={`${issue.code}-${i}`} className="flex flex-wrap items-start gap-2 text-small">
+        <li key={`${issue.code}-${i}`} className="flex flex-col items-start gap-2 sm:flex-row text-small">
           {issue.severity === "blocking" ? (
             <StatusBadge tone="stopped" icon={<OctagonIcon />}>
               Blocking
@@ -167,7 +167,7 @@ function RoadmapStep({ item, total }: { item: RoadmapItem; total: number }) {
     <li className="relative space-y-3">
       <span
         aria-hidden="true"
-        className="absolute -left-9 top-0 flex h-6 w-6 items-center justify-center rounded-sm border border-rule bg-surface text-meta tabular-nums"
+        className="absolute -left-9 top-0 flex h-6 min-w-6 px-1 items-center justify-center rounded-sm border border-rule bg-surface text-meta tabular-nums"
       >
         {item.order}
       </span>
@@ -353,7 +353,7 @@ export function PlanResult({
 
         <div className="min-w-0 space-y-12">
           {shown.has("plan-gaps") && (
-            <section id="plan-gaps" className="space-y-4">
+            <section id="plan-gaps" tabIndex={-1} className="space-y-4">
               <h2 className="text-title">Skills gap</h2>
               {result.gaps.length === 0 && <NotProduced />}
               {GAP_ORDER.map((key) => {
@@ -379,7 +379,7 @@ export function PlanResult({
           )}
 
           {shown.has("plan-roadmap") && (
-            <section id="plan-roadmap" className="space-y-4">
+            <section id="plan-roadmap" tabIndex={-1} className="space-y-4">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <h2 className="text-title">Roadmap</h2>
                 {roadmap.length > 0 && (
@@ -399,7 +399,7 @@ export function PlanResult({
           )}
 
           {shown.has("plan-questions") && (
-            <section id="plan-questions" className="space-y-4">
+            <section id="plan-questions" tabIndex={-1} className="space-y-4">
               <h2 className="text-title">Interview questions</h2>
               {result.interview_questions.length === 0 ? (
                 <NotProduced />
@@ -424,7 +424,7 @@ export function PlanResult({
           )}
 
           {shown.has("plan-helps") && fallback && (
-            <section id="plan-helps" className="space-y-4">
+            <section id="plan-helps" tabIndex={-1} className="space-y-4">
               <h2 className="text-title">What still helps</h2>
               {fallback.answer && (
                 <div className="space-y-3 rounded-md border border-rule bg-surface p-4 sm:p-6">
@@ -447,7 +447,7 @@ export function PlanResult({
           )}
 
           {extra && (
-            <section id={extra.id} className="space-y-4">
+            <section id={extra.id} tabIndex={-1} className="space-y-4">
               {extra.content}
             </section>
           )}

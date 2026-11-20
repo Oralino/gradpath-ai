@@ -350,9 +350,10 @@ describe("result and corrections", () => {
     render(<PlanView />);
     await screen.findByRole("heading", { name: "Correct an assumption" });
     fillInputs();
-    build();
+    fireEvent.click(screen.getByRole("button", { name: "Build plan again" }));
     await screen.findByRole("heading", { name: "Another preparation run is in progress." });
     expect(screen.getByRole("heading", { level: 2, name: "Preparation plan" })).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Build plan again" }) as HTMLButtonElement).type).toBe("submit");
   });
 
   test("corrections: add, count, remove, limits, and a re-run sends them", async () => {

@@ -80,9 +80,9 @@ export function PlanProgress({ run }: { run: PlanRun }) {
     run.stages.length > 0 ? run.stages : DEFAULT_STAGES.map((name) => ({ name, state: "waiting" as const }));
 
   return (
-    <section className="space-y-4 rounded-md border border-rule bg-surface p-4 sm:p-6">
+    <section className="space-y-4 pt-2">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 ref={headingRef} tabIndex={-1} className="text-heading">
+        <h2 ref={headingRef} tabIndex={-1} className="text-title">
           {PROGRESS_HEADING}
         </h2>
         <p className="text-title tabular-nums">{formatElapsed(elapsed)}</p>

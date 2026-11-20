@@ -4,7 +4,7 @@ import { Assistant } from "@/components/Assistant";
 // the form, request and results live in the client <Assistant />.
 export default function AskPage() {
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4">
+    <div className="flex max-w-3xl flex-col gap-4">
       <h1 className="text-display">Ask GradPath</h1>
       <p className="text-ink-muted">
         Ask a backend preparation question, or paste a job posting and a profile to get a preparation

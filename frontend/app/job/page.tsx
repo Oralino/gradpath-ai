@@ -4,7 +4,7 @@ import { JobAnalysisView } from "@/components/JobAnalysisView";
 // render here; the form, request and results live in the client <JobAnalysisView />.
 export default function JobPage() {
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4">
+    <div className="flex max-w-3xl flex-col gap-4">
       <h1 className="text-display">Analyse a job posting</h1>
       <p className="text-ink-muted">
         Paste a posting to see which of its requirements the knowledge base covers, with study notes

@@ -127,7 +127,7 @@ export function JobAnalysisView() {
     setAnalysis(null);
     setError(null);
     setElapsed(0);
-    setLive("Working on it");
+    setLive("Reading the posting and searching the knowledge base");
     setLoading(true);
     try {
       const result = await api.analyzeJob({ job_description: posting.trim() }, controller.signal);
@@ -283,9 +283,9 @@ function AnalysisResult({
   ].filter((g) => g.items.length > 0);
 
   return (
-    <section className="space-y-4 rounded-md border border-rule bg-surface p-4 sm:p-6">
+    <section className="space-y-4 rounded-md border-0 p-0 sm:border sm:border-rule sm:bg-surface sm:p-6">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 ref={headingRef} tabIndex={-1} className="text-heading">
+        <h2 ref={headingRef} tabIndex={-1} className="text-title">
           {analysis.title.trim() || "Job analysis"}
         </h2>
         {seniority && <span className="text-meta text-ink-muted">{seniority}</span>}
@@ -311,7 +311,7 @@ function AnalysisResult({
       )}
       {groups.map((group) => (
         <div key={group.label} className="space-y-3">
-          <h3 className="text-label">
+          <h3 className="text-heading">
             {group.label} ({group.items.length})
           </h3>
           <ul className="space-y-4">

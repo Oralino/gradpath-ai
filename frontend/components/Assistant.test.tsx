@@ -388,11 +388,11 @@ describe("errors and loading", () => {
     render(<Assistant />);
     typeMessage("How do indexes work?");
     ask();
-    expect(await screen.findByText(/Working on it.../)).toBeTruthy();
+    expect(await screen.findByText(/Searching the knowledge base and writing an answer.../)).toBeTruthy();
     expect((screen.getByRole("button", { name: "Ask" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Stop waiting" }));
     expect(signal?.aborted).toBe(true);
-    await waitFor(() => expect(screen.queryByText(/Working on it.../)).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/Searching the knowledge base and writing an answer.../)).toBeNull());
     expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
     expect((screen.getByRole("button", { name: "Ask" }) as HTMLButtonElement).disabled).toBe(false);
   });
@@ -529,7 +529,7 @@ describe("review fixes", () => {
     ask();
     const stop = await screen.findByRole("button", { name: "Stop waiting" });
     await waitFor(() => expect(document.activeElement).toBe(stop));
-    expect(screen.getByRole("status").textContent).toBe("Working on it");
+    expect(screen.getByRole("status").textContent).toBe("Searching the knowledge base and writing an answer");
     fireEvent.click(stop);
     await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Your question")));
   });
@@ -571,7 +571,7 @@ describe("review fixes", () => {
     const view = render(<Assistant />);
     typeMessage("How do indexes work?");
     ask();
-    await screen.findByText(/Working on it.../);
+    await screen.findByText(/Searching the knowledge base and writing an answer.../);
     expect(() => view.unmount()).not.toThrow();
     expect(signal?.aborted).toBe(true);
     await new Promise((r) => setTimeout(r, 20));

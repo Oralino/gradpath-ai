@@ -428,7 +428,7 @@ export function PlanView() {
               disabled={!ready}
               aria-describedby={!ready ? "build-help" : undefined}
             >
-              Build plan
+              {shown ? "Build plan again" : "Build plan"}
             </button>
           </div>
         )}
