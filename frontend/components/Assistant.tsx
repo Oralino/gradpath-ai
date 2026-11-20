@@ -18,6 +18,7 @@ import { StatusBadge, type Tone } from "@/components/StatusBadge";
 import { StatusPanel } from "@/components/StatusPanel";
 import { api, ApiError, MESSAGES } from "@/lib/api";
 import { charCount } from "@/lib/charCount";
+import { formatElapsed } from "@/lib/formatElapsed";
 import { loadProfile } from "@/lib/profileStore";
 import { SAMPLE_PROFILE, SAMPLE_PROFILE_LABEL } from "@/lib/sampleProfile";
 import type { AssistRequest, AssistResponse, CareerStatus, UserProfile } from "@/lib/types";
@@ -80,10 +81,6 @@ function resultHeading(response: AssistResponse): string {
   return response.result ? PREPARED[response.result.status].heading : "No result returned";
 }
 
-function formatElapsed(seconds: number): string {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
 // The Ask screen (DESIGN.md, Screens 1): composer, loading, and every outcome of POST /api/assist.
 // Client component because it holds form state, the request and focus. All model, retrieved and
 // user text is rendered as React text children only (DESIGN.md, Security rules).
@@ -115,6 +112,27 @@ export function Assistant() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSavedProfile(loadProfile()?.profile ?? null);
+  }, []);
+
+  // Pick up a posting handed over by the Analyse screen: used once, then removed. TODO(T-011 Plan
+  // screen): point the hand-off at /plan.
+  useEffect(() => {
+    try {
+      const handed = window.sessionStorage.getItem("gradpath-posting");
+      if (typeof handed === "string") {
+        const len = charCount(handed);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (len >= JOB_MIN && len <= JOB_MAX) setJob(handed);
+      }
+    } catch {
+      // storage unavailable: the visitor can paste the posting again
+    } finally {
+      try {
+        window.sessionStorage.removeItem("gradpath-posting");
+      } catch {
+        // nothing to clean up
+      }
+    }
   }, []);
 
   // Elapsed-time ticker while a request runs. Not announced (DESIGN.md, Accessibility).

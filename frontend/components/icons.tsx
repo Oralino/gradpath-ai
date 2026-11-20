@@ -84,3 +84,12 @@ export function ExternalLinkIcon({ size = 14 }: IconProps) {
     </Svg>
   );
 }
+
+// The dash glyph: "not assessed" / sample marker (DESIGN.md, Status badge).
+export function DashIcon({ size = 14 }: IconProps) {
+  return (
+    <Svg size={size}>
+      <path d="M3 8h10" />
+    </Svg>
+  );
+}

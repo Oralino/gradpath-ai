@@ -621,4 +621,30 @@ describe("saved profile", () => {
     render(<Assistant />);
     expect(screen.queryByRole("button", { name: "Use your saved profile" })).toBeNull();
   });
+
+  test("picks up a posting from the Analyse screen once and clears it", () => {
+    window.sessionStorage.setItem("gradpath-posting", "A handed-over posting that is long enough to pass the minimum.");
+    render(<Assistant />);
+    expect(screen.getByText("Job posting: pasted, 62 chars")).toBeTruthy();
+    expect(window.sessionStorage.getItem("gradpath-posting")).toBeNull();
+  });
+
+  test("ignores a handed-over posting that is empty or too long, and still clears it", () => {
+    for (const value of ["", "x".repeat(20001), "too short"]) {
+      window.sessionStorage.setItem("gradpath-posting", value);
+      render(<Assistant />);
+      expect(screen.getByText("Job posting: none")).toBeTruthy();
+      expect(window.sessionStorage.getItem("gradpath-posting")).toBeNull();
+      cleanup();
+    }
+  });
+
+  test("a throwing sessionStorage does not break the screen", () => {
+    const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    render(<Assistant />);
+    expect(screen.getByText("Job posting: none")).toBeTruthy();
+    spy.mockRestore();
+  });
 });

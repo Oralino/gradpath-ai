@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CharCount } from "@/components/CharCount";
-import { InfoIcon, OctagonIcon } from "@/components/icons";
+import { DashIcon, InfoIcon, OctagonIcon } from "@/components/icons";
 import { ResumeImport } from "@/components/ResumeImport";
 import { StatusBadge } from "@/components/StatusBadge";
 import { primaryButton, secondaryButton, textButton } from "@/components/buttonStyles";
@@ -519,7 +519,7 @@ export function ProfileForm() {
             Clear profile
           </button>
           {isSample && (
-            <StatusBadge tone="neutral" icon={<span aria-hidden="true">-</span>}>
+            <StatusBadge tone="neutral" icon={<DashIcon />}>
               Sample (fictional)
             </StatusBadge>
           )}
