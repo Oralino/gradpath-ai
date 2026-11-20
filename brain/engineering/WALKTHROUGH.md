@@ -748,8 +748,9 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Gotchas:** chips are one per page and labelled "Title: Section". Two chunks from the same source
   looked identical in the first real run. Raw GitHub fetch URLs are cited as their github.com page
   (T-015). The plan button hands the posting to the Ask screen until the Plan screen exists.
-- **Likely questions:** *"Why are most requirements 'weak evidence'?"* Coverage comes from
-  retrieval scores against the curated corpus. A requirement is "covered" only when a source clears
-  the higher threshold, so a corpus of general sources gives honest "weak" labels rather than false
-  confidence.
+- **Likely questions:** *"Why are most requirements 'weak evidence'?"* A requirement is
+  "covered" only when retrieval found relevant evidence and the notes model wrote a cited study note
+  it rates as a direct answer (`jobs/analyze.py`). Evidence that is only related, or a note rated
+  "partial", gives "weak evidence". A corpus of general sources gives honest weak labels rather than
+  false confidence.
 
