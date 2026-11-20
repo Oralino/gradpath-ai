@@ -45,6 +45,14 @@ a fixed message and keeps only field paths from a 422 (FastAPI echoes the input 
 way a citation becomes a link is `lib/safeUrl.ts` (http/https, no user:pass); the theme script is
 a static file, not inline, so a strict CSP stays possible.
 
+Step 2 (Ask screen) decisions: built before T-012 (owner, 2026-11-20) to test the stack end to end
+first; the `partial` answer state is added when T-012 lands (`TODO(T-012)` in `Assistant.tsx`). A
+`prepared` result shows only its status heading and badge until the Plan screen exists
+(`TODO(T-011 Plan screen)`); a `prepared` response with no result shows a stopped panel rather than
+a "Checked" badge. The profile in the tray is the fictional sample only, until the Profile screen.
+Found: CI's type check failed on `LayoutProps` because Next generates that type during a build;
+`typecheck` now runs `next typegen` first (`8122e7b`).
+
 ## Changes
 - Branch: `feat/t-011-frontend`
 - PR:

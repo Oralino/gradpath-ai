@@ -617,3 +617,25 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   nothing, plus a recognisable default look. *"Why types by hand instead of generating them from
   OpenAPI?"* Fewer moving parts for ~20 models; the comment in `lib/types.ts` says to change both
   sides together. Worth revisiting if the API grows.
+
+## Ask screen (`components/Assistant.tsx`, T-011 step 2)
+- **What it is:** the `/` page. One question, plus an optional pasted job posting and the sample
+  profile, sent to `POST /api/assist`. The router picks the path and the screen renders whatever comes
+  back: an answer card, a "not covered" panel, a "needs input" panel, or (for now) the plan's status.
+  Small pieces live in their own components (`StatusBadge`, `StatusPanel`, `CitationList`,
+  `RouteLine`, `CharCount`) so the Job and Plan screens reuse them.
+- **Decision: one assistant box, not separate "chat" and "plan" forms.** The backend already has a
+  router (`/api/assist`), so the screen shows its decision ("Knowledge-base answer · chosen by
+  rules") instead of making the visitor choose. Rejected: two forms calling `/api/chat` and
+  `/api/career/prepare`, which hides the routing this project is about.
+- **Decision: every state is designed, including the boring ones.** Not covered, needs input, busy,
+  validation, server and network errors each get fixed copy and a next action. Results move focus
+  to their heading and are announced in a polite live region. Stale responses are dropped: each
+  request has its own `AbortController`, and a response is used only if its request is still current.
+- **Gotchas:** the model writes markdown (`**bold**`, backticks) but the design renders plain text
+  only, so those characters show as written (see TASKS). The tray's posting box takes pasted text
+  only, never a URL (an SSRF risk on the server).
+- **Likely questions:** *"Why not stream the answer?"* The answer is checked for citations before it
+  is shown, so it arrives whole; a RAG answer takes about 10-15 s and the timer says so. *"What if
+  the response arrives after the user pressed Stop?"* The request was aborted and the stale guard
+  ignores it; there is a test for that.

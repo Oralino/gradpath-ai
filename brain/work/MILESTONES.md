@@ -235,6 +235,7 @@ partial) and clear errors. `DESIGN.md` comes first; the owner approves it before
 | 2. Plan + open questions | ✅ | Screens, API mapping, long-run and partial-answer handling, security rules, versions checked | The owner approves the design before code | Decided 2026-11-19: backend `partial` status, run polling, answer-quality items 2-4 in TASKS |
 | 3. `DESIGN.md` | ✅ | design-advisor draft: an "annotated study notebook" look, honesty states, long-run progress view | One agreed look before building | Approved 2026-11-19 after a visual mock-up (dark first, light/dark toggle) |
 | 4. Frontend shell | ✅ | Next.js 16.4.6 + Tailwind 4.3.5 app: tokens, dark-first theme toggle, header/footer, typed API client, safe-link helper, `/api` proxy; frontend CI job | A tested base every screen builds on | 27 Vitest tests; lint, type check and build clean; checked in the browser (dark default, toggle, saved choice) |
+| 5. Ask screen (`/`) | ✅ | Question box with example questions, pasted-posting and sample-profile tray, `/api/assist` call with timer and Stop waiting, answer card with safe citations, honesty panels (not covered, needs input, busy, errors), route line | The first screen against the real backend: proves the proxy, client and error handling end to end | 54 Vitest tests; code review fixes applied; a real question answered in ~13 s with a postgresql.org citation |
 
 ---
 

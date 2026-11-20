@@ -15,6 +15,9 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
       not stored or traced; the owner reviews the result before saving. Fictional sample resume for
       demos and tests. Own ticket. PDF/DOCX upload deferred to Milestone 7 (always-hard: uploads).
 - [ ] Milestone 6 (backend, small): a "sources as of" date the UI can show (`DESIGN.md` Known gaps).
+- [ ] Milestone 6: answers contain markdown (`**bold**`, backticks, `- ` lists) that the UI shows as
+      raw characters, because `DESIGN.md` renders plain text only. Owner to choose: ask the answer
+      prompt for plain text, or render a small safe subset (lists, bold, code) without HTML.
 
 Answer quality (owner decision 2026-11-19: before Milestone 7's public demo):
 - [ ] Answer eval set: ~20 questions with must-contain facts plus must-refuse cases, scored in code.
