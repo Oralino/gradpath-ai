@@ -28,6 +28,8 @@ def main() -> None:
         retrieval.store.client.close()
         flush()
     print(f"\n[{out.status}]\n\n{out.answer}\n")
+    if out.not_covered:
+        print(f"Not covered: {out.not_covered}\n")
     for i, c in enumerate(out.citations, 1):
         where = f"{c.title} > {c.section}" if c.section else c.title
         print(f"  [{i}] {where}  ({c.score})\n      {c.source_url}")

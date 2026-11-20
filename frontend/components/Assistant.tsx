@@ -66,9 +66,9 @@ type FieldErrors = { message?: string; job?: string };
 // The h2 text for a result; also what the live region announces. Used by Assistant.
 function resultHeading(response: AssistResponse): string {
   if (response.outcome === "answered") {
-    return response.answer?.status === "insufficient_evidence"
-      ? "Not covered by the knowledge base"
-      : "Answer";
+    const status = response.answer?.status;
+    if (status === "insufficient_evidence") return "Not covered by the knowledge base";
+    return status === "partial" ? "Partial answer" : "Answer";
   }
   if (response.outcome === "needs_input") return "More input needed";
   if (response.outcome === "unsupported") return "Not supported yet";
@@ -476,7 +476,6 @@ function Result({
 
   if (response.outcome === "answered" && response.answer) {
     const answer = response.answer;
-    // TODO(T-012): add the "partial" answer status (caution badge, "Not covered: ..." line).
     if (answer.status === "insufficient_evidence") {
       return (
         <StatusPanel tone="gap" heading={heading} headingRef={headingRef}>
@@ -508,10 +507,25 @@ function Result({
           <h2 ref={headingRef} tabIndex={-1} className="text-heading">
             {heading}
           </h2>
-          <StatusBadge tone="positive" icon={<CheckIcon />}>
-            From the knowledge base
-          </StatusBadge>
+          {answer.status === "partial" ? (
+            <StatusBadge tone="caution" icon={<HalfCircleIcon />}>
+              Not fully covered
+            </StatusBadge>
+          ) : (
+            <StatusBadge tone="positive" icon={<CheckIcon />}>
+              From the knowledge base
+            </StatusBadge>
+          )}
         </div>
+        {answer.status === "partial" && (
+          // DESIGN.md decision 1: say what the sources did not cover before the answer.
+          <p className="flex items-start gap-2 text-small text-caution">
+            <HalfCircleIcon />
+            <span className="whitespace-pre-line">
+              Not covered: {answer.not_covered || "parts of this question are not in the sources."}
+            </span>
+          </p>
+        )}
         {answer.note && (
           <p className="flex items-start gap-2 text-small text-caution">
             <TriangleIcon />

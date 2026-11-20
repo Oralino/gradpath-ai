@@ -18,6 +18,11 @@ from gradpath.safety import escape_attr, neutralise_tags
 
 log = logging.getLogger(__name__)
 
+# Cap on the model's "not covered" sentence (model text: bounded before it reaches the API).
+MAX_NOT_COVERED_CHARS = 300
+# Filler a model may write instead of leaving `not_covered` empty; treated as empty.
+NOTHING_MISSING = {"", "none", "n/a", "na", "nothing", "null", "-", "not applicable"}
+
 NOT_COVERED = (
     "The GradPath knowledge base doesn't cover this question well enough to answer it with "
     "sources. Try rephrasing it, or ask about backend engineering, databases, APIs, testing, Git, "
@@ -34,7 +39,12 @@ Rules:
 - Cite every evidence block you used by its id in `cited_chunk_ids`. Cite only ids that appear in
   the evidence.
 - If the evidence does not answer the question, set `insufficient_evidence` to true and leave
-  `answer` empty. A partial answer is fine if you say what the evidence does not cover.
+  `answer` empty.
+- If the evidence answers only part of the question, answer that part and put one short sentence
+  in `not_covered` naming what the evidence does not cover. The app shows that sentence above
+  the answer, so start `answer` directly with what the evidence does say; do not open it with
+  what is missing. Leave `not_covered` empty (not "none") when the evidence answers the whole
+  question.
 - Write a clear, concise answer (a short paragraph or a few bullet points) for a student."""
 
 
@@ -44,6 +54,11 @@ class ModelAnswer(BaseModel):
     answer: str = Field(description="The answer, using only the evidence. Empty if insufficient.")
     cited_chunk_ids: list[str] = Field(description="Ids of the evidence blocks used.")
     insufficient_evidence: bool = Field(description="True if the evidence does not answer it.")
+    not_covered: str = Field(
+        default="",
+        description="If the answer is partial: one short sentence naming what the evidence does "
+        "not cover. Empty if the evidence answers the whole question.",
+    )
 
 
 class Citation(BaseModel):
@@ -60,11 +75,14 @@ class ChatAnswer(BaseModel):
     """API response for one question."""
 
     question: str
-    status: Literal["answered", "insufficient_evidence"]
+    status: Literal["answered", "partial", "insufficient_evidence"]
     answer: str
     citations: list[Citation]
     route: Literal["traditional_rag"] = "traditional_rag"
     note: str | None = Field(default=None, description="Why an answer was downgraded, if it was.")
+    not_covered: str | None = Field(
+        default=None, description="For a partial answer: what the sources did not cover."
+    )
 
 
 def neutralise(text: str) -> str:
@@ -123,7 +141,8 @@ def answer_question(
     Steps: (1) search; if nothing clears the relevance threshold, return NOT_COVERED without
     calling the model. (2) Ask the model for a `ModelAnswer`. (3) Keep only cited ids that were
     really retrieved; an answer with no valid citation is downgraded to insufficient, because an
-    uncited answer could be outside knowledge.
+    uncited answer could be outside knowledge. (4) A cited answer whose `not_covered` is set is
+    `partial` (T-012): the status comes from code, the sentence from the model.
     """
     result = retrieval.search(question, k=k, max_per_document=max_per_document)
     if result.insufficient:
@@ -162,9 +181,13 @@ def answer_question(
             citations=[],
             note="The model's answer cited no retrieved source, so it was not shown.",
         )
+    gap = reply.not_covered.strip()[:MAX_NOT_COVERED_CHARS].strip()
+    if gap.lower().rstrip(".!") in NOTHING_MISSING:
+        gap = ""
     return ChatAnswer(
         question=question,
-        status="answered",
+        status="partial" if gap else "answered",
+        not_covered=gap or None,
         answer=reply.answer.strip(),
         citations=[to_citation(by_id[cid]) for cid in valid],
         note=f"Dropped {len(invented)} citation(s) to sources that were not retrieved."

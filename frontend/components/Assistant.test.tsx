@@ -130,6 +130,65 @@ describe("composer", () => {
 });
 
 describe("results", () => {
+  test("partial: its own heading, caution badge and the not-covered line (T-012)", async () => {
+    mockFetch(async () =>
+      jsonResponse(
+        200,
+        assist({
+          answer: {
+            question: "q",
+            status: "partial",
+            answer: "A probe is a diagnostic the kubelet runs.",
+            note: null,
+            not_covered: "How to configure liveness probes in a Deployment.",
+            route: "traditional_rag",
+            citations: [cite()],
+          },
+        }),
+      ),
+    );
+    render(<Assistant />);
+    typeMessage("How do I configure liveness probes?");
+    ask();
+    const heading = await screen.findByRole("heading", { name: "Partial answer" });
+    expect(document.activeElement).toBe(heading);
+    expect(screen.getByText("Not fully covered")).toBeTruthy();
+    expect(screen.queryByText("From the knowledge base")).toBeNull();
+    expect(screen.getByText(/Not covered: How to configure liveness probes/)).toBeTruthy();
+    expect(screen.getByText("A probe is a diagnostic the kubelet runs.")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain("Partial answer");
+  });
+
+  test("partial: markup in not_covered stays text; an empty one gets fixed copy", async () => {
+    const partial = (notCovered: string | null) =>
+      assist({
+        answer: {
+          question: "q",
+          status: "partial",
+          answer: "Some of it.",
+          note: null,
+          not_covered: notCovered,
+          route: "traditional_rag",
+          citations: [cite()],
+        },
+      });
+    mockFetch(async () => jsonResponse(200, partial("<b>x</b>")));
+    const { container, unmount } = render(<Assistant />);
+    typeMessage("How do probes work?");
+    ask();
+    await screen.findByRole("heading", { name: "Partial answer" });
+    expect(container.querySelector("b")).toBeNull();
+    expect(screen.getByText(/Not covered: <b>x<\/b>/)).toBeTruthy();
+    unmount();
+
+    mockFetch(async () => jsonResponse(200, partial(null)));
+    render(<Assistant />);
+    typeMessage("How do probes work?");
+    ask();
+    await screen.findByRole("heading", { name: "Partial answer" });
+    expect(screen.getByText(/Not covered: parts of this question are not in the sources/)).toBeTruthy();
+  });
+
   test("answered: badge, text, citations, focus; unsafe URL is plain text; duplicates once", async () => {
     mockFetch(async () =>
       jsonResponse(

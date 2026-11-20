@@ -6,12 +6,23 @@ from fastapi.testclient import TestClient
 from gradpath.api.deps import get_answer_model, get_retrieval
 from gradpath.api.main import create_app
 from gradpath.providers import FakeChatModel
-from gradpath.rag.answer import NOT_COVERED, answer_question, build_messages, neutralise
+from gradpath.rag.answer import (
+    MAX_NOT_COVERED_CHARS,
+    NOT_COVERED,
+    answer_question,
+    build_messages,
+    neutralise,
+)
 from gradpath.retrieval import Evidence
 
 
-def reply(answer: str, ids: list[str], insufficient: bool = False) -> dict:
-    return {"answer": answer, "cited_chunk_ids": ids, "insufficient_evidence": insufficient}
+def reply(answer: str, ids: list[str], insufficient: bool = False, not_covered: str = "") -> dict:
+    return {
+        "answer": answer,
+        "cited_chunk_ids": ids,
+        "insufficient_evidence": insufficient,
+        "not_covered": not_covered,
+    }
 
 
 def test_answer_with_valid_citations(kb_service):
@@ -52,6 +63,52 @@ def test_model_can_say_insufficient(kb_service):
     llm = FakeChatModel(responses=[reply("", [], insufficient=True)])
     out = answer_question("sql index", kb_service, llm)
     assert out.status == "insufficient_evidence"
+
+
+def test_partial_answer_reports_what_is_missing(kb_service):
+    llm = FakeChatModel(
+        responses=[reply("Indexes speed up lookups.", ["pg:0:0"], not_covered="  Index tuning.  ")]
+    )
+    out = answer_question("sql index", kb_service, llm)
+    assert out.status == "partial"
+    assert out.not_covered == "Index tuning."
+    assert out.answer == "Indexes speed up lookups."
+
+
+def test_full_answer_has_no_not_covered(kb_service):
+    llm = FakeChatModel(responses=[reply("Indexes.", ["pg:0:0"], not_covered="   ")])
+    out = answer_question("sql index", kb_service, llm)
+    assert out.status == "answered" and out.not_covered is None
+
+
+def test_a_reply_without_the_field_still_validates(kb_service):
+    # Older or terse model output: the field is optional, so the answer is a plain "answered".
+    payload = {"answer": "Indexes.", "cited_chunk_ids": ["pg:0:0"], "insufficient_evidence": False}
+    out = answer_question("sql index", kb_service, FakeChatModel(responses=[payload]))
+    assert out.status == "answered" and out.not_covered is None
+
+
+@pytest.mark.parametrize("filler", ["None", "n/a", "Nothing.", "NONE!"])
+def test_filler_not_covered_counts_as_empty(kb_service, filler):
+    llm = FakeChatModel(responses=[reply("Indexes.", ["pg:0:0"], not_covered=filler)])
+    out = answer_question("sql index", kb_service, llm)
+    assert out.status == "answered" and out.not_covered is None
+
+
+def test_not_covered_is_capped(kb_service):
+    llm = FakeChatModel(responses=[reply("Indexes.", ["pg:0:0"], not_covered="x" * 1000)])
+    out = answer_question("sql index", kb_service, llm)
+    assert out.status == "partial" and len(out.not_covered) == MAX_NOT_COVERED_CHARS
+
+
+@pytest.mark.parametrize(
+    ("answer", "ids", "insufficient"),
+    [("Unsourced.", ["nope:0:0"], False), ("", [], True)],
+)
+def test_downgrades_win_over_partial(kb_service, answer, ids, insufficient):
+    llm = FakeChatModel(responses=[reply(answer, ids, insufficient, not_covered="Most of it.")])
+    out = answer_question("sql index", kb_service, llm)
+    assert out.status == "insufficient_evidence" and out.not_covered is None
 
 
 def test_duplicate_citations_collapse(kb_service):

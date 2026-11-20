@@ -21,11 +21,12 @@ export interface ChatRequest {
 
 export interface ChatAnswer {
   question: string;
-  status: "answered" | "insufficient_evidence";
+  status: "answered" | "partial" | "insufficient_evidence"; // partial: T-012
   answer: string; // model text
   citations: Citation[];
   route: "traditional_rag";
   note: string | null; // why an answer was downgraded, if it was
+  not_covered?: string | null; // model text: what a partial answer's sources did not cover
 }
 
 // ---------- /api/jobs/analyze ----------
