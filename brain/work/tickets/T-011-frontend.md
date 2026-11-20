@@ -33,8 +33,17 @@ Owner decisions 2026-11-19:
 
 Versions checked 2026-11-19 against the npm registry and the official install guides: Next.js
 16.4.6 (App Router, Turbopack default, Node >= 20.9; local Node is 24.13.1), React 19.3.1,
-Tailwind CSS 4.3.5 with `@tailwindcss/postcss` 4.3.5 (`@import "tailwindcss"`, no config file),
-TypeScript 7.0.2. Pinned exactly when the app is created.
+Tailwind CSS 4.3.5 (`@import "tailwindcss"`, no config file). Pinned exactly at scaffold time:
+`create-next-app@16.4.6` now wires Tailwind through the `@tailwindcss/turbopack` loader in
+`next.config.ts` (no PostCSS), so we kept that; TypeScript 5.9.3 (the template's major, not 7);
+`@types/node` 24 (Vitest 5 needs >= 22); Vitest 5.1.1 + Testing Library 16.3.3 + jsdom 31.0.1 per
+the Next.js 16 testing guide, with Vite's built-in tsconfig paths instead of `vite-tsconfig-paths`.
+
+Step 1 decisions: the browser calls same-origin `/api/*` and Next rewrites it to FastAPI (no CORS
+rule, the backend address stays server-side); one API client (`lib/api.ts`) turns every error into
+a fixed message and keeps only field paths from a 422 (FastAPI echoes the input there); the only
+way a citation becomes a link is `lib/safeUrl.ts` (http/https, no user:pass); the theme script is
+a static file, not inline, so a strict CSP stays possible.
 
 ## Changes
 - Branch: `feat/t-011-frontend`

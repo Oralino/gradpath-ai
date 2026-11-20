@@ -306,6 +306,8 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Likely questions:** *"Why `--locked`?"* It fails if `uv.lock` is out of date with
   `pyproject.toml`, so CI tests exactly the versions you run locally. *"Does CI run the
   retrieval eval?"* No: that needs the Voyage key and the local index; it's a manual release check.
+- **Frontend job (T-011):** `npm ci` (exactly what `package-lock.json` pins), then lint, type check,
+  Vitest and `next build`, with Next.js telemetry off. Same SHA pinning for `actions/setup-node`.
 
 ## Career workflow graph (`workflows/`: `state.py`, `schemas.py`, `graph.py`, `nodes.py`)
 - **What it is for:** the main feature (job description + profile -> gaps -> roadmap) needs
@@ -587,3 +589,31 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   - *"So what about 'not covered'?"* Still open: 4 of 12 uncovered questions clear 0.45. The next
     safety net is the answer step, where the model must say the evidence doesn't answer; that is
     measured next.
+
+## Frontend shell (`frontend/`, T-011 step 1)
+- **What it is:** a Next.js 16 App Router app styled with Tailwind 4 from the tokens in
+  `../design/DESIGN.md`. The browser only calls same-origin `/api/*`; `next.config.ts` rewrites
+  that to FastAPI.
+- **Decision: a same-origin proxy, not CORS.** The backend needs no CORS rule and its address never
+  reaches the browser. Rejected: calling `:8000` directly from the browser (a CORS allow-list now,
+  and the API address in client code). Milestone 7 still adds a CORS allow-list for the deployed
+  site.
+- **Decision: one API client (`lib/api.ts`).** Every screen goes through it, and every failure becomes
+  an `ApiError` with a fixed message. A 422 keeps only the field paths, because FastAPI's 422 body
+  echoes the user's input; a 500 never shows its body. Only 429/502/503 show the server's `detail`,
+  because those are fixed strings in `api/main.py` and `api/limits.py`.
+- **Decision: one gate for links (`lib/safeUrl.ts`).** A citation becomes an `<a>` only if its URL
+  parses as http(s) with no `user:pass@`; otherwise the title is plain text. With React's text
+  escaping and no `dangerouslySetInnerHTML`, that covers the XSS row in `SECURITY.md`.
+- **Decision: dark first, theme set by a static script.** `public/theme-init.js` reads the saved
+  choice before first paint, so a light-mode visitor sees no dark flash. It is a file rather than an
+  inline script so a strict Content-Security-Policy (Milestone 8) can stay `script-src 'self'`.
+  The toggle reads the theme after mount, not during render, to avoid a hydration mismatch.
+- **Gotchas:** `create-next-app` 16.4 wires Tailwind through `@tailwindcss/turbopack`, not PostCSS
+  (the Tailwind site still shows PostCSS); Vitest 5 needs `@types/node` 22+; `next/font` can't build
+  a size-matched fallback for Atkinson Hyperlegible Next, so `adjustFontFallback` is off.
+- **Likely questions:** *"Why not shadcn/ui?"* The design needs no JS tabs, tooltips or accordions
+  (native `<details>` and `<dialog>` cover them), so it would add Radix and helper packages for
+  nothing, plus a recognisable default look. *"Why types by hand instead of generating them from
+  OpenAPI?"* Fewer moving parts for ~20 models; the comment in `lib/types.ts` says to change both
+  sides together. Worth revisiting if the API grows.

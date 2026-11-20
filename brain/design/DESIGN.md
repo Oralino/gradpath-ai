@@ -177,7 +177,8 @@ model and retrieved text goes in as React children (see Security rules).
   `line` dot), not reached (dash). Option A shows no states at all (see Long runs).
 - **Theme toggle**: header right, secondary button style (`h-11 sm:h-9`), moon or sun icon plus the
   words "Dark mode", `aria-pressed` true when dark. Dark first; the choice is saved in localStorage
-  (`gradpath-theme`) and applied before first paint by a tiny inline script in `app/layout.tsx`, so
+  (`gradpath-theme`) and applied before first paint by a small static script, `public/theme-init.js`, loaded from
+  `app/layout.tsx` (a file, not inline, so a later Content-Security-Policy stays strict), so
   there is no light flash. No system-setting detection.
 - **Disclosure**: native `<details>`/`<summary>`, summary in `text-label text-link` with a chevron
   that rotates 90 degrees (`motion-safe:transition-transform duration-150`).

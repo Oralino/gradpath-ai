@@ -47,7 +47,12 @@ backend/          uv project (pyproject.toml, uv.lock)
     schemas/      Pydantic models
     tracing.py    LangSmith on/off rules
   tests/
-frontend/         Next.js (later)
+frontend/         Next.js 16 App Router + Tailwind 4 (T-011, Milestone 6)
+  app/            routes: / (Ask), /job, /plan, /profile; layout.tsx; globals.css (design tokens)
+  components/     UI parts (SiteHeader, ThemeToggle, ...)
+  lib/            api.ts (typed client, fixed error messages), types.ts (mirrors the Pydantic
+                  models), safeUrl.ts (the only way a citation becomes a link), theme.ts
+  public/         theme-init.js (applies the saved theme before first paint)
 knowledge_base/   raw/, processed/, source_manifest.csv
 evaluation/       labelled datasets (retrieval questions, routes, workflow cases)
 demo_runs/        recorded runs for demo mode (sample profile only)

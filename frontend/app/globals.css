@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+/* Design tokens from brain/design/DESIGN.md. Dark is the default (owner, 2026-11-19): the dark
+   values are the @theme values on :root, and [data-theme="light"] overrides the same variables,
+   so components never need dark: prefixes. A plain @theme (not inline) keeps utilities reading
+   the variables, which is what lets the override work. */
+@theme {
+  --color-*: initial;
+  --color-ink: #ece8e1;
+  --color-link: #6fc3cb;
+  --color-focus: #6fc3cb;
+  --color-paper: #161513;
+  --color-surface: #1f1e1b;
+  --color-sunken: #121110;
+  --color-ink-muted: #a8a39a;
+  --color-line: #77726a;
+  --color-rule: #2e2c28;
+  --color-positive: #8fd19e;
+  --color-positive-bg: #1b2e21;
+  --color-caution: #e8c36a;
+  --color-caution-bg: #33280f;
+  --color-gap: #f0a77e;
+  --color-gap-bg: #3a2116;
+  --color-stopped: #f4a3a0;
+  --color-stopped-bg: #3d1a19;
+  --color-neutral: #a8a39a;
+  --color-neutral-bg: #2a2925;
+  --color-info: #6fc3cb;
+  --color-info-bg: #142c2f;
+
+  --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+
+  --text-display: 1.75rem;
+  --text-display--line-height: 1.2;
+  --text-display--letter-spacing: -0.01em;
+  --text-display--font-weight: 600;
+  --text-title: 1.375rem;
+  --text-title--line-height: 1.3;
+  --text-title--font-weight: 600;
+  --text-heading: 1.125rem;
+  --text-heading--line-height: 1.4;
+  --text-heading--font-weight: 600;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.4;
+  --text-label--font-weight: 600;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.5;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.4;
+  --text-meta--letter-spacing: 0.01em;
+
+  --radius-sm: 3px;
+  --radius-md: 6px;
+
+  --container-reading: 40rem;
+}
+
+:root[data-theme="light"] {
+  --color-ink: #1c1b19;
+  --color-link: #0f5c66;
+  --color-focus: #0f5c66;
+  --color-paper: #faf8f4;
+  --color-surface: #ffffff;
+  --color-sunken: #f2efe9;
+  --color-ink-muted: #5c5a55;
+  --color-line: #8a857b;
+  --color-rule: #e2ddd3;
+  --color-positive: #1e5631;
+  --color-positive-bg: #e6f2e9;
+  --color-caution: #6b4a00;
+  --color-caution-bg: #fbf1d9;
+  --color-gap: #7a3410;
+  --color-gap-bg: #f7eae1;
+  --color-stopped: #8c1d18;
+  --color-stopped-bg: #fbe9e7;
+  --color-neutral: #5c5a55;
+  --color-neutral-bg: #efece6;
+  --color-info: #0f5c66;
+  --color-info-bg: #e4f0f1;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* One focus style everywhere (DESIGN.md, Accessibility): never removed. */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
