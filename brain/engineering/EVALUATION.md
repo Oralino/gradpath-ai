@@ -432,3 +432,11 @@ What it shows:
 - The control still answers fully, so the model isn't refusing everything near the threshold.
 - Limits: 5 questions, one run, judged by reading; Sonnet answers can vary between runs.
 
+
+### Retrieval re-check (2026-11-20, release check for Milestone 6)
+Unchanged from the labels v1.3 semantic baseline (same index: corpus v2, 1,592 chunks; dataset
+sha `b996e8eb7684`): Recall@5 0.961, Precision@5 0.605, MRR 0.987; at 0.45, 97% of covered
+questions kept (`q-041` 0.393) and 67% of uncovered rejected (`q-031`, `q-047`, `q-049`, `q-050`
+clear it); the same three partial misses (`q-001`, `q-027`, `q-034`). Milestone 6 changed the
+frontend and the API around retrieval, not retrieval itself (T-015 rewrites citation URLs after
+search). One batched Voyage call (1.5 s). Output: `evaluation/results/retrieval-20261120-073033.json`.
