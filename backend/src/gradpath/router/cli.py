@@ -39,6 +39,8 @@ def show(response: AssistResponse, seconds: float) -> str:
     if response.answer:
         a = response.answer
         lines.append(f"\n[{a.status}] {a.answer}")
+        if a.not_covered:
+            lines.append(f"  Not covered: {a.not_covered}")
         lines += [f"  - {c.title} > {c.section}" for c in a.citations]
     if response.result:
         lines.append(report(response.result, seconds))

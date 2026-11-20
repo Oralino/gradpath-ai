@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from langchain_core.language_models.chat_models import BaseChatModel
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from gradpath.api import limits
 from gradpath.api.deps import get_answer_model, get_extraction_model, get_retrieval
@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 
 class AnalyzeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # unknown fields are a 422, not silently dropped
     job_description: str = Field(min_length=50, max_length=20_000)
 
 

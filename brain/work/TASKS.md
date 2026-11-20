@@ -4,15 +4,23 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] Milestone 6 (frontend): show a partial answer as partial. Today `ChatAnswer.status` is only
-      `answered` or `insufficient_evidence`, so an answer that opens with "the evidence doesn't cover
-      ..." (`q-031`, `q-049` in the abstention check) looks like a full answer. Options: a `partial`
-      status from the model, or a UI label; decide with `DESIGN.md`.
+- [ ] **(owner)** Approve and merge the Milestone 6 PR ([T-011](tickets/T-011-frontend.md), done on
+      `feat/t-011-frontend`).
+- [ ] DESIGN.md: record the visible input rows and "Build plan again" on the Plan screen
+      (design-advisor drafts, owner approves; T-011 design critique).
+- [ ] Milestone 7: PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard).
+- [ ] Milestone 6 (backend, small): a "sources as of" date the UI can show (`DESIGN.md` Known gaps).
+
+Answer quality (owner decision 2026-11-19: before Milestone 7's public demo):
+- [ ] Answer eval set: ~20 questions with must-contain facts plus must-refuse cases, scored in code.
+- [ ] Grounding check: Haiku checks each claim against its cited chunk; report a "supported" rate.
+- [ ] Re-run the retrieval and answer evals as a release check when sources, prompts or models change.
 
 Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
 - [x] [T-007](tickets/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.
 - [x] [T-008](tickets/T-008-tag-neutraliser-unicode.md): tag neutraliser handles invisible and look-alike characters.
-- [ ] Add `uvx pip-audit` to the release checks (dependency vulnerabilities).
+- [ ] Add `uvx pip-audit` to the release checks (dependency vulnerabilities). Ran for Milestone 6:
+      clean (T-011); adopting it in `CLAUDE.md` is the owner's call.
 - [ ] **(owner)** Two-factor authentication on GitHub, Anthropic, Voyage and LangSmith.
 
 ## Corpus (before Milestone 5)
@@ -46,6 +54,8 @@ Before any deploy (Milestones 7–8):
 - [x] LangGraph's "Retrying task" log line no longer carries exception text (filter in
       `workflows/graph.py`, T-003).
 - [x] `workflows.cli --out` saves a real profile's results only under `private/` (T-003).
+- [ ] Before live mode: a 422 handler that drops `input` from FastAPI's validation errors, so a
+      visitor key sent in a wrong field is never echoed back (found in T-017).
 - [ ] When live-mode key handling lands: the visitor-key tracing guard in `get_chat_model` checks
       once, when the model is built; re-check it covers how routes build models (T-002 review).
 Milestone 2 (tracing):

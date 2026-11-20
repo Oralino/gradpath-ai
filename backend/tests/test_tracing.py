@@ -230,3 +230,49 @@ def test_claude_code_worker_thread_keeps_the_callers_context():
 
     asyncio.run(caller())
     assert seen == ["from-caller"]
+
+
+def test_resume_import_is_never_traced_even_with_tracing_on():
+    # T-014: resume text is personal data; import_resume forces tracing off for its call.
+    from gradpath.profiles import import_resume
+
+    client = RecordingClient()
+    llm = FakeChatModel(responses=[{"skills": ["Python"]}])
+    with langsmith.tracing_context(enabled=True, client=client, project_name="test"):
+        result = import_resume("Python developer resume " * 10, llm)
+    assert result.profile.skills == ["Python"]
+    assert client.created == []
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_resume_import_through_claude_code_is_never_traced(fails):
+    # The real provider runs the call in a worker thread with a copied context (T-014 review).
+    from claude_agent_sdk import ResultMessage
+
+    from gradpath.profiles import import_resume
+    from gradpath.providers import ClaudeCodeError
+
+    reply = ResultMessage(
+        subtype="error_during_execution" if fails else "success",
+        duration_ms=1,
+        duration_api_ms=1,
+        is_error=fails,
+        num_turns=1,
+        session_id="s",
+        result="",
+        structured_output=None if fails else {"skills": ["Python"]},
+        usage={"input_tokens": 1, "output_tokens": 1},
+    )
+
+    async def query(*, prompt, options):
+        yield reply
+
+    client = RecordingClient()
+    llm = ChatClaudeCode(model="m", query_fn=query)
+    with langsmith.tracing_context(enabled=True, client=client, project_name="test"):
+        if fails:
+            with pytest.raises(ClaudeCodeError):
+                import_resume("Python developer resume " * 10, llm)
+        else:
+            assert import_resume("Python developer resume " * 10, llm).profile.skills == ["Python"]
+    assert client.created == []

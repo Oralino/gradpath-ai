@@ -50,7 +50,14 @@ uv run python -m gradpath.router.cli "message" [--job FILE] [--profile FILE] [--
 uv run uvicorn gradpath.api.main:app --reload            # API on :8000 (docs at /docs)
 ```
 - Local Qdrant allows one process at a time: stop the API before running ingest, probe, ask or eval.
-- Frontend (from its milestone): `cd frontend && npm install && npm run dev`.
+Frontend (from `frontend/`, Node >= 20.9, versions pinned exactly in `package.json`):
+```bash
+npm ci                     # install from package-lock.json
+npm run dev                # http://localhost:3000; /api/* is forwarded to the API on :8000
+npm run lint && npm run typecheck && npm test && npm run build
+```
+- The backend must be running for real requests (`GRADPATH_API_URL` overrides `http://127.0.0.1:8000`).
+- Set `NEXT_TELEMETRY_DISABLED=1` (or run `npx next telemetry disable` once) to stop Next.js usage telemetry.
 - Claude Code mode needs the Claude Code login once on this PC (see README). Run real calls from your
   own terminal: a shell inside a Claude Code session inherits that session's variables.
 

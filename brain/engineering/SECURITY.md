@@ -29,7 +29,7 @@ Status key: ✅ defended · ⚠️ gap, fix now · 🕒 applies from a later mil
 | Threat | Status | Where / defence today | Gap and when |
 |---|---|---|---|
 | SQL injection | — | No SQL database. Qdrant is queried through its client with typed filters, never string-built queries. | If a database is added (accounts, Later), parameterised queries only. |
-| XSS | 🕒 6 | API returns JSON only. Model text is bounded (1,000 chars, router reason 200) but **not** HTML-safe. | Frontend rules (Milestone 6): render model and retrieved text as plain text (React escaping, no `dangerouslySetInnerHTML`, no raw-HTML markdown); links only `http(s)` and only `source_url` values from the manifest; a Content-Security-Policy on deploy. |
+| XSS | 🕒 6 | API returns JSON only. Model text is bounded (1,000 chars, router reason 200) but **not** HTML-safe. | Frontend rules (Milestone 6): render model and retrieved text as plain text (React escaping, no `dangerouslySetInnerHTML`, no raw-HTML markdown: only the safe subset in `frontend/lib/modelText.ts`, parsed to data and rendered as fixed React elements, links reduced to their text); links only `http(s)` and only `source_url` values from the manifest; a Content-Security-Policy on deploy. |
 | CSRF | 🕒 7 | No cookies or sessions, so a cross-site page has no credentials to ride on. | Milestone 7: keep auth out of cookies (header token or passcode per request); CORS allow-list of the frontend origin only; test that a cross-site `text/plain` form POST is refused (check FastAPI's JSON content-type handling then, not assumed). |
 | SSRF | ✅ | `ingestion/fetch.py`: only manifest URLs with status `approved`; robots.txt re-checked on every redirect hop; content-type allow-list; at most 5 redirects. Users can't submit URLs. | Fixed in T-007: every URL and redirect hop must be https on port 443 and a manifest host; private, numeric and localhost hosts refused. Known limit: no DNS check of a manifest host. |
 | Path traversal | ✅ | `workflows/cli.py` `out_allowed`: a real profile's results only under `private/`; `evaluation/workflow_eval.py` `load_profile` refuses paths outside the repo. The API takes no file paths. | Uploads (7) must never use a client file name as a path. |
@@ -48,17 +48,17 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 | Brute force, password spraying, credential stuffing | 🕒 7 | No user passwords. If a demo passcode is added: long random value, constant-time compare, per-IP rate limit and back-off on failures, never logged. |
 | Session hijacking, session fixation | 🕒 7 | Prefer no sessions. If one is ever needed: `HttpOnly`, `Secure`, `SameSite=Strict`, a new id after login, short expiry. |
 | Privilege escalation, broken access control | 🕒 7 | One role (visitor). Settings that cost money (revision limit, model choice) come only from server settings, never from the request: already true for `max_revisions` (`api/career.py`). |
-| IDOR / BOLA | 🕒 6–7 | No stored per-user objects. When run ids appear (status polling, Milestone 6): random UUID4, not listable, results expire, nothing personal kept server-side. |
+| IDOR / BOLA | ✅ | Run ids (T-016): random uuid4, validated, not listable, the same 404 for unknown/expired/malformed; a run record never holds the posting or profile; the result (profile-derived reasoning) is kept in memory for 15 min after the run, at most 20 runs. Anyone holding a run id can read that result until it expires. |
 
 ## 03 API security
 
 | Risk | Status | Where / defence today | Gap and when |
 |---|---|---|---|
-| Input validation | ✅ | Pydantic schemas with bounds: question 2,000, job description 50–20,000, profile 12,000 total, corrections 10 × 500, router message 3–2,000 (whitespace-only refused). | — |
+| Input validation | ✅ | Pydantic schemas with bounds: resume text 100–15,000 (stripped), question 2,000, job description 50–20,000, profile 12,000 total, corrections 10 × 500, router message 3–2,000 (whitespace-only refused). | — |
 | Mass assignment | ✅ | `extra="forbid"`; the workflow refuses node writes to protected keys (`workflows/graph.py` `_wrap`). | — |
 | Excessive data exposure | ✅ | Fixed error messages (`api/main.py`); exception text never returned; results are typed response models. | — |
 | Resource limits | ✅ / 🕒 7 | Concurrency caps (`api/limits.py`: chat 2, jobs 1, career 1, else 503); revision limit 0–3; recursion backstop. | Workflow time budget done (T-006: 300 s, then a labelled fallback); per-IP rate limits (7). |
-| Inventory | ✅ | Four routes, all in `api/main.py`. | Keep the list in ARCHITECTURE.md current. |
+| Inventory | ✅ | Seven routes, all in `api/main.py` (resume import T-014; run start and poll T-016). | Keep the list in ARCHITECTURE.md current. |
 
 ## 04 Network and infrastructure
 
@@ -93,7 +93,7 @@ Solo project, so the realistic risks are a phished account or a leaked key.
 | Direct prompt injection | ✅ | User text is data in delimited blocks (`workflows/prompting.py` `block()`, `rag/answer.py`); the router HTML-escapes the whole message and the model only names a `kind`, while code picks the route (`router/route.py`). Ids, statuses, pass/fail and limits are decided in code. Tested: `test_router.py`, the wf-004 injection eval case. | — |
 | Indirect prompt injection | ✅ | Retrieved chunks and postings are wrapped and labelled as data; models have no tools, so injected text can only bend wording. | Fixed in T-008: untrusted text is NFKC-normalised and stripped of invisible format characters, and any tag opener (or a look-alike bracket) followed by one of our tag names is neutralised. |
 | RAG poisoning | ✅ | See 05 Tampering: approved sources only, provenance per chunk, rebuild and rollback. | A diff review of changed chunks on re-ingest (Later). |
-| Sensitive information disclosure | ✅ | No secrets in prompts. Logs record exception types only (router, workflow retry filter, API handlers). Tracing redacts and is off for visitors (`tracing.py`). Voyage receives questions and requirement text, not the profile; Anthropic receives the job description and profile (needed for the task). | Live mode (7): the visitor's key is never logged, stored or traced (release check). |
+| Sensitive information disclosure | ✅ | No secrets in prompts. Logs record exception types only (router, workflow retry filter, API handlers). Tracing redacts and is off for visitors (`tracing.py`). Voyage receives questions and requirement text, not the profile; Anthropic receives the job description and profile (needed for the task). Resume import (T-014): the pasted resume goes to the fast model once, under `tracing_context(enabled=False)` (tested, also through `ChatClaudeCode`), is never logged or stored, and model/SDK errors are logged by type only; contact details are dropped by the prompt and scrubbed in code. | Live mode (7): the visitor's key is never logged, stored or traced (release check). |
 | Cross-tenant leakage | — | Single shared public corpus; no user documents are indexed. | Rule: uploads are never added to the shared collection. |
 | Vector database attacks | ✅ / 🕒 8 | Local file store; only the ingest command writes. | Qdrant Cloud (8): key only on the server; use a read-only key for serving if the free tier offers one (check then). |
 | Excessive agency | ✅ | No model has tools: `ChatClaudeCode` runs with `tools=[]`, `setting_sources=[]`, `max_turns=3` (`providers/claude_code.py`). Every output is a validated Pydantic model; nothing the model says triggers an action. | Keep: any future tool needs an allow-list and server-side checks. |

@@ -214,7 +214,7 @@ def _assemble(
     completed = _completed(state)
     sources = _study_sources(state)
     answer = None if reason in NO_EXTRA_CALL else _rag_answer(state, context)
-    has_help = bool(sources) or (answer is not None and answer.status == "answered")
+    has_help = bool(sources) or (answer is not None and answer.status in ("answered", "partial"))
     message = MESSAGES[reason] + RETRY_HINT + ("" if has_help else NO_HELP)
     critique = state.get("critique")
     errors = [*state.get("errors", []), f"stopped early: {reason}"]

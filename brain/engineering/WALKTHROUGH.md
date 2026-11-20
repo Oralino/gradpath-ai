@@ -306,6 +306,8 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Likely questions:** *"Why `--locked`?"* It fails if `uv.lock` is out of date with
   `pyproject.toml`, so CI tests exactly the versions you run locally. *"Does CI run the
   retrieval eval?"* No: that needs the Voyage key and the local index; it's a manual release check.
+- **Frontend job (T-011):** `npm ci` (exactly what `package-lock.json` pins), then lint, type check,
+  Vitest and `next build`, with Next.js telemetry off. Same SHA pinning for `actions/setup-node`.
 
 ## Career workflow graph (`workflows/`: `state.py`, `schemas.py`, `graph.py`, `nodes.py`)
 - **What it is for:** the main feature (job description + profile -> gaps -> roadmap) needs
@@ -587,3 +589,209 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   - *"So what about 'not covered'?"* Still open: 4 of 12 uncovered questions clear 0.45. The next
     safety net is the answer step, where the model must say the evidence doesn't answer; that is
     measured next.
+
+## Frontend shell (`frontend/`, T-011 step 1)
+- **What it is:** a Next.js 16 App Router app styled with Tailwind 4 from the tokens in
+  `../design/DESIGN.md`. The browser only calls same-origin `/api/*`; `next.config.ts` rewrites
+  that to FastAPI.
+- **Decision: a same-origin proxy, not CORS.** The backend needs no CORS rule and its address never
+  reaches the browser. Rejected: calling `:8000` directly from the browser (a CORS allow-list now,
+  and the API address in client code). Milestone 7 still adds a CORS allow-list for the deployed
+  site.
+- **Decision: one API client (`lib/api.ts`).** Every screen goes through it, and every failure becomes
+  an `ApiError` with a fixed message. A 422 keeps only the field paths, because FastAPI's 422 body
+  echoes the user's input; a 500 never shows its body. Only 429/502/503 show the server's `detail`,
+  because those are fixed strings in `api/main.py` and `api/limits.py`.
+- **Decision: one gate for links (`lib/safeUrl.ts`).** A citation becomes an `<a>` only if its URL
+  parses as http(s) with no `user:pass@`; otherwise the title is plain text. With React's text
+  escaping and no `dangerouslySetInnerHTML`, that covers the XSS row in `SECURITY.md`.
+- **Decision: dark first, theme set by a static script.** `public/theme-init.js` reads the saved
+  choice before first paint, so a light-mode visitor sees no dark flash. It is a file rather than an
+  inline script so a strict Content-Security-Policy (Milestone 8) can stay `script-src 'self'`.
+  The toggle reads the theme after mount, not during render, to avoid a hydration mismatch.
+- **Gotchas:** `create-next-app` 16.4 wires Tailwind through `@tailwindcss/turbopack`, not PostCSS
+  (the Tailwind site still shows PostCSS); Vitest 5 needs `@types/node` 22+; `next/font` can't build
+  a size-matched fallback for Atkinson Hyperlegible Next, so `adjustFontFallback` is off.
+- **Likely questions:** *"Why not shadcn/ui?"* The design needs no JS tabs, tooltips or accordions
+  (native `<details>` and `<dialog>` cover them), so it would add Radix and helper packages for
+  nothing, plus a recognisable default look. *"Why types by hand instead of generating them from
+  OpenAPI?"* Fewer moving parts for ~20 models; the comment in `lib/types.ts` says to change both
+  sides together. Worth revisiting if the API grows.
+
+## Ask screen (`components/Assistant.tsx`, T-011 step 2)
+- **What it is:** the `/` page. One question, plus an optional pasted job posting and the sample
+  profile, sent to `POST /api/assist`. The router picks the path and the screen renders whatever comes
+  back: an answer card, a "not covered" panel, a "needs input" panel, or (for now) the plan's status.
+  Small pieces live in their own components (`StatusBadge`, `StatusPanel`, `CitationList`,
+  `RouteLine`, `CharCount`) so the Job and Plan screens reuse them.
+- **Decision: one assistant box, not separate "chat" and "plan" forms.** The backend already has a
+  router (`/api/assist`), so the screen shows its decision ("Knowledge-base answer · chosen by
+  rules") instead of making the visitor choose. Rejected: two forms calling `/api/chat` and
+  `/api/career/prepare`, which hides the routing this project is about.
+- **Decision: every state is designed, including the boring ones.** Not covered, needs input, busy,
+  validation, server and network errors each get fixed copy and a next action. Results move focus
+  to their heading and are announced in a polite live region. Stale responses are dropped: each
+  request has its own `AbortController`, and a response is used only if its request is still current.
+- **Gotchas:** the tray's posting box takes pasted text
+  only, never a URL (an SSRF risk on the server).
+- **Likely questions:** *"Why not stream the answer?"* The answer is checked for citations before it
+  is shown, so it arrives whole; a RAG answer takes about 10-15 s and the timer says so. *"What if
+  the response arrives after the user pressed Stop?"* The request was aborted and the stale guard
+  ignores it; there is a test for that.
+
+## Safe markdown in answers (`lib/modelText.ts`, `components/ModelText.tsx`, T-011)
+- **What it is:** the model writes answers in markdown. GradPath shows a small subset of it:
+  paragraphs, lists, bold, inline and fenced code, and `#` lines as bold text. Everything else stays
+  literal. Used for the answer body; the study notes and plan text will use it too.
+- **Decision: parse to data, render fixed elements.** The parser returns plain objects
+  (`paragraph`, `list`, `code`, `strong` ...) and the component maps each to one hard-coded React
+  element. Text only ever goes in as React children, so it is escaped, and no attribute comes from
+  the text. That is why a markdown link keeps its text but loses its URL: model text never becomes a
+  link (the citation list is the only way out, through `lib/safeUrl.ts`).
+- **Rejected:** plain text only (safer and simpler, but long answers became a wall of `**` and
+  backticks; owner chose the subset 2026-11-20); `react-markdown` + remark (full CommonMark, but
+  several dependencies and a much bigger surface to configure safely for ~6 constructs); turning
+  markdown into an HTML string (would need `dangerouslySetInnerHTML`, which the security rules ban).
+- **Gotchas:** `#` headings are drawn as bold paragraphs so model text can't break the page's
+  heading order; `# Learning C#` keeps its `#` (a closing `#` run needs a space before it). Model
+  text is untrusted, so every scan is linear or bounded: regexes match only a fixed line prefix
+  (the first draft's heading regex could backtrack for seconds on a long run of spaces, caught in
+  review), the link scan looks 200 characters ahead, list continuations are appended in place, and
+  input over 30,000 characters is shown unparsed. Timing tests cover each of these cases.
+- **Likely questions:** *"Isn't rendering model markdown an XSS risk?"* Only if it becomes HTML.
+  Here it becomes data, then fixed React elements; tests feed `<script>`, `onerror` and
+  `javascript:` links and assert no element or attribute comes out. *"Why not italics?"* `_` and `*`
+  appear in identifiers and arithmetic (`snake_case`, `2 * 3`), so italics would mangle code more
+  often than they help.
+
+## Partial answers (`rag/answer.py`, T-012)
+- **What it is:** a third RAG answer status. `answered` means the sources cover the question,
+  `partial` means they cover part of it, `insufficient_evidence` means not enough to answer. A partial
+  answer carries `not_covered`, one sentence naming the gap, which the Ask screen shows above the
+  answer under the heading "Partial answer".
+- **Decision: the model writes the sentence, code sets the status.** The model fills `not_covered`
+  (empty when nothing is missing). Code makes the answer `partial` only if that sentence is non-empty
+  *and* the answer still has a valid citation, so the existing downgrades (uncited answer, model says
+  insufficient) always win. Rejected: a `partial: bool` from the model (a flag with no sentence gives
+  the visitor nothing to act on); searching the answer for "doesn't cover" phrases (brittle).
+- **Gotchas:** the field defaults to empty, so a model that leaves it out still gives a normal
+  `answered`, never a validation error. The sentence is capped at 300 characters (model text is
+  bounded before the API). The prompt tells the model the app shows the gap above the answer;
+  without that, it also opened the answer with the gap, so it appeared twice.
+- **Likely questions:** *"Can the model just mark everything partial to be safe?"* It could, and
+  the badge would then mean little; the real runs so far mark the two known gap questions partial
+  and a fully covered one answered. The answer eval set (TASKS) is where that gets measured.
+
+## Profile screen (`components/ProfileForm.tsx`, `lib/profileStore.ts`, T-011)
+- **What it is:** the `/profile` form for the visitor's own background: education, skills,
+  coursework, projects, experience, weekly hours and timeline. It never calls the API; the Ask
+  screen sends the saved profile only when the visitor chooses it for a request.
+- **Decision: browser storage, not a server account.** The MVP has no login, and a profile is
+  personal data; keeping it in localStorage means the server never stores it. Rejected: a server
+  profile store (needs auth, a database and a privacy policy for little gain in a demo). Trade-off:
+  the profile doesn't follow the visitor to another browser.
+- **Decision: validate exactly like the backend.** `validateProfile` mirrors `workflows/schemas.py`:
+  1-200 / 1-1,200 characters, 50 skills, 30 courses, 6 projects (15 technologies), 6 roles, whole
+  hours 1-80 and weeks 1-52, and the 12,000-character total measured the way Pydantic does (compact
+  JSON including the null `profile_id`, `note` and `name`). A mismatch either way is a bug: too loose
+  gives the visitor a 422 later, too strict blocks valid input.
+- **Gotchas:** lengths count code points (`lib/charCount.ts`) because Python's `len()` does; JS
+  `.length` counts an emoji as 2. Stored data is untrusted too: `loadProfile` copies known fields
+  only and re-validates, so an edited or old record is ignored instead of breaking a request.
+- **Likely questions:** *"Why not let the backend validate and show its errors?"* It does, as the
+  last line of defence, but its 422 can only name a field path; checking here gives row-specific
+  messages ("Project 2: name is required.") before anything is sent. *"Why no name field?"* A plan
+  doesn't need it, so the form collects less personal data.
+
+## Resume import (`profiles/resume.py`, `api/profile.py`, `components/ResumeImport.tsx`, T-014)
+- **What it is:** paste a resume on the Profile screen and get the form filled in as a draft. The
+  backend makes one fast-tier call that extracts a loose structure, and code turns it into a valid
+  `UserProfile`. Nothing is saved until the visitor clicks "Save profile", and then only in their
+  browser.
+- **Decision: a loose model schema, strict code.** The model returns plain strings and lists, with
+  no limits. `to_profile` trims, scrubs contact details, cuts to the field limits, removes
+  duplicate skills, caps counts and fits the 12,000-character total. It writes a note for anything
+  it dropped. Rejected: asking the model for a strict `UserProfile`. One over-long field would fail
+  validation and waste the call, and limits are easier to test in code.
+- **Decision: privacy in layers.**
+  - The call runs with tracing forced off. A test proves no run is recorded, even through the
+    Claude Code provider's worker thread.
+  - Logs carry counts only, and model errors are logged by type.
+  - The prompt says to leave out contact details, and `scrub` removes them again.
+  - The visitor reviews the draft.
+  - Rejected: relying on the prompt alone. A model can still copy an email into a description.
+- **Gotchas:**
+  - Contact scrubbing trades recall for precision. It keeps C#, ASP.NET, Node.js/Express,
+    `@Transactional`, GPAs and "2021 - 2025", but misses a name inside a sentence and short local
+    phone numbers.
+  - When the size limit forces cuts, courses and skills go before whole projects, because projects
+    are better evidence for a plan.
+  - The skill count can vary between runs as the model splits items differently.
+- **Likely questions:**
+  - *"Why not let users upload the PDF?"* Uploads are an always-hard area (type sniffing, parsing
+    untrusted files). Pasted text gives most of the value now, and upload is planned for Milestone 7.
+  - *"What can a malicious resume do?"* The models have no tools, so it can only change the
+    draft's wording, which the visitor reviews. The planted "ignore previous instructions" line in
+    the sample resume is ignored in real runs.
+
+## Job screen (`components/JobAnalysisView.tsx`, T-011)
+- **What it is:** the `/job` page. Paste a posting, `POST /api/jobs/analyze` extracts the
+  requirements, searches the knowledge base for each, and writes a cited study note. The screen
+  groups them as Required, Preferred and Eligibility (not assessed), and each row shows its coverage,
+  the posting's own words, the note and its sources.
+- **Decision: evidence first.** Each row shows the posting quote before any interpretation, and
+  flags "Quote not found in posting" when the model's quote isn't really in the text. Coverage is a
+  word badge ("Weak evidence"), never a score; scores sit in a "How this was matched" disclosure.
+- **Decision: a list, not a table.** Each row carries its own labels, so it reads the same at
+  375px and in a screen reader. Rejected: a table, which needs horizontal scrolling on a phone and
+  is read cell by cell.
+- **Gotchas:** chips are one per page and labelled "Title: Section". Two chunks from the same source
+  looked identical in the first real run. Raw GitHub fetch URLs are cited as their github.com page
+  (T-015). The plan button hands the posting to the Ask screen until the Plan screen exists.
+- **Likely questions:** *"Why are most requirements 'weak evidence'?"* A requirement is
+  "covered" only when retrieval found relevant evidence and the notes model wrote a cited study note
+  it rates as a direct answer (`jobs/analyze.py`). Evidence that is only related, or a note rated
+  "partial", gives "weak evidence". A corpus of general sources gives honest weak labels rather than
+  false confidence.
+
+## Background runs and polling (`workflows/runs.py`, `api/runs.py`, T-016)
+- **What it is:** starting a plan returns a run id at once. The workflow runs in a background
+  thread, and the browser asks `GET /api/career/runs/{id}` every 2 s for each stage's state (done,
+  running or waiting) and, at the end, the result.
+- **Decision: polling over a thread, not a job queue or WebSockets.** One run at a time, stages
+  tens of seconds long, and a free-tier host. A dict behind a lock and a 2 s poll are enough.
+  - Rejected: Celery or Redis, which add infrastructure and can cost money.
+  - Rejected: server-sent events or WebSockets, which mean more moving parts for no visible gain at
+    this pace.
+- **Decision: the limits don't move.** The same one-run slot is held for the whole run. The
+  revision limit, the 5-minute budget and the labelled fallback all come from `run_workflow`
+  unchanged. Its one new hook, `on_step`, only observes, and an error in it is ignored.
+- **Gotchas:**
+  - The slot is released before "done" becomes visible. The reviewer caught the opposite order: it
+    gave a false "busy" if you started the next run immediately.
+  - Stage states come from a table that a test checks against the compiled graph.
+  - Runs live in one process: one worker, and a restart forgets them.
+  - Records never hold the posting or profile.
+- **Likely questions:**
+  - *"What if the user closes the tab?"* The run finishes anyway (it can't be interrupted
+    mid-stage, and the budget caps it). `/plan` remembers the run id, so reopening resumes it.
+  - *"Can someone read another person's plan?"* Only by guessing a random uuid4 within 15 minutes
+    of it finishing. Ids can't be listed, and the record holds no input.
+
+## Plan screen (`components/PlanView.tsx`, `PlanProgress.tsx`, `PlanResult.tsx`, T-011)
+- **What it is:** the `/plan` page. It shows the posting and profile rows, then live progress, then
+  the plan: skills gap, roadmap, interview questions and corrections, with an "On this page" nav.
+  The Ask screen shows the same progress and plan in place when the router picks the workflow.
+- **Decision: the heading tells the truth.** Each status has its own h2 and banner. "Preparation
+  plan" means checked; "with open issues" lists the blocking issues inline; "Partial" marks missing
+  sections with "Not produced in this run"; "Stopped early" shows what finished and what still
+  helps. Rejected: a single "Your plan" heading with a small badge, which hides partial results.
+- **Gotchas:**
+  - The page keeps only the run id and the last plan in sessionStorage, and re-validates a stored
+    plan before showing it, because a corrupted one crashed every reload during review.
+  - Only the two known server error texts are ever shown.
+  - Five failed polls in a row show "Can't reach the server" instead of a silent wait.
+- **Likely questions:** *"Why isn't there a progress bar?"* The stages vary in length and a revise
+  loop may or may not run, so a percentage would be invented. A stage list and a timer show what is
+  really known.
+

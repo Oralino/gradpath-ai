@@ -64,6 +64,8 @@ def report(result: CareerPrepResult, seconds: float) -> str:
             lines += [f"      - {c.title} > {c.section}" for c in s.citations]
         if fb.answer:
             lines.append(f"    answer ({fb.answer.status}): {fb.answer.answer}")
+            if fb.answer.not_covered:
+                lines.append(f"    not covered: {fb.answer.not_covered}")
     if result.errors:
         lines.append("\nErrors:")
         lines += [f"- {e}" for e in result.errors]

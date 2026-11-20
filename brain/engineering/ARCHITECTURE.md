@@ -47,7 +47,12 @@ backend/          uv project (pyproject.toml, uv.lock)
     schemas/      Pydantic models
     tracing.py    LangSmith on/off rules
   tests/
-frontend/         Next.js (later)
+frontend/         Next.js 16 App Router + Tailwind 4 (T-011, Milestone 6)
+  app/            routes: / (Ask), /job, /plan, /profile; layout.tsx; globals.css (design tokens)
+  components/     UI parts (SiteHeader, ThemeToggle, ...)
+  lib/            api.ts (typed client, fixed error messages), types.ts (mirrors the Pydantic
+                  models), safeUrl.ts (the only way a citation becomes a link), theme.ts
+  public/         theme-init.js (applies the saved theme before first paint)
 knowledge_base/   raw/, processed/, source_manifest.csv
 evaluation/       labelled datasets (retrieval questions, routes, workflow cases)
 demo_runs/        recorded runs for demo mode (sample profile only)
@@ -149,7 +154,13 @@ Traditional RAG (built): `rag.answer_question` -> `POST /api/chat`. Abstains wit
 when retrieval is insufficient; evidence in delimited untrusted blocks; Sonnet structured reply;
 citations verified against retrieved ids. API endpoints so far: `GET /api/health`, `POST /api/chat`, `POST /api/jobs/analyze`,
 `POST /api/career/prepare` (the workflow; synchronous; body `WorkflowInput`; errors mapped to
-fixed messages, including `GraphRecursionError` -> 500).
+fixed messages, including `GraphRecursionError` -> 500), `POST /api/profile/from-resume` (T-014:
+pasted resume text -> a draft `UserProfile` + notes; one fast-tier call, never traced, nothing
+stored; `profiles/resume.py`), and `POST /api/career/runs` + `GET /api/career/runs/{id}` (T-016:
+the workflow in a background thread behind a uuid4 run id; the browser polls every 2 s for stage
+states and the result; `/api/assist` starts a run for the workflow route and returns `started`).
+Runs live in memory in one process (`workflows/runs.py`): deploy as a **single worker**, and know
+that a restart or `--reload` forgets running and finished runs (the poll then gets 404).
 
 ## Security
 Retrieved content, uploads and JDs are untrusted data: delimited in prompts, never followed as

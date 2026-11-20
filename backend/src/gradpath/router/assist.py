@@ -20,7 +20,8 @@ from gradpath.router.schemas import Kind, RouteDecision, RouteRequest
 from gradpath.workflows import CareerPrepResult, UserProfile, WorkflowContext, run_workflow
 from gradpath.workflows.schemas import MAX_JOB_DESCRIPTION_CHARS, Correction
 
-Outcome = Literal["answered", "prepared", "needs_input", "unsupported"]
+# "started": the workflow is running in the background; poll /api/career/runs/{run_id} (T-016).
+Outcome = Literal["answered", "prepared", "started", "needs_input", "unsupported"]
 
 INPUT_NAMES = {"job_description": "a job description", "profile": "your profile"}
 UNSUPPORTED: dict[Kind, str] = {
@@ -56,6 +57,7 @@ class AssistResponse(BaseModel):
     message: str | None = None
     answer: ChatAnswer | None = None
     result: CareerPrepResult | None = None
+    run_id: str | None = None
 
 
 def decide(req: AssistRequest, fast_llm: BaseChatModel) -> RouteDecision:

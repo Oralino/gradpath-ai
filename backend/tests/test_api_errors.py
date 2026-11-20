@@ -79,3 +79,19 @@ def test_analyze_rejects_oversized_description(kb_service):
     client = make_client(kb_service, FakeChatModel())
     resp = client.post("/api/jobs/analyze", json={"job_description": "x" * 20_001})
     assert resp.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("path", "body"),
+    [
+        ("/api/chat", {"question": "what is a sql index"}),
+        ("/api/jobs/analyze", {"job_description": "Backend engineer, Python and SQL. " * 3}),
+        ("/api/profile/from-resume", {"resume_text": "Python developer with SQL experience. " * 5}),
+    ],
+)
+def test_request_bodies_reject_unknown_fields(kb_service, path, body):
+    # Release checklist: every request body forbids extra fields (T-017).
+    client = make_client(kb_service, FakeChatModel())
+    resp = client.post(path, json={**body, "api_key": "sk-should-not-be-accepted"})
+    assert resp.status_code == 422
+    assert [e["type"] for e in resp.json()["detail"]] == ["extra_forbidden"]

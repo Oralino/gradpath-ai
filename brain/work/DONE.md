@@ -1,6 +1,31 @@
 # DONE.md
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
+## 2026-11-20
+- **Milestone 6 (frontend) finished:** [T-011](tickets/T-011-frontend.md). Ask, Job, Plan and
+  Profile screens; design critique fixes `e694acb`; release checks recorded in the ticket
+  (retrieval re-check `ce9ce74`). PR to `main` waiting for the owner.
+- [T-017 Request bodies reject unknown fields](tickets/T-017-request-extra-forbid.md): found by
+  the release security checklist; `ChatRequest`, `AnalyzeRequest` and `ResumeRequest` now use
+  `extra="forbid"`. `a6d6fcf`.
+- [T-016 Background runs + polling](tickets/T-016-run-polling.md), `1d1effe`, and the Plan screen
+  (T-011 step 10), `1d5c3c3`: live stage progress, honesty states, corrections; real runs via
+  `/plan` and Ask.
+- Job screen (T-011 step 9), `c160c5d`; [T-015 readable citation links](tickets/T-015-readable-citation-links.md), `c839eb2`.
+- [T-014 Resume import](tickets/T-014-resume-import.md): "Fill from a resume" on the Profile
+  screen and `POST /api/profile/from-resume`; one fast-tier call, never traced or stored, contact
+  details dropped and scrubbed, limits enforced in code with notes; reviewed twice + QA; checked
+  with the fictional resume and the owner's own (kept out of git). `3b4cffd`.
+- Profile screen (T-011 step 7), `a4c0ee0`; see the T-011 ticket.
+- [T-013 /api proxy timeout](tickets/T-013-dev-proxy-timeout.md): Next's proxy cut `/api/*` at
+  30 s (a rate-limited answer failed; every workflow run would). `experimental.proxyTimeout` is now
+  330 s, above the 300 s run budget; checked with a 40 s stub (200 with the fix, 500 at 30 s
+  without). `c15c033`.
+- [T-012 Partial answer status](tickets/T-012-partial-answer-status.md): RAG answers can be
+  `partial` with a "Not covered: ..." sentence; the model writes the sentence, code sets the status,
+  downgrades still win. Real runs: `q-031` and `q-049` partial, a fully covered question answered.
+  Shown on the Ask screen as "Partial answer" with a caution badge. `0ea9ae7`.
+
 ## 2026-11-19
 - [T-010 Milestone 5: hybrid retrieval + reranking](tickets/T-010-hybrid-retrieval.md): labels
   v1.3 (50 questions); local rerankers (MiniLM, bge) and BM25 + RRF hybrid measured against

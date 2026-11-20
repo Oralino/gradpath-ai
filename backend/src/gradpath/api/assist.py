@@ -15,6 +15,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from gradpath.api import limits
 from gradpath.api.career import BUSY as CAREER_BUSY
 from gradpath.api.deps import get_answer_model, get_extraction_model, get_retrieval
+from gradpath.api.runs import get_run_store
 from gradpath.config import get_settings
 from gradpath.retrieval import RetrievalService
 from gradpath.router import route_log
@@ -26,6 +27,9 @@ from gradpath.router.assist import (
     route_log_entry,
 )
 from gradpath.router.schemas import RouteDecision
+from gradpath.workflows import WorkflowContext
+from gradpath.workflows.runs import RunBusy, RunStore
+from gradpath.workflows.schemas import WorkflowInput
 
 router = APIRouter(prefix="/api", tags=["assist"])
 
@@ -36,9 +40,11 @@ def assist(
     retrieval: Annotated[RetrievalService, Depends(get_retrieval)],
     fast: Annotated[BaseChatModel, Depends(get_extraction_model)],
     smart: Annotated[BaseChatModel, Depends(get_answer_model)],
+    store: Annotated[RunStore, Depends(get_run_store)],
 ) -> AssistResponse:
     """Route, then run the chosen path under that path's concurrency cap: the routing call and
-    a RAG answer share the chat cap; a workflow run takes the career cap (one at a time)."""
+    a RAG answer share the chat cap. The workflow starts in the background (T-016): it takes the
+    career cap (one at a time) for the whole run, and the response carries the run id to poll."""
     settings = get_settings()
     start = time.monotonic()
     decision: RouteDecision | None = None
@@ -56,11 +62,24 @@ def assist(
                     settings=settings,
                 )  # fmt: skip
         if response is None:
-            with limits.slot(limits.CAREER, CAREER_BUSY):
-                response = respond(
-                    body, decision, retrieval=retrieval, fast_llm=fast, smart_llm=smart,
+            # The route table only allows a workflow run with both inputs attached; check
+            # anyway (not `assert`, which `python -O` removes).
+            if body.job_description is None or body.profile is None:
+                raise RuntimeError("workflow route chosen without both inputs")
+            data = WorkflowInput(
+                job_description=body.job_description,
+                profile=body.profile,
+                corrections=list(body.corrections),
+            )
+            try:
+                run_id = store.start(
+                    data,
+                    context=WorkflowContext(retrieval=retrieval, fast_llm=fast, smart_llm=smart),
                     settings=settings,
-                )  # fmt: skip
+                )
+            except RunBusy:
+                raise HTTPException(status_code=503, detail=CAREER_BUSY) from None
+            response = AssistResponse(decision=decision, outcome="started", run_id=run_id)
         return response
     except HTTPException as exc:
         error = "busy" if exc.status_code == 503 else f"http_{exc.status_code}"
