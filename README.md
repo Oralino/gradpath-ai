@@ -9,7 +9,17 @@ single retrieval-and-generation pass, and multi-step requests (analyse this job 
 plan my preparation) through a LangGraph agentic workflow. Both share one retrieval service, and both
 are measured with a labelled evaluation set.
 
-> Status: project setup. No code yet. See `brain/work/TASKS.md` for the milestones.
+> Status: Milestones 0-6 done: the backend (RAG, the LangGraph workflow, the router and fallback,
+> evaluations) and the Next.js frontend run locally. Next: demo and live modes (7), then deploy (8).
+> The milestone story is in `brain/work/MILESTONES.md`.
+
+## What you can do
+| Screen | What it does |
+|---|---|
+| Ask (`/`) | Ask a backend preparation question and get an answer with citations, or a clear "not covered". Add a job posting and a profile and the router sends it to the full workflow instead. |
+| Analyse a job (`/job`) | Paste a posting: each requirement with its coverage in the knowledge base, the quote from the posting, a study note and its sources. |
+| Plan (`/plan`) | Posting + profile -> skills gap, roadmap with cited resources, interview questions. Runs in the background (1.5-5 min) with live stage progress; partial results are labelled as partial. |
+| Profile (`/profile`) | Your profile, kept only in this browser; can be filled from pasted resume text. |
 
 ## Stack
 Python 3.13 · FastAPI · LangGraph · LangChain · Claude (Anthropic) · Voyage AI embeddings · Qdrant ·
@@ -43,6 +53,31 @@ uv run python -m gradpath.providers.smoke                      # one tiny real c
 
 Make sure `ANTHROPIC_API_KEY` is not set in your shell, or Claude Code bills the API instead of your
 plan. To use the API instead, set `LLM_PROVIDER=anthropic_api` and `ANTHROPIC_API_KEY` in `.env`.
+
+## Run the app locally
+Needs Node.js 20.9 or newer for the frontend. Build the knowledge-base index once (needs
+`VOYAGE_API_KEY` in `.env`; it caches embeddings, so a re-run doesn't spend tokens again):
+
+```bash
+cd backend
+uv run python -m gradpath.ingestion.ingest
+```
+
+Then start the API and the frontend in two terminals:
+
+```bash
+cd backend
+uv run uvicorn gradpath.api.main:app        # API on http://127.0.0.1:8000 (docs at /docs)
+```
+
+```bash
+cd frontend
+npm ci
+npm run dev                                  # http://localhost:3000; /api/* goes to the API
+```
+
+Local Qdrant allows one process at a time: stop the API before running ingest or an evaluation.
+Frontend checks: `npm run lint && npm run typecheck && npm test && npm run build`.
 
 ## Documentation
 Requirements, architecture, evaluation results and the design decisions live in `brain/`.
