@@ -2,6 +2,11 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-20
+- [T-014 Resume import](tickets/T-014-resume-import.md): "Fill from a resume" on the Profile
+  screen and `POST /api/profile/from-resume`; one fast-tier call, never traced or stored, contact
+  details dropped and scrubbed, limits enforced in code with notes; reviewed twice + QA; checked
+  with the fictional resume and the owner's own (kept out of git). `3b4cffd`.
+- Profile screen (T-011 step 7), `a4c0ee0`; see the T-011 ticket.
 - [T-013 /api proxy timeout](tickets/T-013-dev-proxy-timeout.md): Next's proxy cut `/api/*` at
   30 s (a rate-limited answer failed; every workflow run would). `experimental.proxyTimeout` is now
   330 s, above the 300 s run budget; checked with a 40 s stub (200 with the fix, 500 at 30 s

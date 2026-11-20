@@ -154,7 +154,9 @@ Traditional RAG (built): `rag.answer_question` -> `POST /api/chat`. Abstains wit
 when retrieval is insufficient; evidence in delimited untrusted blocks; Sonnet structured reply;
 citations verified against retrieved ids. API endpoints so far: `GET /api/health`, `POST /api/chat`, `POST /api/jobs/analyze`,
 `POST /api/career/prepare` (the workflow; synchronous; body `WorkflowInput`; errors mapped to
-fixed messages, including `GraphRecursionError` -> 500).
+fixed messages, including `GraphRecursionError` -> 500), `POST /api/profile/from-resume` (T-014:
+pasted resume text -> a draft `UserProfile` + notes; one fast-tier call, never traced, nothing
+stored; `profiles/resume.py`).
 
 ## Security
 Retrieved content, uploads and JDs are untrusted data: delimited in prompts, never followed as

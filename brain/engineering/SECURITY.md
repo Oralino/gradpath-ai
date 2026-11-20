@@ -54,11 +54,11 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 
 | Risk | Status | Where / defence today | Gap and when |
 |---|---|---|---|
-| Input validation | ✅ | Pydantic schemas with bounds: question 2,000, job description 50–20,000, profile 12,000 total, corrections 10 × 500, router message 3–2,000 (whitespace-only refused). | — |
+| Input validation | ✅ | Pydantic schemas with bounds: resume text 100–15,000 (stripped), question 2,000, job description 50–20,000, profile 12,000 total, corrections 10 × 500, router message 3–2,000 (whitespace-only refused). | — |
 | Mass assignment | ✅ | `extra="forbid"`; the workflow refuses node writes to protected keys (`workflows/graph.py` `_wrap`). | — |
 | Excessive data exposure | ✅ | Fixed error messages (`api/main.py`); exception text never returned; results are typed response models. | — |
 | Resource limits | ✅ / 🕒 7 | Concurrency caps (`api/limits.py`: chat 2, jobs 1, career 1, else 503); revision limit 0–3; recursion backstop. | Workflow time budget done (T-006: 300 s, then a labelled fallback); per-IP rate limits (7). |
-| Inventory | ✅ | Four routes, all in `api/main.py`. | Keep the list in ARCHITECTURE.md current. |
+| Inventory | ✅ | Five routes, all in `api/main.py` (resume import added in T-014). | Keep the list in ARCHITECTURE.md current. |
 
 ## 04 Network and infrastructure
 
@@ -93,7 +93,7 @@ Solo project, so the realistic risks are a phished account or a leaked key.
 | Direct prompt injection | ✅ | User text is data in delimited blocks (`workflows/prompting.py` `block()`, `rag/answer.py`); the router HTML-escapes the whole message and the model only names a `kind`, while code picks the route (`router/route.py`). Ids, statuses, pass/fail and limits are decided in code. Tested: `test_router.py`, the wf-004 injection eval case. | — |
 | Indirect prompt injection | ✅ | Retrieved chunks and postings are wrapped and labelled as data; models have no tools, so injected text can only bend wording. | Fixed in T-008: untrusted text is NFKC-normalised and stripped of invisible format characters, and any tag opener (or a look-alike bracket) followed by one of our tag names is neutralised. |
 | RAG poisoning | ✅ | See 05 Tampering: approved sources only, provenance per chunk, rebuild and rollback. | A diff review of changed chunks on re-ingest (Later). |
-| Sensitive information disclosure | ✅ | No secrets in prompts. Logs record exception types only (router, workflow retry filter, API handlers). Tracing redacts and is off for visitors (`tracing.py`). Voyage receives questions and requirement text, not the profile; Anthropic receives the job description and profile (needed for the task). | Live mode (7): the visitor's key is never logged, stored or traced (release check). |
+| Sensitive information disclosure | ✅ | No secrets in prompts. Logs record exception types only (router, workflow retry filter, API handlers). Tracing redacts and is off for visitors (`tracing.py`). Voyage receives questions and requirement text, not the profile; Anthropic receives the job description and profile (needed for the task). Resume import (T-014): the pasted resume goes to the fast model once, under `tracing_context(enabled=False)` (tested, also through `ChatClaudeCode`), is never logged or stored, and model/SDK errors are logged by type only; contact details are dropped by the prompt and scrubbed in code. | Live mode (7): the visitor's key is never logged, stored or traced (release check). |
 | Cross-tenant leakage | — | Single shared public corpus; no user documents are indexed. | Rule: uploads are never added to the shared collection. |
 | Vector database attacks | ✅ / 🕒 8 | Local file store; only the ingest command writes. | Qdrant Cloud (8): key only on the server; use a read-only key for serving if the free tier offers one (check then). |
 | Excessive agency | ✅ | No model has tools: `ChatClaudeCode` runs with `tools=[]`, `setting_sources=[]`, `max_turns=3` (`providers/claude_code.py`). Every output is a validated Pydantic model; nothing the model says triggers an action. | Keep: any future tool needs an allow-list and server-side checks. |

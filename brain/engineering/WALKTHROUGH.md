@@ -703,3 +703,34 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   messages ("Project 2: name is required.") before anything is sent. *"Why no name field?"* A plan
   doesn't need it, so the form collects less personal data.
 
+## Resume import (`profiles/resume.py`, `api/profile.py`, `components/ResumeImport.tsx`, T-014)
+- **What it is:** paste a resume on the Profile screen and get the form filled in as a draft. The
+  backend makes one fast-tier call that extracts a loose structure, and code turns it into a valid
+  `UserProfile`. Nothing is saved until the visitor clicks "Save profile", and then only in their
+  browser.
+- **Decision: a loose model schema, strict code.** The model returns plain strings and lists, with
+  no limits. `to_profile` trims, scrubs contact details, cuts to the field limits, removes
+  duplicate skills, caps counts and fits the 12,000-character total. It writes a note for anything
+  it dropped. Rejected: asking the model for a strict `UserProfile`. One over-long field would fail
+  validation and waste the call, and limits are easier to test in code.
+- **Decision: privacy in layers.**
+  - The call runs with tracing forced off. A test proves no run is recorded, even through the
+    Claude Code provider's worker thread.
+  - Logs carry counts only, and model errors are logged by type.
+  - The prompt says to leave out contact details, and `scrub` removes them again.
+  - The visitor reviews the draft.
+  - Rejected: relying on the prompt alone. A model can still copy an email into a description.
+- **Gotchas:**
+  - Contact scrubbing trades recall for precision. It keeps C#, ASP.NET, Node.js/Express,
+    `@Transactional`, GPAs and "2021 - 2025", but misses a name inside a sentence and short local
+    phone numbers.
+  - When the size limit forces cuts, courses and skills go before whole projects, because projects
+    are better evidence for a plan.
+  - The skill count can vary between runs as the model splits items differently.
+- **Likely questions:**
+  - *"Why not let users upload the PDF?"* Uploads are an always-hard area (type sniffing, parsing
+    untrusted files). Pasted text gives most of the value now, and upload is planned for Milestone 7.
+  - *"What can a malicious resume do?"* The models have no tools, so it can only change the
+    draft's wording, which the visitor reviews. The planted "ignore previous instructions" line in
+    the sample resume is ignored in real runs.
+
