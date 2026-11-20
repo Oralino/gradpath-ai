@@ -83,3 +83,17 @@ describe("api", () => {
     await expect(api.chat({ question: "What is MVCC?" })).rejects.not.toBeInstanceOf(ApiError);
   });
 });
+
+describe("importResume", () => {
+  test("posts the resume text to /api/profile/from-resume and returns the result", async () => {
+    const result = { profile: { skills: ["Python"], coursework: [], projects: [], experience: [] }, notes: [] };
+    const fn = vi.fn((_url: string, init: RequestInit) =>
+      init ? Promise.resolve(jsonResponse(200, result)) : Promise.reject(new Error("no init")),
+    );
+    vi.stubGlobal("fetch", fn);
+    expect(await api.importResume({ resume_text: "my resume" })).toEqual(result);
+    expect(fn.mock.calls[0][0]).toBe("/api/profile/from-resume");
+    expect(fn.mock.calls[0][1].method).toBe("POST");
+    expect(JSON.parse(fn.mock.calls[0][1].body as string)).toEqual({ resume_text: "my resume" });
+  });
+});

@@ -16,6 +16,7 @@ from gradpath.api.assist import router as assist_router
 from gradpath.api.career import router as career_router
 from gradpath.api.chat import router as chat_router
 from gradpath.api.jobs import router as jobs_router
+from gradpath.api.profile import router as profile_router
 from gradpath.config import get_settings
 from gradpath.providers import ClaudeCodeError
 from gradpath.retrieval import get_retrieval_service
@@ -42,6 +43,10 @@ def _error_handler(status: int, detail: str):
             log.error(
                 "%s on %s (%d errors)", type(exc).__name__, request.url.path, exc.error_count()
             )
+        elif isinstance(exc, (ClaudeCodeError, anthropic.APIError)):
+            # Their messages can carry model or SDK text, which can quote a resume or profile
+            # (T-014): log the type only, no message or traceback.
+            log.error("%s on %s", type(exc).__name__, request.url.path)
         else:
             log.error("%s on %s", type(exc).__name__, request.url.path, exc_info=exc)
         return JSONResponse({"detail": detail}, status_code=status)
@@ -94,6 +99,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
     app.include_router(jobs_router)
     app.include_router(career_router)
     app.include_router(assist_router)
+    app.include_router(profile_router)
 
     @app.get("/api/health", tags=["meta"])
     def health() -> dict[str, str]:

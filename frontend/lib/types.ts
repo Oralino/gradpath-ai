@@ -102,6 +102,13 @@ export interface UserProfile {
   timeline_weeks?: number | null; // 1-52
 }
 
+// POST /api/profile/from-resume. The profile never has weekly_hours or timeline_weeks (a resume has
+// neither). notes is server text: render as React text only.
+export interface ResumeImport {
+  profile: UserProfile;
+  notes: string[];
+}
+
 export interface WorkflowInput {
   job_description: string;
   profile: UserProfile;

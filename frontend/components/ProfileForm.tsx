@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CharCount } from "@/components/CharCount";
-import { OctagonIcon } from "@/components/icons";
+import { InfoIcon, OctagonIcon } from "@/components/icons";
+import { ResumeImport } from "@/components/ResumeImport";
 import { StatusBadge } from "@/components/StatusBadge";
 import { primaryButton, secondaryButton, textButton } from "@/components/buttonStyles";
 import {
@@ -21,7 +22,7 @@ import {
 } from "@/lib/profileStore";
 import { charCount } from "@/lib/charCount";
 import { SAMPLE_PROFILE } from "@/lib/sampleProfile";
-import type { UserProfile } from "@/lib/types";
+import type { ResumeImport as ResumeImportResult, UserProfile } from "@/lib/types";
 
 // The form edits text. Lists are kept as text (one per line, comma-separated) and converted on
 // save, so typing a comma or a new line never fights the user. Rows carry a local id for React keys.
@@ -300,6 +301,10 @@ export function ProfileForm() {
   const [attempted, setAttempted] = useState(false);
   const [summaryNonce, setSummaryNonce] = useState(0);
   const [saveFailed, setSaveFailed] = useState(false);
+  // Set by a resume import: drives the review badge, the left-out notes and the live message.
+  const [fromResume, setFromResume] = useState(false);
+  const [notes, setNotes] = useState<string[]>([]);
+  const [live, setLive] = useState("");
 
   const summaryRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -343,10 +348,31 @@ export function ProfileForm() {
   function loadSample() {
     setDraft(toDraft(SAMPLE_PROFILE));
     setIsSample(true);
+    setFromResume(false);
+    setNotes([]);
     setDirty(true);
     setAttempted(false);
     setSaveFailed(false);
     setStarted(true);
+  }
+
+  // Replace the draft with a resume import, keeping the hours and weeks (a resume has neither).
+  // Called by ResumeImport. Nothing is saved until "Save profile".
+  function applyImport(result: ResumeImportResult) {
+    setDraft((prev) => ({
+      ...toDraft(result.profile),
+      weeklyHours: prev.weeklyHours,
+      timelineWeeks: prev.timelineWeeks,
+    }));
+    setIsSample(false);
+    setFromResume(true);
+    setNotes(result.notes);
+    setDirty(true);
+    setAttempted(false);
+    setSaveFailed(false);
+    setStarted(true);
+    setLive("Profile filled from your resume. Review it, then save.");
+    pendingFocus.current = "education";
   }
 
   function startBlank() {
@@ -386,6 +412,8 @@ export function ProfileForm() {
     setSaveFailed(false);
     setSavedAt(saved.savedAt);
     setDirty(false);
+    setFromResume(false);
+    setNotes([]);
   }
 
   function confirmClear() {
@@ -398,6 +426,8 @@ export function ProfileForm() {
     setDirty(false);
     setAttempted(false);
     setSaveFailed(false);
+    setFromResume(false);
+    setNotes([]);
     pendingFocus.current = "profile-empty";
   }
 
@@ -418,32 +448,38 @@ export function ProfileForm() {
     </div>
   );
 
-  if (!ready) return <div className="space-y-6">{infoPanel}</div>;
+  const importPanel = <ResumeImport hasUnsavedEdits={started && dirty} onImported={applyImport} />;
+  const liveRegion = (
+    <div role="status" className="sr-only">
+      {live}
+    </div>
+  );
 
-  if (!started) {
-    return (
-      <div className="space-y-6">
-        {infoPanel}
-        <div className="space-y-3 rounded-md border border-rule bg-surface p-4 sm:p-6">
-          <p id="profile-empty" tabIndex={-1}>
-            No profile saved in this browser.
-          </p>
-          <p className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <button type="button" className={secondaryButton} onClick={loadSample}>
-              Load sample profile
-            </button>
-            <button type="button" className={textButton} onClick={startBlank}>
-              Start from blank
-            </button>
-          </p>
-        </div>
-      </div>
-    );
-  }
-
+  // One return for every state, so the resume panel and the live region mount once and are not
+  // remounted when the first import leaves the empty state (the live region must exist before its
+  // text changes to be announced).
   return (
     <div className="space-y-6">
       {infoPanel}
+      {ready && importPanel}
+      {liveRegion}
+      {ready && !started && (
+        <div className="space-y-3 rounded-md border border-rule bg-surface p-4 sm:p-6">
+    <p id="profile-empty" tabIndex={-1}>
+      No profile saved in this browser.
+    </p>
+    <p className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <button type="button" className={secondaryButton} onClick={loadSample}>
+        Load sample profile
+      </button>
+      <button type="button" className={textButton} onClick={startBlank}>
+        Start from blank
+      </button>
+    </p>
+  </div>
+      )}
+      {ready && started && (
+        <>
       <form
         className="space-y-6 rounded-md border border-rule bg-surface p-4 sm:p-6"
         noValidate
@@ -487,10 +523,26 @@ export function ProfileForm() {
               Sample (fictional)
             </StatusBadge>
           )}
+          {fromResume && (
+            <StatusBadge tone="info" icon={<InfoIcon />}>
+              From your resume: review before saving
+            </StatusBadge>
+          )}
           <span className="ml-auto">
             <CharCount id="profile-size" value={size} max={MAX_PROFILE_CHARS} />
           </span>
         </div>
+
+        {fromResume && notes.length > 0 && (
+          <div className="space-y-1 rounded-md border-l-4 border-caution bg-caution-bg p-3 text-small">
+            <p className="text-label">Some details were left out:</p>
+            <ul className="list-disc pl-5">
+              {notes.map((note, i) => (
+                <li key={i}>{note}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <Field
           id="education"
@@ -688,6 +740,8 @@ export function ProfileForm() {
           </div>
         </div>
       </dialog>
+        </>
+      )}
     </div>
   );
 }

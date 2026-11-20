@@ -124,7 +124,7 @@ describe("clear", () => {
     saveProfile(SAMPLE_PROFILE);
     await renderForm();
     click("Clear profile");
-    const dialog = document.querySelector("dialog") as HTMLDialogElement;
+    const dialog = document.querySelector("dialog[aria-labelledby=clear-title]") as HTMLDialogElement;
     expect(dialog.hasAttribute("open")).toBe(true);
     fireEvent.click(within(dialog).getByRole("button", { name: "Keep profile" }));
     expect(dialog.hasAttribute("open")).toBe(false);

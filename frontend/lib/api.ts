@@ -10,6 +10,7 @@ import type {
   ChatAnswer,
   ChatRequest,
   JobAnalysis,
+  ResumeImport,
   WorkflowInput,
 } from "@/lib/types";
 
@@ -101,6 +102,8 @@ export const api = {
   chat: (body: ChatRequest, signal?: AbortSignal) => post<ChatAnswer>("/api/chat", body, signal),
   analyzeJob: (body: AnalyzeRequest, signal?: AbortSignal) =>
     post<JobAnalysis>("/api/jobs/analyze", body, signal),
+  importResume: (body: { resume_text: string }, signal?: AbortSignal) =>
+    post<ResumeImport>("/api/profile/from-resume", body, signal),
   prepare: (body: WorkflowInput, signal?: AbortSignal) =>
     post<CareerPrepResult>("/api/career/prepare", body, signal),
 };
