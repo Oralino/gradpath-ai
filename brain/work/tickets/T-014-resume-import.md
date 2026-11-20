@@ -46,7 +46,7 @@ are an always-hard area).
 
 ## Changes
 - Branch: `feat/t-011-frontend` (Milestone 6 branch)
-- PR:
+- PR: [#8](https://github.com/Oralino/gradpath-ai/pull/8), merged 2026-11-20 as `14af492`
 - Files touched: `backend/src/gradpath/profiles/` (new), `api/profile.py` (new), `api/main.py`
   (router, type-only error logging), `tests/test_resume.py` (new), `tests/test_tracing.py`,
   `evaluation/resumes/sample_resume.txt` (fictional); `frontend/components/ResumeImport.tsx` (new),

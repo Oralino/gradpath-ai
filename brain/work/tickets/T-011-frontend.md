@@ -3,7 +3,7 @@ The Milestone 6 ticket: a Next.js + Tailwind UI over the existing API. Milestone
 `../MILESTONES.md`, open items in `../TASKS.md`, look and feel in `../../design/DESIGN.md`.
 
 - **Type:** feature
-- **Status:** done (PR waiting for the owner)
+- **Status:** done
 - **Opened:** 2026-11-19 · **Closed:** 2026-11-20
 - **GitHub Issue:** none
 
@@ -114,7 +114,7 @@ Not changed, with the reason:
 
 ## Changes
 - Branch: `feat/t-011-frontend`
-- PR: (waiting for the owner)
+- PR: [#8](https://github.com/Oralino/gradpath-ai/pull/8), merged 2026-11-20 as `14af492`
 - Files touched: `frontend/` (new app), `backend/src/gradpath/api/` (runs, profile), workflow
   runs (T-016), docs in `brain/`. Related tickets T-012 to T-017 hold their own file lists.
 - Commits: `git log --grep=T-011`; the last ones are `e694acb` (design critique fixes) and

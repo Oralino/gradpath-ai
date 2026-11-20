@@ -27,7 +27,7 @@ the Ask screen shows a "Partial answer" badge and a "Not covered: ..." line (`DE
 
 ## Changes
 - Branch: `feat/t-011-frontend` (Milestone 6 branch)
-- PR:
+- PR: [#8](https://github.com/Oralino/gradpath-ai/pull/8), merged 2026-11-20 as `14af492`
 - Files touched: `backend/src/gradpath/rag/answer.py` (prompt, `ModelAnswer.not_covered`,
   `ChatAnswer` status and `not_covered`, status rule), `backend/src/gradpath/workflows/fallback.py`
   (partial counts as help), `backend/tests/test_rag.py`; `frontend/lib/types.ts`,

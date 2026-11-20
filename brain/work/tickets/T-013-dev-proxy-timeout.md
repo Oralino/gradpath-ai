@@ -31,7 +31,7 @@ of T-011 had noted this risk but had not verified it.
 
 ## Changes
 - Branch: `feat/t-011-frontend` (Milestone 6 branch)
-- PR:
+- PR: [#8](https://github.com/Oralino/gradpath-ai/pull/8), merged 2026-11-20 as `14af492`
 - Files touched: `frontend/next.config.ts`
 - Commits (hash, message): `c15c033` fix: raise the /api proxy timeout above the workflow run budget (T-013)
 
