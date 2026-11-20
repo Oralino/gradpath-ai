@@ -420,7 +420,10 @@ Weekly study hours [  ]   Timeline in weeks [  ]   (both optional)
 
 ### Security rules (design level, from SECURITY.md)
 - All model, retrieved and user text renders as React text children with `whitespace-pre-line`. No
-  `dangerouslySetInnerHTML`, no markdown rendering in the MVP, never linkify URLs inside model text.
+  `dangerouslySetInnerHTML`, never linkify URLs inside model text. Model text may use a small safe markdown subset (owner
+  decision 2026-11-20), rendered by `components/ModelText.tsx` as fixed React elements: paragraphs,
+  lists, `#` lines shown as bold text (never `<h*>`), fenced and inline code (`bg-sunken font-mono`,
+  wrapping, no horizontal scroll) and bold. Markdown links show their text only; no raw HTML ever.
 - The only links to outside are citation `source_url` values, rendered as links only if `new URL()`
   parses them with protocol `http:` or `https:`; otherwise the title shows as plain text. Always
   `target="_blank" rel="noopener noreferrer"`, with the hostname visible.
@@ -480,7 +483,7 @@ Don't:
 - Motivational or marketing copy (owner, 2026-11-19): no inspirational quotes, slogans, taglines,
   "Land your dream job!", "Let's crush it" or cheerful filler. Copy says what the screen does and
   what happened, plainly.
-- Raw HTML, markdown rendering, auto-linked URLs or retrieval scores shown as the main signal.
+- Raw HTML, markdown beyond the safe subset (see Security rules), auto-linked URLs or retrieval scores shown as the main signal.
 
 ## Known gaps
 - **Sources date**: the API exposes no corpus date for "Sources as of {date}". Recommend the backend

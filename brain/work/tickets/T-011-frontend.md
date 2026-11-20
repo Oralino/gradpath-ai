@@ -53,6 +53,10 @@ a "Checked" badge. The profile in the tray is the fictional sample only, until t
 Found: CI's type check failed on `LayoutProps` because Next generates that type during a build;
 `typecheck` now runs `next typegen` first (`8122e7b`).
 
+Safe markdown subset (owner decision 2026-11-20, after seeing raw `**` in a real answer): own
+parser to data plus fixed React elements, no dependency, links reduced to text, `#` as bold text;
+always-hard area, so code-reviewer and qa-checker ran. Rejected: plain-text prompt; `react-markdown`.
+
 ## Changes
 - Branch: `feat/t-011-frontend`
 - PR:

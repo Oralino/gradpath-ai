@@ -632,10 +632,34 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   validation, server and network errors each get fixed copy and a next action. Results move focus
   to their heading and are announced in a polite live region. Stale responses are dropped: each
   request has its own `AbortController`, and a response is used only if its request is still current.
-- **Gotchas:** the model writes markdown (`**bold**`, backticks) but the design renders plain text
-  only, so those characters show as written (see TASKS). The tray's posting box takes pasted text
+- **Gotchas:** the tray's posting box takes pasted text
   only, never a URL (an SSRF risk on the server).
 - **Likely questions:** *"Why not stream the answer?"* The answer is checked for citations before it
   is shown, so it arrives whole; a RAG answer takes about 10-15 s and the timer says so. *"What if
   the response arrives after the user pressed Stop?"* The request was aborted and the stale guard
   ignores it; there is a test for that.
+
+## Safe markdown in answers (`lib/modelText.ts`, `components/ModelText.tsx`, T-011)
+- **What it is:** the model writes answers in markdown. GradPath shows a small subset of it:
+  paragraphs, lists, bold, inline and fenced code, and `#` lines as bold text. Everything else stays
+  literal. Used for the answer body; the study notes and plan text will use it too.
+- **Decision: parse to data, render fixed elements.** The parser returns plain objects
+  (`paragraph`, `list`, `code`, `strong` ...) and the component maps each to one hard-coded React
+  element. Text only ever goes in as React children, so it is escaped, and no attribute comes from
+  the text. That is why a markdown link keeps its text but loses its URL: model text never becomes a
+  link (the citation list is the only way out, through `lib/safeUrl.ts`).
+- **Rejected:** plain text only (safer and simpler, but long answers became a wall of `**` and
+  backticks; owner chose the subset 2026-11-20); `react-markdown` + remark (full CommonMark, but
+  several dependencies and a much bigger surface to configure safely for ~6 constructs); turning
+  markdown into an HTML string (would need `dangerouslySetInnerHTML`, which the security rules ban).
+- **Gotchas:** `#` headings are drawn as bold paragraphs so model text can't break the page's
+  heading order; `# Learning C#` keeps its `#` (a closing `#` run needs a space before it). Model
+  text is untrusted, so every scan is linear or bounded: regexes match only a fixed line prefix
+  (the first draft's heading regex could backtrack for seconds on a long run of spaces, caught in
+  review), the link scan looks 200 characters ahead, list continuations are appended in place, and
+  input over 30,000 characters is shown unparsed. Timing tests cover each of these cases.
+- **Likely questions:** *"Isn't rendering model markdown an XSS risk?"* Only if it becomes HTML.
+  Here it becomes data, then fixed React elements; tests feed `<script>`, `onerror` and
+  `javascript:` links and assert no element or attribute comes out. *"Why not italics?"* `_` and `*`
+  appear in identifiers and arithmetic (`snake_case`, `2 * 3`), so italics would mangle code more
+  often than they help.
