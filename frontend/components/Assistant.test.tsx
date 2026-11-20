@@ -251,6 +251,7 @@ describe("results", () => {
     typeMessage("What is quantum gravity?");
     ask();
     await screen.findByRole("heading", { name: "Not covered by the knowledge base" });
+    await waitFor(() => expect(document.activeElement?.tagName).toBe("H2")); // the result's focus effect runs first
     expect(screen.getByText(/It did not guess/)).toBeTruthy();
     expect(screen.getByText("Nothing relevant.")).toBeTruthy();
     expect(screen.getByText("Closest sources found (they do not answer the question)")).toBeTruthy();
@@ -276,6 +277,7 @@ describe("results", () => {
     typeMessage("Make me a plan");
     ask();
     const heading = await screen.findByRole("heading", { name: "More input needed" });
+    await waitFor(() => expect(document.activeElement?.tagName).toBe("H2")); // the result's focus effect runs first
     expect(screen.getByText("Add a job posting and a profile.")).toBeTruthy();
     expect(screen.getByText("Preparation workflow · chosen by rules")).toBeTruthy();
     const panel = heading.closest("section")!;
@@ -596,6 +598,7 @@ describe("review fixes", () => {
     typeMessage("What is quantum gravity?");
     ask();
     await screen.findByRole("heading", { name: "Not covered by the knowledge base" });
+    await waitFor(() => expect(document.activeElement?.tagName).toBe("H2")); // the result's focus effect runs first
     expect(document.activeElement).not.toBe(screen.getByLabelText("Job posting"));
     fireEvent.click(screen.getAllByRole("button", { name: "Paste a job posting" }).at(-1)!);
     expect(document.activeElement).toBe(screen.getByLabelText("Job posting"));
