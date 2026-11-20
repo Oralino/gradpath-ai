@@ -25,8 +25,8 @@ are an always-hard area).
     LangSmith, even when tracing is on for local development. A test with a recording client
     checks that no run is created.
   - Nothing logs the text, only counts.
-  - The response never includes a name, email, phone, URL or address. The prompt says to leave them
-    out, and code also scrubs emails (including non-ASCII and "at/dot" forms), 10-15 digit phone
+  - Names and contact details are kept out in two layers. The prompt says to leave them out, and
+    code also scrubs emails (including non-ASCII and "at/dot" forms), 10-15 digit phone
     numbers (not year ranges), links and labelled handles from every field. Patterns are tuned so
     C#, ASP.NET, Node.js/Express, `@Transactional`, GPAs and date ranges survive. Not caught: a name
     inside a sentence and short local numbers; the visitor reviews the draft before saving.
