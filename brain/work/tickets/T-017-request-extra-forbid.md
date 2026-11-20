@@ -31,7 +31,7 @@ Milestone 7).
 
 ## Changes
 - Branch: `feat/t-011-frontend`
-- PR:
+- PR: [#8](https://github.com/Oralino/gradpath-ai/pull/8), merged 2026-11-20 as `14af492`
 - Files touched: `backend/src/gradpath/api/chat.py`, `api/jobs.py`, `api/profile.py`,
   `backend/tests/test_api_errors.py`
 - Commits (hash, message): `a6d6fcf` fix: reject unknown fields in chat, job and resume request

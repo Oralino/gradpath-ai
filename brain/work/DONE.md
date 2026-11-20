@@ -4,7 +4,8 @@ Finished work and releases, newest first; closed tickets are linked here. Open w
 ## 2026-11-20
 - **Milestone 6 (frontend) finished:** [T-011](tickets/T-011-frontend.md). Ask, Job, Plan and
   Profile screens; design critique fixes `e694acb`; release checks recorded in the ticket
-  (retrieval re-check `ce9ce74`). PR to `main` waiting for the owner.
+  (retrieval re-check `ce9ce74`). Merged to `main` in
+  [#8](https://github.com/Oralino/gradpath-ai/pull/8) (`14af492`).
 - [T-017 Request bodies reject unknown fields](tickets/T-017-request-extra-forbid.md): found by
   the release security checklist; `ChatRequest`, `AnalyzeRequest` and `ResumeRequest` now use
   `extra="forbid"`. `a6d6fcf`.
