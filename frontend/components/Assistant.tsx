@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CharCount } from "@/components/CharCount";
 import { CitationList } from "@/components/CitationList";
+import { ModelText } from "@/components/ModelText";
 import { primaryButton, secondaryButton, textButton } from "@/components/buttonStyles";
 import {
   CheckIcon,
@@ -517,7 +518,7 @@ function Result({
             <span className="whitespace-pre-line">{answer.note}</span>
           </p>
         )}
-        <p className="whitespace-pre-line text-body">{answer.answer}</p>
+        <ModelText text={answer.answer} className="text-body" />
         {answer.citations.length > 0 && (
           <div className="space-y-2">
             <p className="text-label">Sources</p>
