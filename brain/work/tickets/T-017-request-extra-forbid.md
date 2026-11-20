@@ -3,8 +3,8 @@ Found by the Milestone 6 release security checklist (`../../engineering/SECURITY
 checklist", first item). Index entries in `../TASKS.md` and `../DONE.md`.
 
 - **Type:** bug
-- **Status:** in progress
-- **Opened:** 2026-11-20 · **Closed:**
+- **Status:** done
+- **Opened:** 2026-11-20 · **Closed:** 2026-11-20
 - **GitHub Issue:** none
 
 ## Summary
@@ -34,8 +34,10 @@ Milestone 7).
 - PR:
 - Files touched: `backend/src/gradpath/api/chat.py`, `api/jobs.py`, `api/profile.py`,
   `backend/tests/test_api_errors.py`
-- Commits (hash, message):
+- Commits (hash, message): `8630495` fix: reject unknown fields in chat, job and resume request
+  bodies (T-017)
 
 ## Verification
 New test `test_request_bodies_reject_unknown_fields` (all three routes answer 422 with a single
-`extra_forbidden` error); `tests/test_api_errors.py` 10 passed; ruff clean.
+`extra_forbidden` error); `tests/test_api_errors.py` 10 passed; ruff clean;
+full backend suite 531 passed.

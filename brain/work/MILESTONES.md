@@ -15,7 +15,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 3 | Agentic workflow | ✅ | Job + profile -> gaps -> roadmap | A LangGraph workflow with a self-check loop; 4/4 workflow eval cases; `POST /api/career/prepare` |
 | 4 | Router + fallback | ✅ | Pick the cheapest path that works | 30/30 routing labels; adaptive served 4/4 (3/4 strict) vs 2/4 for always-RAG or always-workflow; labelled fallback; `POST /api/assist` |
 | 5 | Hybrid retrieval + reranking | ✅ | Improve search for exact terms | Measured and rejected: semantic 0.961 Recall@5 beat hybrid (0.921) and both rerankers; stays semantic-only |
-| 6 | Frontend | 🔨 | Make it usable | Next.js app designed from `DESIGN.md` |
+| 6 | Frontend | ✅ | Make it usable | Next.js app designed from `DESIGN.md` |
 | 7 | Demo and live modes | ⏳ | A public site that costs nothing | Recorded demo runs; live mode with a visitor's key |
 | 8 | Deploy | ⏳ | A live link | Vercel + Render + Qdrant Cloud (free tiers) |
 
@@ -222,7 +222,7 @@ threshold, whose margin is gone (`q-031` 0.520 vs lowest covered 0.526).
 
 ---
 
-## Milestone 6: Frontend 🔨
+## Milestone 6: Frontend ✅
 *Ticket: `tickets/T-011-frontend.md`*
 
 **Goal:** make GradPath usable from a browser: questions, job analysis and the full preparation
@@ -241,6 +241,8 @@ partial) and clear errors. `DESIGN.md` comes first; the owner approves it before
 | 8. Resume import (T-014) | ✅ | "Fill from a resume" on the Profile screen; `POST /api/profile/from-resume` (one fast-tier call, never traced or stored, contact details scrubbed) | Faster start than typing a profile | Reviewed twice + QA; checked with the fictional resume and the owner's own (kept out of git) |
 | 9. Job screen (`/job`) | ✅ | Paste a posting, see each requirement with its coverage, importance, the posting quote, a study note and distinct source chips; "Build a preparation plan" carries the posting to Ask. T-015: citations link to readable GitHub pages | Shows what the knowledge base covers for a real posting | 144 Vitest tests; a real run of the sample posting (16 requirements in ~25 s); review fixes applied |
 | 10. Plan screen (`/plan`) + background runs (T-016) | ✅ | Workflow runs in the background behind a run id; the browser polls and shows each stage live; the plan with honesty banners, gaps, roadmap, interview questions and corrections; Ask and Job hand over to it | The 80-300 s run is visible instead of a frozen spinner, and every partial result is labelled | 528 backend + 189 frontend tests; reviewed (backend always-hard + QA); real runs through `/plan` (~50 s, complete) and Ask (complete with open issues) |
+| 11. Design critique | ✅ | design-advisor critique of all four screens from 50 screenshots (both themes, 1280 and 375 px, real data); 11 small fixes: type scale, aligned left edges, mobile chips and badges, DESIGN.md loading copy, "Build plan again", motion-safe smooth scroll | Checks the built UI against the approved design before release | No blockers; fixes in `43a4b71`, rechecked in the browser; 189 frontend tests |
+| 12. Release checks | ✅ | Secret, personal-data and attribution scan; retrieval re-check; SECURITY.md checklist; `pip-audit`; T-017 (three request bodies now reject unknown fields) | The project's release gate | All pass; one local path removed from a ticket; demo mode and visitor keys wait for Milestone 7; 531 backend tests |
 
 ---
 
@@ -250,6 +252,6 @@ partial) and clear errors. `DESIGN.md` comes first; the owner approves it before
 |---|---|---|---|
 | 4 | Router + fallback | Choose RAG or the workflow per request and record why; labelled partial answers on failure; measure routing accuracy | Use the cheapest path that works; never present a partial answer as complete |
 | 5 | Hybrid retrieval + reranking ✅ | Measured keyword search and reranking against semantic-only; neither helped, so neither was kept | Shows decisions backed by measurement, not tutorials |
-| 6 | Frontend | `DESIGN.md` first, then Next.js: inputs, requirements, gaps, roadmap with citations, status and errors | Makes the system usable and demoable |
+| 6 | Frontend ✅ | `DESIGN.md` first, then Next.js: inputs, requirements, gaps, roadmap with citations, status and errors | Makes the system usable and demoable |
 | 7 | Demo and live modes | Recorded runs with a sample profile; live mode with a visitor's own key, never stored or logged | A public portfolio site that costs nothing |
 | 8 | Deploy | Vercel, Render, Qdrant Cloud (free); release checks; README with diagram and demo steps | A live link employers can open |

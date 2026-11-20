@@ -2,6 +2,12 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-20
+- **Milestone 6 (frontend) finished:** [T-011](tickets/T-011-frontend.md). Ask, Job, Plan and
+  Profile screens; design critique fixes `43a4b71`; release checks recorded in the ticket
+  (retrieval re-check `3edee74`). PR to `main` waiting for the owner.
+- [T-017 Request bodies reject unknown fields](tickets/T-017-request-extra-forbid.md): found by
+  the release security checklist; `ChatRequest`, `AnalyzeRequest` and `ResumeRequest` now use
+  `extra="forbid"`. `8630495`.
 - [T-016 Background runs + polling](tickets/T-016-run-polling.md), `af3ee4f`, and the Plan screen
   (T-011 step 10), `f514780`: live stage progress, honesty states, corrections; real runs via
   `/plan` and Ask.

@@ -4,7 +4,10 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] [T-011](tickets/T-011-frontend.md): Milestone 6, the Next.js frontend (in progress).
+- [ ] **(owner)** Approve and merge the Milestone 6 PR ([T-011](tickets/T-011-frontend.md), done on
+      `feat/t-011-frontend`).
+- [ ] DESIGN.md: record the visible input rows and "Build plan again" on the Plan screen
+      (design-advisor drafts, owner approves; T-011 design critique).
 - [ ] Milestone 7: PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard).
 - [ ] Milestone 6 (backend, small): a "sources as of" date the UI can show (`DESIGN.md` Known gaps).
 
@@ -16,7 +19,8 @@ Answer quality (owner decision 2026-11-19: before Milestone 7's public demo):
 Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
 - [x] [T-007](tickets/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.
 - [x] [T-008](tickets/T-008-tag-neutraliser-unicode.md): tag neutraliser handles invisible and look-alike characters.
-- [ ] Add `uvx pip-audit` to the release checks (dependency vulnerabilities).
+- [ ] Add `uvx pip-audit` to the release checks (dependency vulnerabilities). Ran for Milestone 6:
+      clean (T-011); adopting it in `CLAUDE.md` is the owner's call.
 - [ ] **(owner)** Two-factor authentication on GitHub, Anthropic, Voyage and LangSmith.
 
 ## Corpus (before Milestone 5)

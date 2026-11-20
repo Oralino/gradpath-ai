@@ -3,8 +3,8 @@ The Milestone 6 ticket: a Next.js + Tailwind UI over the existing API. Milestone
 `../MILESTONES.md`, open items in `../TASKS.md`, look and feel in `../../design/DESIGN.md`.
 
 - **Type:** feature
-- **Status:** in progress
-- **Opened:** 2026-11-19 · **Closed:**
+- **Status:** done (PR waiting for the owner)
+- **Opened:** 2026-11-19 · **Closed:** 2026-11-20
 - **GitHub Issue:** none
 
 ## Summary
@@ -88,12 +88,59 @@ Plan screen (step 10, `f514780`; built in a parallel session against the T-016 c
   - a busy re-run keeps the old plan;
   - five failed polls in a row show "Can't reach the server" instead of a silent 5-minute wait.
 
+Design critique (2026-11-20, design-advisor on Sonnet, from 50 screenshots of the four screens in
+both themes at 1280 and 375 px, with real backend data): no blockers. Fixed in `43a4b71`:
+- Plan banner issues stack under their badge below `sm`; citation chips put the hostname on its own
+  line below `sm`, cut titles at a word within 60 characters (was 40, mid-word) and show the
+  hostname muted without a second link colour;
+- the type scale as written: every result h2 is `text-title`, Job requirement groups are
+  `text-heading`;
+- Ask, Job and Profile keep `max-w-3xl` but align left with the wordmark, like Plan;
+- loading copy from DESIGN.md ("Searching the knowledge base and writing an answer...") instead of
+  "Working on it";
+- the roadmap step square fits two digits; the Job result drops its outer box below `sm`; the
+  progress view is no longer a card inside the form card; "Build plan again" once a plan is shown;
+- smooth scrolling for in-page links under `motion-safe`, with the plan sections focusable
+  (`tabIndex=-1`), which closes the step 10 "no smooth scroll" departure.
+Not changed, with the reason:
+- "Medium confidence" on every gap card stays: it is the workflow's own confidence, and hiding the
+  common value would hide data.
+- Slashed zeros come from Atkinson Hyperlegible Next itself, a legibility choice of the font.
+- Step 10 departures kept after the critique: the result h2 above its banner, the visible input
+  rows, the "Partial plan: not fully checked" wording, and an Ask-started run held in memory only
+  (after a reload the Ask screen has no question to show it against; `/plan` resumes its own
+  runs). DESIGN.md (design-advisor, owner approves) should record the visible input rows and the
+  "Build plan again" label.
+
 ## Changes
 - Branch: `feat/t-011-frontend`
-- PR:
-- Files touched:
-- Commits (hash, message):
+- PR: (waiting for the owner)
+- Files touched: `frontend/` (new app), `backend/src/gradpath/api/` (runs, profile), workflow
+  runs (T-016), docs in `brain/`. Related tickets T-012 to T-017 hold their own file lists.
+- Commits: `git log --grep=T-011`; the last ones are `43a4b71` (design critique fixes) and
+  `3edee74` (retrieval re-check).
 
 ## Verification
-To do: frontend lint, type check, unit tests and build; backend tests stay green; a manual run
-against the local API on the Pro plan (owner); design-advisor critique; release checks.
+- Frontend: lint, type check and 189 Vitest tests clean; build runs in CI. Backend: ruff clean, 531
+  tests (CI green on every push).
+- Real runs through the UI against the local API: Ask, Job, Plan (step rows above); after the
+  critique fixes, Job (16-17 requirements in ~26 s) and the stored Plan rechecked at 375 and
+  1280 px in both themes.
+- Release checks (2026-11-20, CLAUDE.md "Release checks"):
+  - Secret and personal-data scan of `main...HEAD`, the commit messages and logs: no keys, no
+    tracked `.env`, no AI attribution; sample data is fictional. One find: a local file path with
+    the owner's Windows user name in the T-016 ticket, removed in `2be7aca` (it stays in the
+    history of `af3ee4f`; rewriting pushed history needs the owner). `demo_runs/` does not exist yet.
+  - Demo mode with no keys: not applicable yet. Milestone 7 builds `APP_MODE` (TASKS: the API
+    still needs `VOYAGE_API_KEY` to start).
+  - Visitor key in logs, traces or responses: not applicable yet. No route accepts a visitor key
+    until Milestone 7; the API log of the real runs shows request lines only. Found on the way: a
+    422 echoes the rejected value to its sender (TASKS, before live mode).
+  - Retrieval evaluation: unchanged from the labels v1.3 baseline (Recall@5 0.961, MRR 0.987);
+    recorded in `EVALUATION.md`.
+  - SECURITY.md release checklist: request bodies forbid extra fields after T-017 (three did
+    not); no exception text in responses (tests); untrusted text only through the delimiting
+    helpers and models without tools (unchanged); limits in place, including the run store (one
+    career run at a time, 20 finished runs kept for 15 minutes); model text rendered as text (no
+    `dangerouslySetInnerHTML`) and links only through `safeExternalUrl`; `pip-audit`: no known
+    vulnerabilities (28 pinned packages). Milestone 7 and 8 items not applicable yet.
