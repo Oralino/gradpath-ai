@@ -71,6 +71,23 @@ posting is handed to the Ask tray through sessionStorage (bounded, read once) un
 exists (`TODO(T-011 Plan screen)`). Found in the real run: duplicate-looking chips (fixed here) and
 raw GitHub citation links (T-015). Commit `c160c5d`.
 
+Plan screen (step 10, `f514780`; built in a parallel session against the T-016 contract):
+- **What it does:** live stage progress from polling; honesty states for all four statuses;
+  sections with in-page links; gaps grouped by status with Required before Preferred; a roadmap
+  rail; interview questions; corrections (up to 10 × 500 characters) and a re-run.
+- **Storage:** the last plan and the run id are kept in sessionStorage. A stored plan is
+  re-validated, and size-capped, before it is shown.
+- **Departures from `DESIGN.md`:**
+  - the result h2 sits above its banner, to keep the heading order;
+  - the input rows stay visible instead of collapsing to "Inputs: … [Edit inputs]";
+  - a run started from the Ask screen lives in memory only (`/plan` resumes after a reload);
+  - in-page links don't scroll smoothly yet.
+- **Review fixes:**
+  - a corrupted stored plan could crash every reload;
+  - only the two known server error texts are shown;
+  - a busy re-run keeps the old plan;
+  - five failed polls in a row show "Can't reach the server" instead of a silent 5-minute wait.
+
 ## Changes
 - Branch: `feat/t-011-frontend`
 - PR:

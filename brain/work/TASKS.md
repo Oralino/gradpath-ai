@@ -5,8 +5,6 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 
 ## Current
 - [ ] [T-011](tickets/T-011-frontend.md): Milestone 6, the Next.js frontend (in progress).
-- [ ] Milestone 6: run id + status polling for workflow runs (owner decision 2026-11-19). Own ticket;
-      always-hard area (workflow limits).
 - [ ] Milestone 7: PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard).
 - [ ] Milestone 6 (backend, small): a "sources as of" date the UI can show (`DESIGN.md` Known gaps).
 

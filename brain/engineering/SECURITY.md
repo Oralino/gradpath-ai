@@ -48,7 +48,7 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 | Brute force, password spraying, credential stuffing | 🕒 7 | No user passwords. If a demo passcode is added: long random value, constant-time compare, per-IP rate limit and back-off on failures, never logged. |
 | Session hijacking, session fixation | 🕒 7 | Prefer no sessions. If one is ever needed: `HttpOnly`, `Secure`, `SameSite=Strict`, a new id after login, short expiry. |
 | Privilege escalation, broken access control | 🕒 7 | One role (visitor). Settings that cost money (revision limit, model choice) come only from server settings, never from the request: already true for `max_revisions` (`api/career.py`). |
-| IDOR / BOLA | 🕒 6–7 | No stored per-user objects. When run ids appear (status polling, Milestone 6): random UUID4, not listable, results expire, nothing personal kept server-side. |
+| IDOR / BOLA | ✅ | Run ids (T-016): random uuid4, validated, not listable, the same 404 for unknown/expired/malformed; a run record never holds the posting or profile; the result (profile-derived reasoning) is kept in memory for 15 min after the run, at most 20 runs. Anyone holding a run id can read that result until it expires. |
 
 ## 03 API security
 
@@ -58,7 +58,7 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 | Mass assignment | ✅ | `extra="forbid"`; the workflow refuses node writes to protected keys (`workflows/graph.py` `_wrap`). | — |
 | Excessive data exposure | ✅ | Fixed error messages (`api/main.py`); exception text never returned; results are typed response models. | — |
 | Resource limits | ✅ / 🕒 7 | Concurrency caps (`api/limits.py`: chat 2, jobs 1, career 1, else 503); revision limit 0–3; recursion backstop. | Workflow time budget done (T-006: 300 s, then a labelled fallback); per-IP rate limits (7). |
-| Inventory | ✅ | Five routes, all in `api/main.py` (resume import added in T-014). | Keep the list in ARCHITECTURE.md current. |
+| Inventory | ✅ | Seven routes, all in `api/main.py` (resume import T-014; run start and poll T-016). | Keep the list in ARCHITECTURE.md current. |
 
 ## 04 Network and infrastructure
 

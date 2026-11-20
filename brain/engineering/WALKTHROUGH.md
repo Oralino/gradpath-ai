@@ -754,3 +754,44 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   "partial", gives "weak evidence". A corpus of general sources gives honest weak labels rather than
   false confidence.
 
+## Background runs and polling (`workflows/runs.py`, `api/runs.py`, T-016)
+- **What it is:** starting a plan returns a run id at once. The workflow runs in a background
+  thread, and the browser asks `GET /api/career/runs/{id}` every 2 s for each stage's state (done,
+  running or waiting) and, at the end, the result.
+- **Decision: polling over a thread, not a job queue or WebSockets.** One run at a time, stages
+  tens of seconds long, and a free-tier host. A dict behind a lock and a 2 s poll are enough.
+  - Rejected: Celery or Redis, which add infrastructure and can cost money.
+  - Rejected: server-sent events or WebSockets, which mean more moving parts for no visible gain at
+    this pace.
+- **Decision: the limits don't move.** The same one-run slot is held for the whole run. The
+  revision limit, the 5-minute budget and the labelled fallback all come from `run_workflow`
+  unchanged. Its one new hook, `on_step`, only observes, and an error in it is ignored.
+- **Gotchas:**
+  - The slot is released before "done" becomes visible. The reviewer caught the opposite order: it
+    gave a false "busy" if you started the next run immediately.
+  - Stage states come from a table that a test checks against the compiled graph.
+  - Runs live in one process: one worker, and a restart forgets them.
+  - Records never hold the posting or profile.
+- **Likely questions:**
+  - *"What if the user closes the tab?"* The run finishes anyway (it can't be interrupted
+    mid-stage, and the budget caps it). `/plan` remembers the run id, so reopening resumes it.
+  - *"Can someone read another person's plan?"* Only by guessing a random uuid4 within 15 minutes
+    of it finishing. Ids can't be listed, and the record holds no input.
+
+## Plan screen (`components/PlanView.tsx`, `PlanProgress.tsx`, `PlanResult.tsx`, T-011)
+- **What it is:** the `/plan` page. It shows the posting and profile rows, then live progress, then
+  the plan: skills gap, roadmap, interview questions and corrections, with an "On this page" nav.
+  The Ask screen shows the same progress and plan in place when the router picks the workflow.
+- **Decision: the heading tells the truth.** Each status has its own h2 and banner. "Preparation
+  plan" means checked; "with open issues" lists the blocking issues inline; "Partial" marks missing
+  sections with "Not produced in this run"; "Stopped early" shows what finished and what still
+  helps. Rejected: a single "Your plan" heading with a small badge, which hides partial results.
+- **Gotchas:**
+  - The page keeps only the run id and the last plan in sessionStorage, and re-validates a stored
+    plan before showing it, because a corrupted one crashed every reload during review.
+  - Only the two known server error texts are ever shown.
+  - Five failed polls in a row show "Can't reach the server" instead of a silent wait.
+- **Likely questions:** *"Why isn't there a progress bar?"* The stages vary in length and a revise
+  loop may or may not run, so a percentage would be invented. A stage list and a timer show what is
+  really known.
+

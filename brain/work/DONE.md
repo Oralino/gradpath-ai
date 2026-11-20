@@ -2,6 +2,9 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-20
+- [T-016 Background runs + polling](tickets/T-016-run-polling.md), `af3ee4f`, and the Plan screen
+  (T-011 step 10), `f514780`: live stage progress, honesty states, corrections; real runs via
+  `/plan` and Ask.
 - Job screen (T-011 step 9), `c160c5d`; [T-015 readable citation links](tickets/T-015-readable-citation-links.md), `c839eb2`.
 - [T-014 Resume import](tickets/T-014-resume-import.md): "Fill from a resume" on the Profile
   screen and `POST /api/profile/from-resume`; one fast-tier call, never traced or stored, contact

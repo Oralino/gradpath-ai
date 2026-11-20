@@ -2,8 +2,8 @@
 Live stage progress for 80-300 s workflow runs. Index: `../TASKS.md`, `../DONE.md`.
 
 - **Type:** feature
-- **Status:** in progress (backend done; Plan screen frontend under T-011)
-- **Opened:** 2026-11-20 · **Closed:**
+- **Status:** done
+- **Opened:** 2026-11-20 · **Closed:** 2026-11-20
 - **GitHub Issue:** none
 
 ## Summary
@@ -56,7 +56,7 @@ stage is running. A synchronous request can't do that, and it held one HTTP requ
   - `backend/src/gradpath/workflows/runs.py` (new), `api/runs.py` (new), `workflows/graph.py`
     (`on_step`), `router/assist.py`, `api/assist.py`, `api/main.py`;
   - `tests/test_runs.py` (new), `tests/test_api_assist.py`.
-- Commits (hash, message): see `git log --grep=T-016`
+- Commits (hash, message): `af3ee4f` feat: run the preparation workflow in the background with a run id to poll (T-016); the Plan screen that polls it is `f514780` (T-011)
 
 ## Verification
 - **Tests:** 528 backend tests, four runs in a row with no flakes. The new ones cover:
@@ -76,4 +76,9 @@ stage is running. A synchronous request can't do that, and it held one HTTP requ
     were fixed. The route-log observability point was handled with the finish log line, and the
     deployment notes and the revise-display nit are recorded above.
   - qa-checker: all checks passed.
-- **To do:** a real end-to-end run through the Plan screen.
+- **Real runs, 2026-11-20, local API:**
+  - Through `/plan` with the sample posting and profile: about 50 s. The stages advanced live in
+    the browser, the result came back `complete`, and a reload kept it.
+  - Through the Ask screen: the router chose the workflow ("chosen by rules"), progress showed live,
+    and the result was `complete_with_limitations`, with one blocking issue shown inline and one
+    revision.

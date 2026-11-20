@@ -156,7 +156,11 @@ citations verified against retrieved ids. API endpoints so far: `GET /api/health
 `POST /api/career/prepare` (the workflow; synchronous; body `WorkflowInput`; errors mapped to
 fixed messages, including `GraphRecursionError` -> 500), `POST /api/profile/from-resume` (T-014:
 pasted resume text -> a draft `UserProfile` + notes; one fast-tier call, never traced, nothing
-stored; `profiles/resume.py`).
+stored; `profiles/resume.py`), and `POST /api/career/runs` + `GET /api/career/runs/{id}` (T-016:
+the workflow in a background thread behind a uuid4 run id; the browser polls every 2 s for stage
+states and the result; `/api/assist` starts a run for the workflow route and returns `started`).
+Runs live in memory in one process (`workflows/runs.py`): deploy as a **single worker**, and know
+that a restart or `--reload` forgets running and finished runs (the poll then gets 404).
 
 ## Security
 Retrieved content, uploads and JDs are untrusted data: delimited in prompts, never followed as
