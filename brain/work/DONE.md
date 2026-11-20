@@ -1,6 +1,12 @@
 # DONE.md
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
+## 2026-11-20
+- [T-012 Partial answer status](tickets/T-012-partial-answer-status.md): RAG answers can be
+  `partial` with a "Not covered: ..." sentence; the model writes the sentence, code sets the status,
+  downgrades still win. Real runs: `q-031` and `q-049` partial, a fully covered question answered.
+  Shown on the Ask screen as "Partial answer" with a caution badge. `0ea9ae7`.
+
 ## 2026-11-19
 - [T-010 Milestone 5: hybrid retrieval + reranking](tickets/T-010-hybrid-retrieval.md): labels
   v1.3 (50 questions); local rerankers (MiniLM, bge) and BM25 + RRF hybrid measured against

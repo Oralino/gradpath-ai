@@ -141,7 +141,7 @@ model and retrieved text goes in as React children (see Security rules).
   | | partial | caution | half circle | Partial: not fully checked |
   | | fallback | stopped | octagon | Stopped early: partial result |
   | answer status | answered | positive | check | From the knowledge base |
-  | | partial (decision 1) | caution | half circle | Partial answer |
+  | | partial (decision 1, T-012) | caution | half circle | Not fully covered (the h2 reads "Partial answer") |
   | | insufficient_evidence | gap | hollow circle | Not covered by the knowledge base |
   | gap status | demonstrated | positive | check | Demonstrated |
   | | partially_evidenced | caution | half circle | Partly evidenced |
@@ -227,7 +227,7 @@ Flat, like paper. Depth comes from surface colour and rules, not shadows.
   "GradPath answers only from its curated sources, and none of them answer this well enough. It did
   not guess." Then `note` if present. If citations came back: "Closest sources found (they do not
   answer the question)". Then two text-button suggestions: narrow the question; paste a job posting.
-- **Partial answer**: caution badge "Partial answer" above the text and a line "Not covered: {what
+- **Partial answer**: h2 "Partial answer", caution badge "Not fully covered", above the text and a line "Not covered: {what
   the sources did not cover}" (decision 1). `note` (downgrade reason) always shows as a caution line
   above the answer.
 - **Stage labels**: analyze_job "Read the job posting", analyze_profile "Read your profile",

@@ -663,3 +663,22 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   `javascript:` links and assert no element or attribute comes out. *"Why not italics?"* `_` and `*`
   appear in identifiers and arithmetic (`snake_case`, `2 * 3`), so italics would mangle code more
   often than they help.
+
+## Partial answers (`rag/answer.py`, T-012)
+- **What it is:** a third RAG answer status. `answered` means the sources cover the question,
+  `partial` means they cover part of it, `insufficient_evidence` means not enough to answer. A partial
+  answer carries `not_covered`, one sentence naming the gap, which the Ask screen shows above the
+  answer under the heading "Partial answer".
+- **Decision: the model writes the sentence, code sets the status.** The model fills `not_covered`
+  (empty when nothing is missing). Code makes the answer `partial` only if that sentence is non-empty
+  *and* the answer still has a valid citation, so the existing downgrades (uncited answer, model says
+  insufficient) always win. Rejected: a `partial: bool` from the model (a flag with no sentence gives
+  the visitor nothing to act on); searching the answer for "doesn't cover" phrases (brittle).
+- **Gotchas:** the field defaults to empty, so a model that leaves it out still gives a normal
+  `answered`, never a validation error. The sentence is capped at 300 characters (model text is
+  bounded before the API). The prompt tells the model the app shows the gap above the answer;
+  without that, it also opened the answer with the gap, so it appeared twice.
+- **Likely questions:** *"Can the model just mark everything partial to be safe?"* It could, and
+  the badge would then mean little; the real runs so far mark the two known gap questions partial
+  and a fully covered one answered. The answer eval set (TASKS) is where that gets measured.
+
