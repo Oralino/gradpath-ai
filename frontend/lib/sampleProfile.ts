@@ -1,0 +1,41 @@
+import type { UserProfile } from "@/lib/types";
+
+// The fictional sample profile for the Ask screen, mapped from evaluation/profiles/
+// sample_new_grad.json (name, profile_id and note dropped: UserProfile has no such fields).
+// TODO: the saved profile from the Profile screen comes later and will replace this as the default.
+export const SAMPLE_PROFILE_LABEL = "Sample new grad (fictional)";
+
+export const SAMPLE_PROFILE: UserProfile = {
+  education: "BSc Computer Science, final year (fictional university)",
+  skills: ["Python", "Java", "SQL (SQLite)", "Git and GitHub", "HTML and CSS"],
+  coursework: [
+    "Data Structures and Algorithms",
+    "Databases (relational model, SQL, normalisation)",
+    "Operating Systems",
+    "Software Engineering (team project, unit testing)",
+  ],
+  projects: [
+    {
+      name: "Study-group finder",
+      description:
+        "A Flask web app where students post and join study sessions. Stores users and sessions in SQLite with hand-written SQL queries. Has a small JSON endpoint used by a JavaScript page. Deployed only on my laptop.",
+      technologies: ["Python", "Flask", "SQLite", "JavaScript"],
+    },
+    {
+      name: "Library inventory (team course project)",
+      description:
+        "Java console app built by a team of four over one term. I wrote the search and loan modules and their JUnit tests. We used Git branches and pull requests on GitHub.",
+      technologies: ["Java", "JUnit", "Git"],
+    },
+  ],
+  experience: [
+    {
+      role: "Teaching assistant, Intro to Programming",
+      organisation: "Fictional university",
+      description:
+        "Ran weekly Python lab sessions for first-year students and helped them debug their code.",
+    },
+  ],
+  weekly_hours: 8,
+  timeline_weeks: 6,
+};
