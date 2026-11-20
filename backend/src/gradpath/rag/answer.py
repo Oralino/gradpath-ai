@@ -5,6 +5,7 @@ workflow. Retrieval is `retrieval.RetrievalService`; the model comes from `provi
 """
 
 import logging
+import re
 from typing import Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -116,13 +117,29 @@ def display_section(title: str, section: str) -> str:
     return " > ".join(parts)
 
 
+# raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}: the file a source was fetched from (T-015).
+_RAW_GITHUB = re.compile(r"^https://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.+)$")
+
+
+def readable_url(url: str) -> str:
+    """The page a person should open for a chunk's URL. Some sources are fetched as raw GitHub
+    files (clean markdown to chunk); a citation links to the rendered file on github.com instead
+    (T-015). Called by `to_citation`; done here, not at ingest, so the index needs no rebuild."""
+    match = _RAW_GITHUB.match(url)
+    if match is None:
+        return url
+    owner, repo, ref, path = match.groups()
+    return f"https://github.com/{owner}/{repo}/blob/{ref}/{path}"
+
+
 def to_citation(e: Evidence) -> Citation:
-    """Evidence -> Citation for API responses (used by the RAG and job-analysis paths)."""
+    """Evidence -> Citation for API responses (used by the RAG, job-analysis, roadmap and
+    fallback paths)."""
     return Citation(
         chunk_id=e.chunk_id,
         title=e.title,
         section=display_section(e.title, e.section),
-        source_url=e.source_url,
+        source_url=readable_url(e.source_url),
         score=round(e.score, 3),
     )
 

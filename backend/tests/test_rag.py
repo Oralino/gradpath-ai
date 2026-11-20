@@ -187,3 +187,31 @@ def test_attribute_injection_in_scraped_section_is_escaped():
     first_line = block.splitlines()[0]
     assert first_line.count('"') == 4  # only the four quotes we wrote around id and source
     assert "&quot;" in first_line and "&gt;" in first_line
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        (
+            "https://raw.githubusercontent.com/yangshun/tech-interview-handbook/main/apps/website/contents/coding-interview-prep.md",
+            "https://github.com/yangshun/tech-interview-handbook/blob/main/apps/website/contents/coding-interview-prep.md",
+        ),
+        (
+            "https://www.postgresql.org/docs/current/indexes.html",
+            "https://www.postgresql.org/docs/current/indexes.html",
+        ),
+        (
+            "http://raw.githubusercontent.com/a/b/c/d.md",
+            "http://raw.githubusercontent.com/a/b/c/d.md",
+        ),
+        (
+            "https://raw.githubusercontent.com/only/three/parts",
+            "https://raw.githubusercontent.com/only/three/parts",
+        ),
+    ],
+)
+def test_citations_link_to_readable_pages(url, expected):
+    # T-015: raw GitHub files are cited as their rendered github.com page; other URLs unchanged.
+    from gradpath.rag.answer import readable_url
+
+    assert readable_url(url) == expected
