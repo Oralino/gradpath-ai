@@ -256,7 +256,7 @@ describe("results", () => {
     expect(screen.getByText("Nothing relevant.")).toBeTruthy();
     expect(screen.getByText("Closest sources found (they do not answer the question)")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Narrow the question" }));
-    expect(document.activeElement).toBe(screen.getByLabelText("Your question"));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Your question")));
     fireEvent.click(screen.getAllByRole("button", { name: "Paste a job posting" }).at(-1)!);
     expect(screen.getByLabelText("Job posting")).toBeTruthy();
   });
@@ -282,7 +282,7 @@ describe("results", () => {
     expect(screen.getByText("Preparation workflow · chosen by rules")).toBeTruthy();
     const panel = heading.closest("section")!;
     fireEvent.click(within(panel).getByRole("button", { name: "Paste a job posting" }));
-    expect(document.activeElement).toBe(screen.getByLabelText("Job posting"));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Job posting")));
     fireEvent.click(within(panel).getByRole("button", { name: "Use the sample profile" }));
     expect(screen.getByText("Profile: Sample new grad (fictional)")).toBeTruthy();
   });
@@ -526,10 +526,10 @@ describe("review fixes", () => {
     typeMessage("How do indexes work?");
     ask();
     const stop = await screen.findByRole("button", { name: "Stop waiting" });
-    expect(document.activeElement).toBe(stop);
+    await waitFor(() => expect(document.activeElement).toBe(stop));
     expect(screen.getByRole("status").textContent).toBe("Working on it");
     fireEvent.click(stop);
-    expect(document.activeElement).toBe(screen.getByLabelText("Your question"));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Your question")));
   });
 
   test("a stale response after Stop and a new submit is not rendered", async () => {
@@ -601,7 +601,7 @@ describe("review fixes", () => {
     await waitFor(() => expect(document.activeElement?.tagName).toBe("H2")); // the result's focus effect runs first
     expect(document.activeElement).not.toBe(screen.getByLabelText("Job posting"));
     fireEvent.click(screen.getAllByRole("button", { name: "Paste a job posting" }).at(-1)!);
-    expect(document.activeElement).toBe(screen.getByLabelText("Job posting"));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Job posting")));
   });
 });
 

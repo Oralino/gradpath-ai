@@ -74,8 +74,11 @@ describe("fill from a resume", () => {
     expect(screen.getByText("Some details were left out:")).toBeTruthy();
     expect(screen.getByText("Kept the first 50 skills of 70.")).toBeTruthy();
     expect((screen.getByLabelText("Resume text") as HTMLTextAreaElement).value).toBe("");
-    expect(document.activeElement?.id).toBe("education");
-    expect(screen.getByRole("status").textContent).toMatch(/Profile filled from your resume/);
+    // Focus and the announcement are set by effects that run just after the badge renders.
+    await waitFor(() => expect(document.activeElement?.id).toBe("education"));
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toMatch(/Profile filled from your resume/),
+    );
     expect(window.localStorage.getItem(PROFILE_STORAGE_KEY)).toBeNull();
   });
 
@@ -89,7 +92,9 @@ describe("fill from a resume", () => {
     await screen.findByText("From your resume: review before saving");
     expect(screen.getByRole("status")).toBe(live);
     expect(document.querySelector("details")).toBe(details);
-    expect(live.textContent).toBe("Profile filled from your resume. Review it, then save.");
+    await waitFor(() =>
+      expect(live.textContent).toBe("Profile filled from your resume. Review it, then save."),
+    );
   });
 
   test("the current hours and weeks are kept", async () => {

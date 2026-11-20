@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ProfileForm } from "@/components/ProfileForm";
 import { PROFILE_STORAGE_KEY, loadProfile, saveProfile } from "@/lib/profileStore";
 import { SAMPLE_PROFILE } from "@/lib/sampleProfile";
@@ -83,7 +83,7 @@ describe("saving", () => {
     const alert = screen.getByRole("alert");
     expect(within(alert).getAllByRole("listitem").length).toBe(2);
     expect(window.localStorage.getItem(PROFILE_STORAGE_KEY)).toBeNull();
-    expect(document.activeElement).toBe(alert);
+    await waitFor(() => expect(document.activeElement).toBe(alert));
     expect(screen.getByLabelText("Weekly study hours").getAttribute("aria-invalid")).toBe("true");
   });
 
@@ -176,11 +176,11 @@ describe("focus", () => {
     saveProfile(SAMPLE_PROFILE);
     await renderForm();
     click("+ Add project");
-    expect(document.activeElement?.id).toMatch(/^project-\d+-name$/);
+    await waitFor(() => expect(document.activeElement?.id).toMatch(/^project-\d+-name$/));
     click("Clear profile");
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Yes, clear profile" }));
     });
-    expect(document.activeElement?.id).toBe("profile-empty");
+    await waitFor(() => expect(document.activeElement?.id).toBe("profile-empty"));
   });
 });
