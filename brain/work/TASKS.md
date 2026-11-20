@@ -50,6 +50,8 @@ Before any deploy (Milestones 7–8):
 - [x] LangGraph's "Retrying task" log line no longer carries exception text (filter in
       `workflows/graph.py`, T-003).
 - [x] `workflows.cli --out` saves a real profile's results only under `private/` (T-003).
+- [ ] Before live mode: a 422 handler that drops `input` from FastAPI's validation errors, so a
+      visitor key sent in a wrong field is never echoed back (found in T-017).
 - [ ] When live-mode key handling lands: the visitor-key tracing guard in `get_chat_model` checks
       once, when the model is built; re-check it covers how routes build models (T-002 review).
 Milestone 2 (tracing):

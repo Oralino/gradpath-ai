@@ -8,7 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from langchain_core.language_models.chat_models import BaseChatModel
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, ConfigDict, StringConstraints
 
 from gradpath.api import limits
 from gradpath.api.deps import get_extraction_model
@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api/profile", tags=["profile"])
 
 
 class ResumeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # unknown fields are a 422, not silently dropped
     # Stripped first, so 100 spaces can't spend a model call.
     resume_text: Annotated[
         str,
