@@ -11,11 +11,6 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
       resume text in, `UserProfile` out (Haiku, structured output); contact details dropped; text
       not stored or traced; the owner reviews the result before saving. Fictional sample resume for
       demos and tests. Own ticket. PDF/DOCX upload deferred to Milestone 7 (always-hard: uploads).
-- [ ] Bug (found 2026-11-20): the Next dev proxy cuts `/api/*` requests at 30 s (Next's default
-      `experimental.proxyTimeout`, `next/dist/server/lib/router-utils/proxy-request.js`). A RAG answer
-      waiting on Voyage's rate limit hit it ("socket hang up", shown as a server error); every workflow
-      run (80-300 s) would. Fix: raise the proxy timeout above the 5-minute run budget, or remove the
-      need with run polling. Own ticket.
 - [ ] Milestone 6 (backend, small): a "sources as of" date the UI can show (`DESIGN.md` Known gaps).
 
 Answer quality (owner decision 2026-11-19: before Milestone 7's public demo):

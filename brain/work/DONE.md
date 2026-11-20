@@ -2,6 +2,10 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-20
+- [T-013 /api proxy timeout](tickets/T-013-dev-proxy-timeout.md): Next's proxy cut `/api/*` at
+  30 s (a rate-limited answer failed; every workflow run would). `experimental.proxyTimeout` is now
+  330 s, above the 300 s run budget; checked with a 40 s stub (200 with the fix, 500 at 30 s
+  without). `c15c033`.
 - [T-012 Partial answer status](tickets/T-012-partial-answer-status.md): RAG answers can be
   `partial` with a "Not covered: ..." sentence; the model writes the sentence, code sets the status,
   downgrades still win. Real runs: `q-031` and `q-049` partial, a fully covered question answered.
