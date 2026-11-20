@@ -57,6 +57,14 @@ Safe markdown subset (owner decision 2026-11-20, after seeing raw `**` in a real
 parser to data plus fixed React elements, no dependency, links reduced to text, `#` as bold text;
 always-hard area, so code-reviewer and qa-checker ran. Rejected: plain-text prompt; `react-markdown`.
 
+Profile screen (step 7) decisions: the profile lives only in localStorage (`gradpath-profile`) and
+is sent only inside an `/api/assist` request the visitor makes. A stored profile is re-validated on
+load with the backend's own limits and dropped if it would be rejected (tampered or old data never
+reaches the API as a 422). Lengths count Unicode code points like Python's `len()`, not UTF-16
+units. Errors appear after the first save attempt and are recomputed on every edit. "Fill from a
+resume" waits for its backend endpoint (TASKS). Found and fixed: a focus test raced the effect that
+moves focus under full-suite load; focus checks after an async render now use `waitFor`.
+
 ## Changes
 - Branch: `feat/t-011-frontend`
 - PR:

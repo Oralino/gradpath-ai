@@ -682,3 +682,24 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   the badge would then mean little; the real runs so far mark the two known gap questions partial
   and a fully covered one answered. The answer eval set (TASKS) is where that gets measured.
 
+## Profile screen (`components/ProfileForm.tsx`, `lib/profileStore.ts`, T-011)
+- **What it is:** the `/profile` form for the visitor's own background: education, skills,
+  coursework, projects, experience, weekly hours and timeline. It never calls the API; the Ask
+  screen sends the saved profile only when the visitor chooses it for a request.
+- **Decision: browser storage, not a server account.** The MVP has no login, and a profile is
+  personal data; keeping it in localStorage means the server never stores it. Rejected: a server
+  profile store (needs auth, a database and a privacy policy for little gain in a demo). Trade-off:
+  the profile doesn't follow the visitor to another browser.
+- **Decision: validate exactly like the backend.** `validateProfile` mirrors `workflows/schemas.py`:
+  1-200 / 1-1,200 characters, 50 skills, 30 courses, 6 projects (15 technologies), 6 roles, whole
+  hours 1-80 and weeks 1-52, and the 12,000-character total measured the way Pydantic does (compact
+  JSON including the null `profile_id`, `note` and `name`). A mismatch either way is a bug: too loose
+  gives the visitor a 422 later, too strict blocks valid input.
+- **Gotchas:** lengths count code points (`lib/charCount.ts`) because Python's `len()` does; JS
+  `.length` counts an emoji as 2. Stored data is untrusted too: `loadProfile` copies known fields
+  only and re-validates, so an edited or old record is ignored instead of breaking a request.
+- **Likely questions:** *"Why not let the backend validate and show its errors?"* It does, as the
+  last line of defence, but its 422 can only name a field path; checking here gives row-specific
+  messages ("Project 2: name is required.") before anything is sent. *"Why no name field?"* A plan
+  doesn't need it, so the form collects less personal data.
+
