@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CharCount } from "@/components/CharCount";
 import { CitationList } from "@/components/CitationList";
@@ -16,8 +17,10 @@ import { RouteLine } from "@/components/RouteLine";
 import { StatusBadge, type Tone } from "@/components/StatusBadge";
 import { StatusPanel } from "@/components/StatusPanel";
 import { api, ApiError, MESSAGES } from "@/lib/api";
+import { charCount } from "@/lib/charCount";
+import { loadProfile } from "@/lib/profileStore";
 import { SAMPLE_PROFILE, SAMPLE_PROFILE_LABEL } from "@/lib/sampleProfile";
-import type { AssistRequest, AssistResponse, CareerStatus } from "@/lib/types";
+import type { AssistRequest, AssistResponse, CareerStatus, UserProfile } from "@/lib/types";
 
 const MESSAGE_MIN = 3;
 const MESSAGE_MAX = 2000;
@@ -55,6 +58,8 @@ const PREPARED: Record<CareerStatus, { heading: string; tone: Tone; badge: strin
   },
 };
 
+const SAVED_PROFILE_LABEL = "Your saved profile";
+
 const FIELD_LABELS: Record<string, string> = {
   message: "Your question",
   job_description: "Job posting",
@@ -86,7 +91,9 @@ export function Assistant() {
   const [message, setMessage] = useState("");
   const [job, setJob] = useState("");
   const [jobOpen, setJobOpen] = useState(false);
-  const [useSample, setUseSample] = useState(false);
+  // Which profile the request sends. The saved one comes from this browser's localStorage.
+  const [profileChoice, setProfileChoice] = useState<"none" | "sample" | "saved">("none");
+  const [savedProfile, setSavedProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [response, setResponse] = useState<AssistResponse | null>(null);
@@ -103,6 +110,12 @@ export function Assistant() {
   const jobRef = useRef<HTMLTextAreaElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
+
+  // Read the saved profile after mount, not during render, so server and client HTML match.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSavedProfile(loadProfile()?.profile ?? null);
+  }, []);
 
   // Elapsed-time ticker while a request runs. Not announced (DESIGN.md, Accessibility).
   useEffect(() => {
@@ -145,14 +158,14 @@ export function Assistant() {
   // Local checks that match the API limits, so a bad request is never sent. Called by submit().
   function validate(): FieldErrors {
     const errors: FieldErrors = {};
-    const len = message.trim().length;
+    const len = charCount(message.trim());
     if (len < MESSAGE_MIN) {
       errors.message = `Your question needs at least ${MESSAGE_MIN} characters.`;
     } else if (len > MESSAGE_MAX) {
       errors.message = `Your question is over the ${MESSAGE_MAX.toLocaleString("en-US")} character limit.`;
     }
     if (jobSet) {
-      const jobLen = job.trim().length;
+      const jobLen = charCount(job.trim());
       if (jobLen < JOB_MIN) {
         errors.job = `The job posting needs at least ${JOB_MIN} characters.`;
       } else if (jobLen > JOB_MAX) {
@@ -177,7 +190,8 @@ export function Assistant() {
     }
     const body: AssistRequest = { message: message.trim() };
     if (jobSet) body.job_description = job.trim();
-    if (useSample) body.profile = SAMPLE_PROFILE;
+    if (profileChoice === "sample") body.profile = SAMPLE_PROFILE;
+    if (profileChoice === "saved" && savedProfile) body.profile = savedProfile;
 
     const controller = new AbortController();
     controllerRef.current = controller;
@@ -291,7 +305,7 @@ export function Assistant() {
               {fieldErrors.message}
             </p>
           )}
-          <CharCount id="message-count" value={message.length} max={MESSAGE_MAX} />
+          <CharCount id="message-count" value={charCount(message)} max={MESSAGE_MAX} />
         </div>
 
         {showEmpty && (
@@ -337,14 +351,14 @@ export function Assistant() {
                     {fieldErrors.job}
                   </p>
                 )}
-                <CharCount id="job-count" value={job.length} max={JOB_MAX} />
+                <CharCount id="job-count" value={charCount(job)} max={JOB_MAX} />
                 <button type="button" className={`${textButton} text-small`} onClick={() => setJobOpen(false)}>
                   Done
                 </button>
               </div>
             ) : jobSet ? (
               <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small">
-                <span>Job posting: pasted, {job.length.toLocaleString("en-US")} chars</span>
+                <span>Job posting: pasted, {charCount(job).toLocaleString("en-US")} chars</span>
                 <button type="button" className={textButton} onClick={() => setJobOpen(true)}>
                   Edit
                 </button>
@@ -369,21 +383,31 @@ export function Assistant() {
             )}
           </div>
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small">
-            {useSample ? (
+            {profileChoice !== "none" ? (
               <>
-                <span>Profile: {SAMPLE_PROFILE_LABEL}</span>
-                <button type="button" className={textButton} onClick={() => setUseSample(false)}>
+                <span>
+                  Profile: {profileChoice === "saved" ? SAVED_PROFILE_LABEL : SAMPLE_PROFILE_LABEL}
+                </span>
+                <button type="button" className={textButton} onClick={() => setProfileChoice("none")}>
                   Remove
                 </button>
               </>
             ) : (
               <>
                 <span className="text-ink-muted">Profile: none</span>
-                <button type="button" className={textButton} onClick={() => setUseSample(true)}>
+                {savedProfile && (
+                  <button type="button" className={textButton} onClick={() => setProfileChoice("saved")}>
+                    Use your saved profile
+                  </button>
+                )}
+                <button type="button" className={textButton} onClick={() => setProfileChoice("sample")}>
                   Use the sample profile (fictional)
                 </button>
               </>
             )}
+            <Link href="/profile" className={textButton}>
+              Edit profile
+            </Link>
           </p>
         </div>
 
@@ -418,9 +442,10 @@ export function Assistant() {
             headingRef={headingRef}
             onNarrow={() => messageRef.current?.focus()}
             onPasteJob={openJobEditor}
-            onUseSample={() => setUseSample(true)}
+            onUseSample={() => setProfileChoice("sample")}
+            onUseSaved={savedProfile ? () => setProfileChoice("saved") : undefined}
             onRetry={() => void submit()}
-            sampleOn={useSample}
+            profileOn={profileChoice !== "none"}
             jobSet={jobSet}
           />
         </section>
@@ -459,8 +484,9 @@ function Result({
   onNarrow,
   onPasteJob,
   onUseSample,
+  onUseSaved,
   onRetry,
-  sampleOn,
+  profileOn,
   jobSet,
 }: {
   response: AssistResponse;
@@ -468,8 +494,9 @@ function Result({
   onNarrow: () => void;
   onPasteJob: () => void;
   onUseSample: () => void;
+  onUseSaved?: () => void;
   onRetry: () => void;
-  sampleOn: boolean;
+  profileOn: boolean;
   jobSet: boolean;
 }) {
   const heading = resultHeading(response);
@@ -554,7 +581,12 @@ function Result({
               Paste a job posting
             </button>
           )}
-          {missing.includes("profile") && !sampleOn && (
+          {missing.includes("profile") && !profileOn && onUseSaved && (
+            <button type="button" className={textButton} onClick={onUseSaved}>
+              Use your saved profile
+            </button>
+          )}
+          {missing.includes("profile") && !profileOn && (
             <button type="button" className={textButton} onClick={onUseSample}>
               Use the sample profile
             </button>

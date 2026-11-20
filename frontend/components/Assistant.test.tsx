@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Assistant } from "@/components/Assistant";
+import { saveProfile } from "@/lib/profileStore";
 import type { AssistResponse, Citation } from "@/lib/types";
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -67,6 +68,7 @@ function ask() {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  window.localStorage.clear();
 });
 
 describe("composer", () => {
@@ -151,7 +153,7 @@ describe("results", () => {
     typeMessage("How do I configure liveness probes?");
     ask();
     const heading = await screen.findByRole("heading", { name: "Partial answer" });
-    expect(document.activeElement).toBe(heading);
+    await waitFor(() => expect(document.activeElement).toBe(heading));
     expect(screen.getByText("Not fully covered")).toBeTruthy();
     expect(screen.queryByText("From the knowledge base")).toBeNull();
     expect(screen.getByText(/Not covered: How to configure liveness probes/)).toBeTruthy();
@@ -213,12 +215,13 @@ describe("results", () => {
     typeMessage("How do indexes work?");
     ask();
     const heading = await screen.findByRole("heading", { name: "Answer" });
-    expect(document.activeElement).toBe(heading);
+    await waitFor(() => expect(document.activeElement).toBe(heading));
     expect(screen.getByText("From the knowledge base")).toBeTruthy();
     expect(screen.getByText("Sources only partly match.")).toBeTruthy();
     expect(screen.getByText("Knowledge-base answer · chosen by rules")).toBeTruthy();
 
-    const links = screen.getAllByRole("link");
+    // The tray also has an internal "Edit profile" link; only citations open in a new tab.
+    const links = screen.getAllByRole("link").filter((a) => a.getAttribute("target") === "_blank");
     expect(links).toHaveLength(1);
     expect(links[0].getAttribute("href")).toBe("https://www.postgresql.org/docs/current/indexes.html");
     expect(links[0].getAttribute("rel")).toBe("noopener noreferrer");
@@ -400,7 +403,7 @@ describe("review fixes", () => {
     ask();
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("Some fields need fixing before this can be sent.");
-    expect(document.activeElement).toBe(alert);
+    await waitFor(() => expect(document.activeElement).toBe(alert));
   });
 
   test("prepared with no result shows the stopped panel, not Checked", async () => {
@@ -469,7 +472,7 @@ describe("review fixes", () => {
     typeMessage("What is quantum gravity?");
     ask();
     const h1 = await screen.findByRole("heading", { name: "Not covered by the knowledge base" });
-    expect(document.activeElement).toBe(h1);
+    await waitFor(() => expect(document.activeElement).toBe(h1));
     first.unmount();
 
     mockFetch(async () =>
@@ -487,7 +490,7 @@ describe("review fixes", () => {
     typeMessage("Make me a plan");
     ask();
     const h2 = await screen.findByRole("heading", { name: "More input needed" });
-    expect(document.activeElement).toBe(h2);
+    await waitFor(() => expect(document.activeElement).toBe(h2));
   });
 
   test("a too-long posting blocks submit", () => {
@@ -596,5 +599,26 @@ describe("review fixes", () => {
     expect(document.activeElement).not.toBe(screen.getByLabelText("Job posting"));
     fireEvent.click(screen.getAllByRole("button", { name: "Paste a job posting" }).at(-1)!);
     expect(document.activeElement).toBe(screen.getByLabelText("Job posting"));
+  });
+});
+
+describe("saved profile", () => {
+  test("a saved profile is offered, shown in the tray and sent with the request", async () => {
+    const saved = { skills: ["Rust"], coursework: [], projects: [], experience: [] };
+    saveProfile(saved);
+    const fetchMock = mockFetch(async () => jsonResponse(200, assist()));
+    render(<Assistant />);
+    typeMessage("Plan for this role");
+    fireEvent.click(await screen.findByRole("button", { name: "Use your saved profile" }));
+    expect(screen.getByText("Profile: Your saved profile")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Edit profile" }).getAttribute("href")).toBe("/profile");
+    ask();
+    await screen.findByText("Use the leftmost column first.");
+    expect(sentBody(fetchMock).profile).toEqual(saved);
+  });
+
+  test("no saved profile: only the sample is offered", () => {
+    render(<Assistant />);
+    expect(screen.queryByRole("button", { name: "Use your saved profile" })).toBeNull();
   });
 });
