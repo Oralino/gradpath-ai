@@ -2,6 +2,7 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-20
+- Job screen (T-011 step 9), `c160c5d`; [T-015 readable citation links](tickets/T-015-readable-citation-links.md), `c839eb2`.
 - [T-014 Resume import](tickets/T-014-resume-import.md): "Fill from a resume" on the Profile
   screen and `POST /api/profile/from-resume`; one fast-tier call, never traced or stored, contact
   details dropped and scrubbed, limits enforced in code with notes; reviewed twice + QA; checked

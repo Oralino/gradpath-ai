@@ -65,6 +65,12 @@ units. Errors appear after the first save attempt and are recomputed on every ed
 resume" waits for its backend endpoint (TASKS). Found and fixed: a focus test raced the effect that
 moves focus under full-suite load; focus checks after an async render now use `waitFor`.
 
+Job screen (step 9) decisions: rows are a list of self-labelled items, not a table; chips are
+one per page, labelled "Title: Section" so two chunks of one source stay distinguishable; the
+posting is handed to the Ask tray through sessionStorage (bounded, read once) until the Plan screen
+exists (`TODO(T-011 Plan screen)`). Found in the real run: duplicate-looking chips (fixed here) and
+raw GitHub citation links (T-015). Commit `c160c5d`.
+
 ## Changes
 - Branch: `feat/t-011-frontend`
 - PR:

@@ -734,3 +734,22 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
     draft's wording, which the visitor reviews. The planted "ignore previous instructions" line in
     the sample resume is ignored in real runs.
 
+## Job screen (`components/JobAnalysisView.tsx`, T-011)
+- **What it is:** the `/job` page. Paste a posting, `POST /api/jobs/analyze` extracts the
+  requirements, searches the knowledge base for each, and writes a cited study note. The screen
+  groups them as Required, Preferred and Eligibility (not assessed), and each row shows its coverage,
+  the posting's own words, the note and its sources.
+- **Decision: evidence first.** Each row shows the posting quote before any interpretation, and
+  flags "Quote not found in posting" when the model's quote isn't really in the text. Coverage is a
+  word badge ("Weak evidence"), never a score; scores sit in a "How this was matched" disclosure.
+- **Decision: a list, not a table.** Each row carries its own labels, so it reads the same at
+  375px and in a screen reader. Rejected: a table, which needs horizontal scrolling on a phone and
+  is read cell by cell.
+- **Gotchas:** chips are one per page and labelled "Title: Section". Two chunks from the same source
+  looked identical in the first real run. Raw GitHub fetch URLs are cited as their github.com page
+  (T-015). The plan button hands the posting to the Ask screen until the Plan screen exists.
+- **Likely questions:** *"Why are most requirements 'weak evidence'?"* Coverage comes from
+  retrieval scores against the curated corpus. A requirement is "covered" only when a source clears
+  the higher threshold, so a corpus of general sources gives honest "weak" labels rather than false
+  confidence.
+
