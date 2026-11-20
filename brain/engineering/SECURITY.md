@@ -12,15 +12,19 @@ milestone changes the attack surface (login, uploads, frontend, deploy).
 statuses and permissions are decided in our code; the model only fills validated fields.
 
 ## Attack surface today
-- **API** (`api/`): `/api/chat`, `/api/jobs/analyze`, `/api/career/prepare`, `/api/health`; no login,
-  no cookies, no CORS middleware, not deployed. Runs on the owner's PC.
+- **API** (`api/`): `/api/chat`, `/api/jobs/analyze`, `/api/assist`, `/api/career/prepare`,
+  `/api/career/runs` (start) and `/api/career/runs/{id}` (poll), `/api/profile/from-resume`,
+  `/api/health`; no login, no cookies, no CORS middleware, not deployed. Runs on the owner's PC.
+- **Frontend** (`frontend/`, Milestone 6): Next.js pages that call same-origin `/api/*`, which Next
+  forwards to the API, so the backend address stays server-side. The profile and the last plan stay
+  in the browser (localStorage / sessionStorage) and leave it only inside a request the visitor makes.
 - **Model calls**: Claude through Claude Code (local, Pro plan) or the Anthropic API; Voyage for
   embeddings. Three external services receive data: Anthropic, Voyage, LangSmith (opt-in tracing).
 - **Ingestion** (`ingestion/`): fetches approved URLs from `knowledge_base/source_manifest.csv`, run
   by the owner only.
-- **Vector store**: local Qdrant in file mode (`qdrant_storage/`, no network port).
-- **Not built yet**: frontend (Milestone 6), demo/live modes and visitor keys (7), deploy (8),
-  uploads (none planned before 7).
+- **Vector store**: local Qdrant in file mode (`backend/data/qdrant/`, no network port).
+- **Not built yet**: demo/live modes and visitor keys (7), deploy (8), file uploads (7; T-014 takes
+  pasted resume text only).
 
 Status key: ✅ defended · ⚠️ gap, fix now · 🕒 applies from a later milestone · — does not apply.
 
@@ -29,7 +33,7 @@ Status key: ✅ defended · ⚠️ gap, fix now · 🕒 applies from a later mil
 | Threat | Status | Where / defence today | Gap and when |
 |---|---|---|---|
 | SQL injection | — | No SQL database. Qdrant is queried through its client with typed filters, never string-built queries. | If a database is added (accounts, Later), parameterised queries only. |
-| XSS | 🕒 6 | API returns JSON only. Model text is bounded (1,000 chars, router reason 200) but **not** HTML-safe. | Frontend rules (Milestone 6): render model and retrieved text as plain text (React escaping, no `dangerouslySetInnerHTML`, no raw-HTML markdown: only the safe subset in `frontend/lib/modelText.ts`, parsed to data and rendered as fixed React elements, links reduced to their text); links only `http(s)` and only `source_url` values from the manifest; a Content-Security-Policy on deploy. |
+| XSS | ✅ / 🕒 8 | API returns JSON only; model text is bounded (1,000 chars, router reason 200). The frontend (Milestone 6, release-checked 2026-11-20) follows the rules in the next column. | Keep these rules: render model and retrieved text as plain text (React escaping, no `dangerouslySetInnerHTML`, no raw-HTML markdown: only the safe subset in `frontend/lib/modelText.ts`, parsed to data and rendered as fixed React elements, links reduced to their text); links only `http(s)` and only `source_url` values from the manifest. Still to do: a Content-Security-Policy on deploy (8). |
 | CSRF | 🕒 7 | No cookies or sessions, so a cross-site page has no credentials to ride on. | Milestone 7: keep auth out of cookies (header token or passcode per request); CORS allow-list of the frontend origin only; test that a cross-site `text/plain` form POST is refused (check FastAPI's JSON content-type handling then, not assumed). |
 | SSRF | ✅ | `ingestion/fetch.py`: only manifest URLs with status `approved`; robots.txt re-checked on every redirect hop; content-type allow-list; at most 5 redirects. Users can't submit URLs. | Fixed in T-007: every URL and redirect hop must be https on port 443 and a manifest host; private, numeric and localhost hosts refused. Known limit: no DNS check of a manifest host. |
 | Path traversal | ✅ | `workflows/cli.py` `out_allowed`: a real profile's results only under `private/`; `evaluation/workflow_eval.py` `load_profile` refuses paths outside the repo. The API takes no file paths. | Uploads (7) must never use a client file name as a path. |
@@ -97,7 +101,7 @@ Solo project, so the realistic risks are a phished account or a leaked key.
 | Cross-tenant leakage | — | Single shared public corpus; no user documents are indexed. | Rule: uploads are never added to the shared collection. |
 | Vector database attacks | ✅ / 🕒 8 | Local file store; only the ingest command writes. | Qdrant Cloud (8): key only on the server; use a read-only key for serving if the free tier offers one (check then). |
 | Excessive agency | ✅ | No model has tools: `ChatClaudeCode` runs with `tools=[]`, `setting_sources=[]`, `max_turns=3` (`providers/claude_code.py`). Every output is a validated Pydantic model; nothing the model says triggers an action. | Keep: any future tool needs an allow-list and server-side checks. |
-| Insecure output handling | ✅ / 🕒 6 | Outputs validated; ids filtered to known facts and chunks; model text bounded. | Frontend escaping (see XSS). |
+| Insecure output handling | ✅ | Outputs validated; ids filtered to known facts and chunks; model text bounded; the frontend renders it as text (see XSS). | — |
 | Unbounded consumption | ✅ / 🕒 7 | Size limits, concurrency caps, revision limit, `max_turns`, one batched Voyage call per request. | Time budget done (T-006); per-IP limits (7). |
 | System prompt leakage | ✅ | The prompts are public in the repo by design; none holds a secret or a rule that security depends on. | — |
 | Model supply chain, theft, poisoning | — | Hosted models only; no model files, no fine-tuning. Libraries pinned (see 04). | — |

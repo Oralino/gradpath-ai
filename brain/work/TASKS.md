@@ -7,7 +7,8 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 - [ ] DESIGN.md: record the visible input rows and "Build plan again" on the Plan screen
       (design-advisor drafts, owner approves; T-011 design critique).
 - [ ] Milestone 7: PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard).
-- [ ] Milestone 6 (backend, small): a "sources as of" date the UI can show (`DESIGN.md` Known gaps).
+- [ ] Milestone 7 (moved from 6 on 2026-11-20, not built there): a "sources as of" date the API
+      returns and the footer shows (`DESIGN.md` Known gaps and footer copy).
 
 Answer quality (owner decision 2026-11-19: before Milestone 7's public demo):
 - [ ] Answer eval set: ~20 questions with must-contain facts plus must-refuse cases, scored in code.
@@ -18,13 +19,14 @@ Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner
 - [x] [T-007](tickets/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.
 - [x] [T-008](tickets/T-008-tag-neutraliser-unicode.md): tag neutraliser handles invisible and look-alike characters.
 - [ ] Add `uvx pip-audit` to the release checks (dependency vulnerabilities). Ran for Milestone 6:
-      clean (T-011); adopting it in `CLAUDE.md` is the owner's call.
+      clean (T-011); `npm audit` for the frontend also found 0 vulnerabilities (2026-11-20). Adopting
+      both in `CLAUDE.md` is the owner's call.
 - [ ] **(owner)** Two-factor authentication on GitHub, Anthropic, Voyage and LangSmith.
 
 ## Corpus (before Milestone 5)
 - [x] Fill corpus gaps (T-009, 2026-11-19): 10 sources added.
-- [ ] Citations for raw GitHub files point at raw.githubusercontent.com; map them to the docs
-      sites' readable URLs.
+- [x] Citations for raw GitHub files point at raw.githubusercontent.com; map them to the docs
+      sites' readable URLs ([T-015](tickets/T-015-readable-citation-links.md)).
 - [x] Before Milestone 5: the 0.45 threshold no longer separates near-topic uncovered questions.
       Reranker scores tried in T-010: no better. Follow-up moved to "Current" (answer-step abstention).
 - [ ] More new-grad backend job descriptions in `private/job_descriptions/` (one so far).
