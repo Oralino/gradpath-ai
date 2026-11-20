@@ -34,7 +34,7 @@ Milestone 7).
 - PR:
 - Files touched: `backend/src/gradpath/api/chat.py`, `api/jobs.py`, `api/profile.py`,
   `backend/tests/test_api_errors.py`
-- Commits (hash, message): `8630495` fix: reject unknown fields in chat, job and resume request
+- Commits (hash, message): `a6d6fcf` fix: reject unknown fields in chat, job and resume request
   bodies (T-017)
 
 ## Verification

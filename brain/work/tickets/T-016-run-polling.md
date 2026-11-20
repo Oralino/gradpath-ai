@@ -56,7 +56,7 @@ stage is running. A synchronous request can't do that, and it held one HTTP requ
   - `backend/src/gradpath/workflows/runs.py` (new), `api/runs.py` (new), `workflows/graph.py`
     (`on_step`), `router/assist.py`, `api/assist.py`, `api/main.py`;
   - `tests/test_runs.py` (new), `tests/test_api_assist.py`.
-- Commits (hash, message): `af3ee4f` feat: run the preparation workflow in the background with a run id to poll (T-016); the Plan screen that polls it is `f514780` (T-011)
+- Commits (hash, message): `1d1effe` feat: run the preparation workflow in the background with a run id to poll (T-016); the Plan screen that polls it is `1d5c3c3` (T-011)
 
 ## Verification
 - **Tests:** 528 backend tests, four runs in a row with no flakes. The new ones cover:

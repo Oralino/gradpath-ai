@@ -71,7 +71,7 @@ posting is handed to the Ask tray through sessionStorage (bounded, read once) un
 exists (`TODO(T-011 Plan screen)`). Found in the real run: duplicate-looking chips (fixed here) and
 raw GitHub citation links (T-015). Commit `c160c5d`.
 
-Plan screen (step 10, `f514780`; built in a parallel session against the T-016 contract):
+Plan screen (step 10, `1d5c3c3`; built in a parallel session against the T-016 contract):
 - **What it does:** live stage progress from polling; honesty states for all four statuses;
   sections with in-page links; gaps grouped by status with Required before Preferred; a roadmap
   rail; interview questions; corrections (up to 10 × 500 characters) and a re-run.
@@ -89,7 +89,7 @@ Plan screen (step 10, `f514780`; built in a parallel session against the T-016 c
   - five failed polls in a row show "Can't reach the server" instead of a silent 5-minute wait.
 
 Design critique (2026-11-20, design-advisor on Sonnet, from 50 screenshots of the four screens in
-both themes at 1280 and 375 px, with real backend data): no blockers. Fixed in `43a4b71`:
+both themes at 1280 and 375 px, with real backend data): no blockers. Fixed in `e694acb`:
 - Plan banner issues stack under their badge below `sm`; citation chips put the hostname on its own
   line below `sm`, cut titles at a word within 60 characters (was 40, mid-word) and show the
   hostname muted without a second link colour;
@@ -117,8 +117,8 @@ Not changed, with the reason:
 - PR: (waiting for the owner)
 - Files touched: `frontend/` (new app), `backend/src/gradpath/api/` (runs, profile), workflow
   runs (T-016), docs in `brain/`. Related tickets T-012 to T-017 hold their own file lists.
-- Commits: `git log --grep=T-011`; the last ones are `43a4b71` (design critique fixes) and
-  `3edee74` (retrieval re-check).
+- Commits: `git log --grep=T-011`; the last ones are `e694acb` (design critique fixes) and
+  `ce9ce74` (retrieval re-check).
 
 ## Verification
 - Frontend: lint, type check and 189 Vitest tests clean; build runs in CI. Backend: ruff clean, 531
@@ -129,8 +129,8 @@ Not changed, with the reason:
 - Release checks (2026-11-20, CLAUDE.md "Release checks"):
   - Secret and personal-data scan of `main...HEAD`, the commit messages and logs: no keys, no
     tracked `.env`, no AI attribution; sample data is fictional. One find: a local file path with
-    the owner's Windows user name in the T-016 ticket, removed in `2be7aca` (it stays in the
-    history of `af3ee4f`; rewriting pushed history needs the owner). `demo_runs/` does not exist yet.
+    the owner's Windows user name in the T-016 ticket, removed from the branch history with the
+    owner's go-ahead (rewritten and force-pushed 2026-11-20). `demo_runs/` does not exist yet.
   - Demo mode with no keys: not applicable yet. Milestone 7 builds `APP_MODE` (TASKS: the API
     still needs `VOYAGE_API_KEY` to start).
   - Visitor key in logs, traces or responses: not applicable yet. No route accepts a visitor key
