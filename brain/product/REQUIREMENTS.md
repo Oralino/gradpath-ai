@@ -62,7 +62,7 @@ read-only towards the web). Hiring predictions.
 | Backend / UI | FastAPI + Next.js (Tailwind). No Streamlit prototype |
 | Users | Single user, no auth; multi-user later |
 | Deployment | Required for the MVP: Vercel (frontend), Render (backend), Qdrant Cloud free |
-| Online modes | Demo mode (recorded runs, no cost) by default; live mode only with the visitor's own Anthropic key (the owner will not set a paid server key) |
+| Online modes | Demo mode (recorded runs, no cost) by default; live mode only with the visitor's own Anthropic key (the owner will not set a paid server key). Owner decision 2026-11-20 (T-018): live mode embeds questions with the owner's Voyage key behind a per-IP limit, and live routes need a shared passcode; demo stays open |
 | Cost (owner, 2026-11-17) | **Zero spend, always.** Free tiers only and no payment method on any service (Voyage, LangSmith, Qdrant Cloud, Vercel, Render). Local runs use the existing Pro plan; the deployed demo makes no model calls. When a choice exists, pick the free option and design around free-tier limits |
 | Timeline | No hard date. The spec's four-week plan is a guide |
 | Knowledge base | 30–50 documents gathered by both the owner and Claude; the owner approves sources |
@@ -90,6 +90,4 @@ MVP:
 - [ ] No personal data or secrets in the repo, logs, recordings or traces from visitors.
 
 ## TBD
-- Whether live mode on the deployed site uses the owner's Voyage key with a rate limit, or asks the
-  visitor for a Voyage key too (proposal: owner's key, rate-limited).
 - The knowledge-base document list.

@@ -4,7 +4,7 @@ Milestone 7 ticket. Plan and story in `../MILESTONES.md`; modes in
 `../../engineering/SECURITY.md` (01, 07, release checklist).
 
 - **Type:** feature
-- **Status:** in progress (plan waiting for the owner's go-ahead)
+- **Status:** in progress
 - **Opened:** 2026-11-20 · **Closed:**
 - **GitHub Issue:** none
 
@@ -23,9 +23,19 @@ PDF/DOCX resume upload; a "sources as of" date in the API and footer; the answer
 grounding check (owner decision 2026-11-19: before the public demo).
 
 ## Decision
-Pending: the plan was put to the owner on 2026-11-20 with the open questions (which candidate items
-belong in 7, their order, the Voyage-key question for live mode, the auth form). Recorded here once
-answered.
+Owner decisions, 2026-11-20 (plan approved):
+- **Scope:** the core steps, plus the "sources as of" date, the answer eval set and the grounding check.
+  PDF/DOCX resume upload moves out of 7 (later milestone): not needed for a zero-cost demo, and it adds
+  file-validation risk right before the deploy.
+- **Voyage in live mode:** the owner's Voyage key embeds visitors' questions, behind a per-IP rate limit
+  (visitors paste only an Anthropic key). Rejected: asking visitors for a Voyage key too (two keys is too
+  much friction).
+- **Auth:** a shared passcode in a request header (server env var) on live routes, plus per-IP limits;
+  demo mode stays open. Rejected: per-IP limits alone; a passcode on demo too.
+- **Order:** 1 demo mode with no keys, 2 record demo runs, 3 sources date, 4 visitor key end to end,
+  5 422 handler that drops `input`, 6 passcode and per-IP limits, 7 CORS allow-list and CSRF test,
+  8 frontend demo/live switch (design-advisor first), 9 answer eval set and grounding check,
+  10 release checks and PR.
 
 ## Changes
 - Branch: `feat/t-018-demo-live-modes`

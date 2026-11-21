@@ -102,7 +102,8 @@ Deployed site:
   keys needed.
 - **Live mode:** the visitor pastes an Anthropic key. It travels over HTTPS with each request, lives
   only in memory for that request, and is never stored, logged, traced or returned. Query embeddings
-  use the owner's Voyage key with a rate limit (TBD, see REQUIREMENTS).
+  use the owner's Voyage key with a per-IP rate limit, and live routes need a shared passcode in a
+  header (owner decision 2026-11-20, T-018).
 
 ## Tracing
 Built in Milestone 2 (`tracing.py`, ticket T-002). One function, `configure_tracing(settings)`, decides
