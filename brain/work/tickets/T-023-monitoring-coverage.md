@@ -50,3 +50,5 @@ Owner, 2026-11-21: option (a), add both openly licensed sources (rejected for no
   when should I alert?": a partial answer (queries, errors, latency; alert on user-visible
   symptoms) citing three Prometheus chunks (instrumentation, alerting; scores 0.55 to 0.60). Before
   this change the index had nothing on the topic.
+- Both runs were made before `main`'s T-024 answer-prompt change was merged in; retrieval, which
+  this ticket changes, is unaffected by it.
