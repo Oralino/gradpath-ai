@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CharCount } from "@/components/CharCount";
-import { CitationChip, dedupeByUrl } from "@/components/CitationChip";
+import { CitationChip, dedupeByUrl, pageNames } from "@/components/CitationChip";
 import { LivePanel, LiveStrip } from "@/components/LivePanel";
 import { ModeErrorPanel, isModeError } from "@/components/ModeErrorPanel";
 import { ModeNote } from "@/components/ModeNote";
@@ -399,6 +399,7 @@ function RequirementRow({ item }: { item: AnalyzedRequirement }) {
     chips = item.sources.filter((s) => wanted.has(s.chunk_id));
   }
   chips = dedupeByUrl(chips);
+  const pages = pageNames(chips);
 
   return (
     <li className="space-y-2 rounded-md border border-rule p-3">
@@ -431,7 +432,7 @@ function RequirementRow({ item }: { item: AnalyzedRequirement }) {
         <div className="flex flex-wrap items-center gap-2 text-small">
           <span className="text-label">Sources:</span>
           {chips.map((c) => (
-            <CitationChip key={c.source_url} citation={c} />
+            <CitationChip key={c.source_url} citation={c} page={pages.get(c.source_url)} />
           ))}
         </div>
       )}
