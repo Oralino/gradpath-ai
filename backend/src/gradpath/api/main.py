@@ -21,11 +21,13 @@ from gradpath.api.demo import router as demo_router
 from gradpath.api.jobs import router as jobs_router
 from gradpath.api.profile import router as profile_router
 from gradpath.api.runs import router as runs_router
-from gradpath.config import REPO_ROOT, get_settings
+from gradpath.api.search import router as search_router
+from gradpath.config import REPO_ROOT, Settings, get_settings
 from gradpath.demo import load_library
+from gradpath.ingestion.embed import WindowFull
 from gradpath.ingestion.index_info import read_index_info
 from gradpath.providers import ClaudeCodeError
-from gradpath.retrieval import get_retrieval_service
+from gradpath.retrieval import RetrievalService, get_retrieval_service
 from gradpath.tracing import configure_tracing, flush
 
 log = logging.getLogger(__name__)
@@ -57,9 +59,9 @@ def _error_handler(status: int, detail: str):
             log.error(
                 "%s on %s (%d errors)", type(exc).__name__, request.url.path, exc.error_count()
             )
-        elif isinstance(exc, (ClaudeCodeError, anthropic.APIError)):
-            # Their messages can carry model or SDK text, which can quote a resume or profile
-            # (T-014): log the type only, no message or traceback.
+        elif isinstance(exc, (ClaudeCodeError, anthropic.APIError, voyageai.error.VoyageError)):
+            # Their messages can carry model or SDK text, which can quote a resume, a profile
+            # (T-014) or a search query (T-018): log the type only, no message or traceback.
             log.error("%s on %s", type(exc).__name__, request.url.path)
         else:
             log.error("%s on %s", type(exc).__name__, request.url.path, exc_info=exc)
@@ -70,11 +72,12 @@ def _error_handler(status: int, detail: str):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Load the demo recordings and, outside demo mode, open the retrieval service once per process.
+    """Load the demo recordings and the index info, and open the retrieval service once per process.
 
-    Demo mode opens no Voyage or Qdrant client, so the API starts with no keys at all (T-018);
-    its model routes are refused by `deps.require_model_routes`. Qdrant's local (file) mode
-    allows one open client per folder, so routes share this one instead of creating their own.
+    Demo mode opens retrieval only for source search, and only with a Voyage key, so the API still
+    starts with no keys at all (T-018); its model routes are refused by `deps.require_model_routes`.
+    Qdrant's local (file) mode allows one open client per folder, so routes share this one
+    instead of creating their own.
     Tests set `app.state` themselves and skip this. Tracing is decided here, once per process.
     """
     settings = get_settings()
@@ -83,8 +86,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.demo = load_library(REPO_ROOT / settings.demo_runs_path)
     if getattr(app.state, "index_info", None) is None:
         app.state.index_info = read_index_info(REPO_ROOT / settings.index_info_path)
-    if settings.app_mode != "demo" and getattr(app.state, "retrieval", None) is None:
-        app.state.retrieval = get_retrieval_service()
+    if getattr(app.state, "retrieval", None) is None:
+        app.state.retrieval = open_retrieval(settings)
     try:
         yield
     finally:
@@ -94,6 +97,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 retrieval.store.client.close()
         finally:
             flush()
+
+
+def open_retrieval(settings: Settings) -> RetrievalService | None:
+    """The retrieval service for this mode (called by `lifespan`). Local and live need it, so a
+    failure stops startup. Demo needs it only for source search (T-018 step 4): without a Voyage
+    key it stays closed, and a failure to open it turns search off instead of stopping demo mode."""
+    if settings.app_mode != "demo":
+        return get_retrieval_service(settings)
+    key = settings.voyage_api_key
+    if key is None or not key.get_secret_value().strip():
+        log.info("demo mode without VOYAGE_API_KEY: source search is off")
+        return None
+    try:
+        return get_retrieval_service(settings)
+    except Exception as exc:  # type only: messages can carry connection details
+        log.error("source search is off: retrieval failed to open (%s)", type(exc).__name__)
+        return None
 
 
 def create_app(*, use_lifespan: bool = True) -> FastAPI:
@@ -109,6 +129,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
         (ClaudeCodeError, 502, LLM_DOWN),
         (anthropic.APIError, 502, LLM_DOWN),
         (voyageai.error.RateLimitError, 429, SEARCH_LIMITED),
+        (WindowFull, 429, SEARCH_LIMITED),
         (voyageai.error.VoyageError, 503, SEARCH_DOWN),
         (pydantic.ValidationError, 502, LLM_INVALID),
         (json.JSONDecodeError, 502, LLM_INVALID),
@@ -124,6 +145,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
     app.include_router(profile_router)
     app.include_router(runs_router)
     app.include_router(demo_router)
+    app.include_router(search_router)
 
     @app.get("/api/health", tags=["meta"], response_model=Health)
     def health(request: Request) -> Health:

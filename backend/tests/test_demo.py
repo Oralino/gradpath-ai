@@ -223,7 +223,12 @@ MODEL_ROUTES = [
     ("post", "/api/assist", "/api/assist"),
     ("post", "/api/profile/from-resume", "/api/profile/from-resume"),
 ]
-OPEN_ROUTES = {("get", "/api/health"), ("get", "/api/demo"), ("get", "/api/demo/{recording_id}")}
+OPEN_ROUTES = {
+    ("get", "/api/health"),
+    ("get", "/api/demo"),
+    ("get", "/api/demo/{recording_id}"),
+    ("post", "/api/search"),  # no model call (T-018 step 4)
+}
 
 
 def test_every_route_is_either_open_or_in_the_guard_test():
@@ -292,7 +297,7 @@ def test_demo_mode_starts_and_serves_with_no_keys(tmp_path, monkeypatch):
     monkeypatch.setattr(main_module, "get_settings", lambda: s)
     monkeypatch.setattr(deps, "get_settings", lambda: s)
 
-    def must_not_open():
+    def must_not_open(*_):
         raise AssertionError("demo mode must not open Voyage or Qdrant")
 
     monkeypatch.setattr(main_module, "get_retrieval_service", must_not_open)
@@ -308,6 +313,9 @@ def test_local_mode_still_opens_and_closes_retrieval(tmp_path, monkeypatch):
     closed = []
 
     class FakeRetrieval:
+        def __init__(self, settings=None):
+            self.settings = settings
+
         class store:  # noqa: N801  (mirrors RetrievalService.store.client)
             class client:  # noqa: N801
                 @staticmethod

@@ -103,7 +103,7 @@ because it is the safe one for a server:
 | `APP_MODE` | Where | Model routes | Retrieval (Voyage + Qdrant) | Tracing |
 |---|---|---|---|---|
 | `local` | Owner's machine | On, with the server's credentials | Opened at startup | Allowed (`tracing.decide`) |
-| `demo` | Deployed | Off: 403 from `api/deps.require_model_routes` | Not opened today, so no keys are needed. Planned (T-018 step 4): opened only when `VOYAGE_API_KEY` is set, for a live source search with no model call | Off |
+| `demo` | Deployed | Off: 403 from `api/deps.require_model_routes` | Opened only when `VOYAGE_API_KEY` is set, for source search (`POST /api/search`, no model call); a failure to open turns search off instead of stopping startup, so demo still needs no keys | Off |
 | `live` | Deployed | Off until visitor keys are wired in (T-018 step 4) | Opened at startup | Off |
 
 The recordings in `demo_runs/` (`demo/library.py`) are served in every mode by `GET /api/demo` and
@@ -112,6 +112,13 @@ same response models as the live routes; a file that drifts is skipped and `test
 They are made by `demo/record.py` (step 2): a fixed list of examples run through the same functions
 the routes call, on the committed sample posting and fictional profile only, never traced, each
 file scanned for contact details, keys and local paths before it is written.
+
+**Source search (T-018 step 4):** `POST /api/search {query}` (`rag/sources.py`, `api/search.py`) is
+the retrieval half of RAG for visitors without a key: one Voyage request, the top passages (at most
+2 per document) as citations with a 600-character excerpt, an `insufficient` flag, and a rules-only
+route preview (`router/rules.rule_kind` + the route table; null with a note when only the model
+could decide). No model call, so it is open in every mode; 503 when the server has no retrieval;
+its own concurrency cap (`limits.SEARCH`, 2); the query is never logged.
 
 **Sources date (T-018 step 3):** ingest writes `knowledge_base/index_info.json` (committed) after
 each successful index rebuild: the oldest and newest page fetch dates plus document and chunk

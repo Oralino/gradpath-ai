@@ -14,7 +14,8 @@ statuses and permissions are decided in our code; the model only fills validated
 ## Attack surface today
 - **API** (`api/`): `/api/chat`, `/api/jobs/analyze`, `/api/assist`, `/api/career/prepare`,
   `/api/career/runs` (start) and `/api/career/runs/{id}` (poll), `/api/profile/from-resume`,
-  `/api/health`, `/api/demo` and `/api/demo/{id}` (T-018); no login, no cookies, no CORS middleware, not deployed. Runs on the owner's PC.
+  `/api/health`, `/api/demo`, `/api/demo/{id}` and `/api/search` (T-018: no model call, the owner's
+  Voyage key; open to anyone until per-IP limits land in step 7); no login, no cookies, no CORS middleware, not deployed. Runs on the owner's PC.
 - **Frontend** (`frontend/`, Milestone 6): Next.js pages that call same-origin `/api/*`, which Next
   forwards to the API, so the backend address stays server-side. The profile and the last plan stay
   in the browser (localStorage / sessionStorage) and leave it only inside a request the visitor makes.
@@ -35,7 +36,7 @@ Status key: ✅ defended · ⚠️ gap, fix now · 🕒 applies from a later mil
 | Threat | Status | Where / defence today | Gap and when |
 |---|---|---|---|
 | SQL injection | — | No SQL database. Qdrant is queried through its client with typed filters, never string-built queries. | If a database is added (accounts, Later), parameterised queries only. |
-| XSS | ✅ / 🕒 8 | API returns JSON only; model text is bounded (1,000 chars, router reason 200). The frontend (Milestone 6, release-checked 2026-11-20) follows the rules in the next column. | Keep these rules: render model and retrieved text as plain text (React escaping, no `dangerouslySetInnerHTML`, no raw-HTML markdown: only the safe subset in `frontend/lib/modelText.ts`, parsed to data and rendered as fixed React elements, links reduced to their text); links only `http(s)` and only `source_url` values from the manifest. Still to do: a Content-Security-Policy on deploy (8). |
+| XSS | ✅ / 🕒 8 | API returns JSON only; model text is bounded (1,000 chars, router reason 200). The frontend (Milestone 6, release-checked 2026-11-20) follows the rules in the next column. | Keep these rules: render model and retrieved text as plain text (React escaping, no `dangerouslySetInnerHTML`, no raw-HTML markdown: only the safe subset in `frontend/lib/modelText.ts`, parsed to data and rendered as fixed React elements, links reduced to their text); links only `http(s)` and only `source_url` values from the manifest. Source search (T-018) returns retrieved excerpts: same rule, plain text only, links only from `source_url`. Still to do: a Content-Security-Policy on deploy (8). |
 | CSRF | 🕒 7 | No cookies or sessions, so a cross-site page has no credentials to ride on. | Milestone 7: keep auth out of cookies (header token or passcode per request); CORS allow-list of the frontend origin only; test that a cross-site `text/plain` form POST is refused (check FastAPI's JSON content-type handling then, not assumed). |
 | SSRF | ✅ | `ingestion/fetch.py`: only manifest URLs with status `approved`; robots.txt re-checked on every redirect hop; content-type allow-list; at most 5 redirects. Users can't submit URLs. | Fixed in T-007: every URL and redirect hop must be https on port 443 and a manifest host; private, numeric and localhost hosts refused. Known limit: no DNS check of a manifest host. |
 | Path traversal | ✅ | `workflows/cli.py` `out_allowed`: a real profile's results only under `private/`; `evaluation/workflow_eval.py` `load_profile` refuses paths outside the repo. The API takes no file paths. | Uploads (7) must never use a client file name as a path. |
@@ -63,8 +64,8 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 | Input validation | ✅ | Pydantic schemas with bounds: resume text 100–15,000 (stripped), question 2,000, job description 50–20,000, profile 12,000 total, corrections 10 × 500, router message 3–2,000 (whitespace-only refused). | — |
 | Mass assignment | ✅ | `extra="forbid"`; the workflow refuses node writes to protected keys (`workflows/graph.py` `_wrap`). | — |
 | Excessive data exposure | ✅ | Fixed error messages (`api/main.py`); exception text never returned; results are typed response models. | — |
-| Resource limits | ✅ / 🕒 7 | Concurrency caps (`api/limits.py`: chat 2, jobs 1, career 1, else 503); revision limit 0–3; recursion backstop. | Workflow time budget done (T-006: 300 s, then a labelled fallback); per-IP rate limits (7). |
-| Inventory | ✅ | Nine routes, all in `api/main.py` (resume import T-014; run start and poll T-016; `/api/demo` list and get, T-018). `test_demo.py` fails if a route is added without being listed as open or guarded. | Keep the list in ARCHITECTURE.md current. |
+| Resource limits | ✅ / 🕒 7 | Concurrency caps (`api/limits.py`: chat 2, jobs 1, career 1, search 2, else 503); source search embeds without waiting or retrying (`ThrottledEmbeddings.embed_query_now`: a full Voyage window or a 429 answers 429 at once, one Voyage request at most, T-018); revision limit 0–3; recursion backstop. | Workflow time budget done (T-006: 300 s, then a labelled fallback); per-IP rate limits (7). |
+| Inventory | ✅ | Ten routes, all in `api/main.py` (resume import T-014; run start and poll T-016; `/api/demo` list and get and `/api/search`, T-018). `test_demo.py` fails if a route is added without being listed as open or guarded. | Keep the list in ARCHITECTURE.md current. |
 
 ## 04 Network and infrastructure
 

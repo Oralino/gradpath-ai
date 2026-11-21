@@ -30,6 +30,10 @@ def estimate_tokens(text: str) -> int:
     return math.ceil(len(text) / 4)
 
 
+class WindowFull(Exception):
+    """The free-tier request window is full right now (`ThrottledEmbeddings.embed_query_now`)."""
+
+
 class ThrottledEmbeddings(Embeddings):
     """Wrap any `Embeddings`; keep requests under `rpm` and `tpm` per rolling minute.
 
@@ -73,25 +77,35 @@ class ThrottledEmbeddings(Embeddings):
             batches.append(current)
         return batches
 
-    def _reserve_slot(self, tokens: int) -> None:
-        """Block until one more request of `tokens` fits the rpm and tpm windows, then record it.
+    def _try_reserve(self, tokens: int) -> float | None:
+        """Record one request of `tokens` if it fits the rpm and tpm windows now (returns None),
+        else return the seconds until it would. Check and record happen under one lock so
+        concurrent threads cannot both take the last slot."""
+        with self._lock:
+            now = self._clock()
+            while self._window and self._window[0][0] <= now - WINDOW_S:
+                self._window.popleft()
+            used = sum(t for _, t in self._window)
+            fits = len(self._window) < self.rpm and used + tokens <= self.tpm
+            # a single oversized batch can never fit; send it alone
+            if fits or not self._window:
+                self._window.append((now, tokens))
+                return None
+            return self._window[0][0] + WINDOW_S - now
 
-        Called by `_call`. Check and reservation happen under one lock so concurrent threads cannot
-        both take the last slot; the sleep happens outside the lock so others are not blocked.
-        """
-        while True:
-            with self._lock:
-                now = self._clock()
-                while self._window and self._window[0][0] <= now - WINDOW_S:
-                    self._window.popleft()
-                used = sum(t for _, t in self._window)
-                fits = len(self._window) < self.rpm and used + tokens <= self.tpm
-                # a single oversized batch can never fit; send it alone
-                if fits or not self._window:
-                    self._window.append((now, tokens))
-                    return
-                wait = self._window[0][0] + WINDOW_S - now
+    def _reserve_slot(self, tokens: int) -> None:
+        """Block until one more request fits the windows, then record it (called by `_call`).
+        The sleep happens outside the lock so other threads are not blocked."""
+        while (wait := self._try_reserve(tokens)) is not None:
             self._sleep(wait)
+
+    def embed_query_now(self, text: str) -> list[float]:
+        """One attempt that never waits (T-018 step 4, public source search): raises
+        `WindowFull` when the shared window has no room, and a Voyage 429 is not retried, so a
+        visitor's request can't hold a worker thread or spend more than one Voyage request."""
+        if self._try_reserve(estimate_tokens(text)) is not None:
+            raise WindowFull
+        return self.inner.embed_query(text)
 
     def _call(self, fn: Callable, arg, tokens: int):
         """Run one API call through the rpm/tpm window, retrying rate-limit errors with backoff."""

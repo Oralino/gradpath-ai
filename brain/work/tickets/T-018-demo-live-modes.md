@@ -99,5 +99,15 @@ the sentence per DESIGN.md's copy); the "·" separators are read aloud like the 
 602 backend + 195 frontend tests; lint, type check and build clean. Note: running `npx prettier`
 once downloaded Prettier from npm (not a project tool); its formatting was reverted by hand.
 
+Step 4 (2026-11-20): `POST /api/search` in a real demo-mode API with the owner's Voyage key:
+"What is a multicolumn index?" gave 4 passages (SQLite and PostgreSQL docs, scores 0.59-0.64) and
+the rules preview "traditional RAG"; "How should a service shut down gracefully?" gave 2 Twelve-Factor
+passages and "a model would decide"; `/api/chat` stayed 403. code-reviewer fixes: search embeds
+without waiting or retrying (a full window or a Voyage 429 answers 429 at once, one request at most),
+Voyage errors logged by type only, `open_retrieval` passes its settings through, excerpts keep line
+breaks and cut cleanly, tests for the Voyage error paths. Left: the cross-module test helper import
+(the project's existing pattern). Per-IP limits (step 7) and CORS for this route (step 8) still to
+do. 629 backend tests.
+
 Remaining release checks are filled in at step 11. Release checks from `CLAUDE.md` apply (demo mode with no keys, visitor key never in logs,
 traces or responses, retrieval eval, the SECURITY.md checklist including its "From Milestone 7" line).

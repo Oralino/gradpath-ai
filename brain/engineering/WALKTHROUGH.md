@@ -874,3 +874,32 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   no processed chunks is logged, so a partial index doesn't pass silently.
 - **Likely questions:** *"Why does `--info-only` exist?"* To write the file for the current index
   without re-fetching pages or spending Voyage tokens.
+
+## Source search without a model (`rag/sources.py`, `api/search.py`, T-018 step 4)
+- **What it is:** what a visitor without an Anthropic key can run live. Type a question, get the
+  passages the knowledge base would use to answer it, with links, plus which path the router's
+  rules would pick. Nothing writes an answer.
+- **Why not "fall back to traditional RAG"?** Traditional RAG also needs a model to write the
+  answer; only the retrieval half is free (one Voyage request). Owner decision 2026-11-20.
+- **Decision: no model anywhere on this route.** Passages are shown as found, never summarised;
+  the route preview uses only the deterministic rules, and says "a model would decide" when they
+  can't. So the route can stay open in demo mode without spending anyone's quota.
+- **Decision: demo opens retrieval only with a Voyage key, and failing is not fatal.** No key or a
+  Qdrant/Voyage failure turns search off (503 with a fixed message); the recordings still work. In
+  local and live mode a failure still stops startup, because their main features need retrieval.
+- **Gotchas:** at most two passages per document, so one long page doesn't fill all five places.
+  Excerpts are retrieved web text: untrusted, plain text only in the browser; line breaks are kept
+  so code stays readable. The query is never logged, and Voyage errors are logged by type only.
+- **Decision: search never waits for Voyage.** The shared throttle normally sleeps until the
+  3-a-minute window has room and retries a 429 up to five times; that is right for ingest and the
+  owner's runs, but on a public route two slow requests could hold both search slots for over a
+  minute. Search uses `embed_query_now`: one attempt, and a full window or a 429 answers 429 at once
+  ("try again in a minute"). The review caught this. Until step 7's per-IP limits, the concurrency
+  cap (2) and this fail-fast path protect the free tokens; in local mode search shares the window
+  with chat, jobs and the workflow.
+- **Likely questions:**
+  - *"Isn't this just a search engine?"* It is the retrieval stage of the RAG pipeline exposed on
+    its own: same embeddings, threshold and citations as the answer path, so a visitor sees exactly
+    the evidence an answer would be grounded in.
+  - *"Why show the route?"* It demonstrates the adaptive half of the app (which path a request would
+    take) without a model call.
