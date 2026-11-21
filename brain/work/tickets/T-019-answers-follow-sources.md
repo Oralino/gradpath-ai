@@ -28,7 +28,7 @@ the model should not give its own advice; answers follow the sources.
 
 ## Changes
 - Branch: `feat/t-018-demo-live-modes` (ships with Milestone 7)
-- PR:
+- PR: [#11](https://github.com/Oralino/gradpath-ai/pull/11)
 - Files touched: `backend/src/gradpath/rag/answer.py` (prompt), `backend/tests/test_rag.py`,
   `demo_runs/ask-{multicolumn-indexes,idempotent-endpoints,graceful-shutdown,not-covered}.json`,
   `evaluation/results/answer-eval-20261121-0621.json`, EVALUATION, WALKTHROUGH, TASKS, DONE.

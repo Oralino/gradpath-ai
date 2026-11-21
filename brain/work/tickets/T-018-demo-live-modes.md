@@ -58,7 +58,7 @@ Owner decisions, 2026-11-20 (plan approved):
 
 ## Changes
 - Branch: `feat/t-018-demo-live-modes`
-- PR:
+- PR: [#11](https://github.com/Oralino/gradpath-ai/pull/11)
 - Files touched: step 1: `config.py`, `tracing.py`, `api/deps.py`, `api/main.py`, `api/demo.py`,
   `api/{chat,jobs,career,runs,assist,profile}.py`, `demo/`, `tests/test_demo.py`, `tests/conftest.py`,
   `tests/test_tracing.py`, `.env.example`, README, ARCHITECTURE, SECURITY, WALKTHROUGH, MILESTONES.
