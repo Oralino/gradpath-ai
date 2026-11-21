@@ -288,6 +288,11 @@ limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are
   focus there. The panel now forgets the refusal when it unmounts, and its focus effect reads the
   store's current state instead of the render's (the new page renders once before the old panel's
   cleanup runs).
+- **A flaky test reached GitHub (step 9).** `npm test | grep ...` inside an `&&` chain reports
+  grep's exit code, not the tests', so one failing run still committed and pushed. The test raced
+  React: it checked for the countdown's interval right after "0:30" appeared, before the effect that
+  starts it had run; it now waits for it (6 clean runs in a row). Never pipe a check inside the
+  commit chain.
 
 ## Milestones 4–8: what's next
 
