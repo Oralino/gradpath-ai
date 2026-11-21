@@ -1,6 +1,6 @@
 # T-024: answers may fill gaps with advice again (reverses T-019)
 The RAG answer prompt. Related: [T-019](T-019-answers-follow-sources.md) (the rule this removes),
-T-018 step 10 (the answer eval), `../../engineering/EVALUATION.md`.
+T-018 step 10 (the answer eval), `../../../engineering/EVALUATION.md`.
 
 - **Type:** change
 - **Status:** done

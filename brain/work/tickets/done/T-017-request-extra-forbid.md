@@ -1,6 +1,6 @@
 # T-017: request bodies reject unknown fields
-Found by the Milestone 6 release security checklist (`../../engineering/SECURITY.md`, "Release security
-checklist", first item). Index entries in `../TASKS.md` and `../DONE.md`.
+Found by the Milestone 6 release security checklist (`../../../engineering/SECURITY.md`, "Release security
+checklist", first item). Index entries in `../../TASKS.md` and `../../DONE.md`.
 
 - **Type:** bug
 - **Status:** done
@@ -26,7 +26,7 @@ Found while testing: FastAPI's 422 body echoes the rejected value (`input`) back
 goes only to the client that sent it and is never logged, and the frontend keeps only field paths
 (T-011 step 1), so it is not a leak today. Before live mode (Milestone 7) a visitor key sent in a
 wrong field would come back in that response, so a 422 handler that drops `input` is listed in
-`../TASKS.md`. Rejected for now: building that handler here (no visitor keys exist until
+`../../TASKS.md`. Rejected for now: building that handler here (no visitor keys exist until
 Milestone 7).
 
 ## Changes

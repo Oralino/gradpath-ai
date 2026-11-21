@@ -1,6 +1,6 @@
 # T-022: roadmap resources from different pages can look identical
 Found in the owner's local test of the preparation plan (2026-11-21), twice. Plan screen in
-`../../design/DESIGN.md` (screen 3) and `../../engineering/WALKTHROUGH.md` (Plan screen).
+`../../../design/DESIGN.md` (screen 3) and `../../../engineering/WALKTHROUGH.md` (Plan screen).
 
 - **Type:** bug
 - **Status:** done
@@ -29,7 +29,7 @@ Used by the roadmap step (`PlanResult.tsx`) and the requirement row (`JobAnalysi
 
 ## Changes
 - Branch: `fix/t-022-chip-labels`
-- PR: [#16](https://github.com/Oralino/gradpath-ai/pull/16)
+- PR: [#16](https://github.com/Oralino/gradpath-ai/pull/16), merged as `6c4148d`
 - Files touched: `frontend/components/CitationChip.tsx` (`pageName`, `pageNames`, `page` prop),
   `PlanResult.tsx`, `JobAnalysisView.tsx`, new `CitationChip.test.tsx` (7 tests), WALKTHROUGH (Job
   screen).

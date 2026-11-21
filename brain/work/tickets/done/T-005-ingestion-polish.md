@@ -1,5 +1,5 @@
 # T-005: ingestion polish from the Milestone 1 review
-Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
+Index entries go in `../../TASKS.md` (open) and `../../DONE.md` (closed).
 
 - **Type:** change
 - **Status:** done (merged, e100ccb)

@@ -1,5 +1,5 @@
 # T-001: Milestone 1, RAG foundation
-Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
+Index entries go in `../../TASKS.md` (open) and `../../DONE.md` (closed).
 
 - **Type:** feature
 - **Status:** done (merged to `main` as `ec3310f`, 2026-11-18)
