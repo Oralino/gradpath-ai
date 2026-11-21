@@ -1,0 +1,43 @@
+{
+  "id": "ask-not-covered",
+  "title": "Kubernetes liveness probes (a known gap)",
+  "summary": "Near a gap in the knowledge base: the answer gives what the sources cover and says what they don't.",
+  "recorded_at": "2026-11-20",
+  "kind": "ask",
+  "message": "How do I configure liveness probes for a Kubernetes deployment?",
+  "job_description": null,
+  "profile": null,
+  "response": {
+    "decision": {
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "missing": [],
+      "reason": "The user asks how to configure Kubernetes liveness probes, a technical topic answerable from reference material.",
+      "requires_user_profile": false,
+      "requires_multi_step_workflow": false,
+      "decided_by": "model"
+    },
+    "outcome": "answered",
+    "message": null,
+    "answer": {
+      "question": "How do I configure liveness probes for a Kubernetes deployment?",
+      "status": "partial",
+      "answer": "A probe is a diagnostic the kubelet runs periodically on a container. It can run the check in three ways:\n- `ExecAction`, performed with the help of the container runtime.\n- `TCPSocketAction`, checked directly by the kubelet.\n- `HTTPGetAction`, checked directly by the kubelet.\n\nThe Pod Lifecycle documentation has more detail on probes.",
+      "citations": [
+        {
+          "chunk_id": "devops-kubernetes-concepts:2:29",
+          "title": "Kubernetes Documentation: Concepts",
+          "section": "Container probes",
+          "source_url": "https://github.com/kubernetes/website/blob/main/content/en/docs/concepts/workloads/pods/_index.md",
+          "score": 0.521
+        }
+      ],
+      "route": "traditional_rag",
+      "note": null,
+      "not_covered": "The evidence does not show how to write a liveness probe in a Deployment spec (YAML fields, thresholds, or examples), and it does not specifically describe liveness probes."
+    },
+    "result": null,
+    "run_id": null
+  }
+}

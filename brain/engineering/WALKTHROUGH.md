@@ -827,3 +827,27 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
     guarded, and each guarded one is proven to answer 403 in demo and live.
   - *"Why 403 and not 404?"* The route exists; the server refuses it in this mode, and the message
     points to the recorded examples.
+
+## Recording the demo runs (`demo/record.py`, T-018 step 2)
+- **What it is:** the command that makes `demo_runs/`. It runs a fixed list of examples through
+  the functions the API routes call (`decide` + `respond` for Ask, `analyze_job`, the workflow) and
+  saves each result as a recording.
+- **Decision: no file arguments.** Inputs are always the committed sample posting and fictional
+  profile, so a real profile can't end up in a public file. Rejected: `--job` / `--profile` flags
+  like the other CLIs.
+- **Decision: refuse rather than fix.** Before writing, each file is scanned for emails, phone
+  numbers, keys and this machine's paths; a match refuses the file and names only the kind. The
+  router's choice is also checked against the example's label (`expect`), because routing is a model
+  call and a mislabelled example would mislead visitors.
+- **Decision: one workflow run, two recordings.** The Ask example where the router picks the
+  workflow and the Plan example share one run. A forced re-record of that Ask rebuilds the Plan too,
+  or warns if the Plan wasn't in the run.
+- **Gotchas:** existing files are kept unless `--force` (plan quota and Voyage tokens). Nothing is
+  traced: `gradpath.tracing` turns tracing off at import, the recorder never turns it on, and it exits
+  if it ever finds it on. Run it with the API stopped (local Qdrant lock).
+- **Likely questions:**
+  - *"Isn't a recording just a fake?"* It is the real output of the real code on sample inputs,
+    validated against the same response models as the live routes; a test fails if the API changes
+    and the recordings go stale.
+  - *"Why keep a plan with open issues?"* The app's point is honesty: the demo shows the critic's
+    blocking issue the same way a live run would.

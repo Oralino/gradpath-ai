@@ -109,6 +109,9 @@ because it is the safe one for a server:
 The recordings in `demo_runs/` (`demo/library.py`) are served in every mode by `GET /api/demo` and
 `GET /api/demo/{id}`. Each JSON file holds the inputs and the exact response, validated against the
 same response models as the live routes; a file that drifts is skipped and `test_demo.py` fails.
+They are made by `demo/record.py` (step 2): a fixed list of examples run through the same functions
+the routes call, on the committed sample posting and fictional profile only, never traced, each
+file scanned for contact details, keys and local paths before it is written.
 
 Deployed site:
 - **Demo mode (default):** replays recorded runs from `demo_runs/`; no model or embedding calls, no

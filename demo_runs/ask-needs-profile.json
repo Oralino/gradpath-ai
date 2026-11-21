@@ -1,0 +1,29 @@
+{
+  "id": "ask-needs-profile",
+  "title": "A plan request without a profile",
+  "summary": "The router sees a job-preparation request with no profile and asks for it.",
+  "recorded_at": "2026-11-20",
+  "kind": "ask",
+  "message": "Make me a preparation plan for this job.",
+  "job_description": "Fictional sample job description for demos, tests and traces. The company does not exist.\n\nJunior Backend Software Engineer (New Grad)\nFernhill Parcel Co. (fictional)\n\nAbout the role\nOur platform team builds the APIs that track parcels from warehouse to doorstep. As a new-grad\nengineer you will join a team of six, ship code to production in your first month, and learn how\nreliable backend services are built and run.\n\nWhat you will do\n- Design, build and maintain REST APIs in Python that serve our web and mobile apps.\n- Write and optimise SQL queries against PostgreSQL, including adding indexes for slow queries.\n- Write unit and integration tests and keep our test suite green.\n- Take part in code reviews and work with Git-based pull requests.\n- Help investigate production issues using logs and metrics.\n- Package and deploy services with Docker.\n\nRequired qualifications\n- Bachelor's degree in Computer Science or a related field, or equivalent practical experience.\n- Programming experience in Python, Java or Go.\n- Understanding of HTTP and how REST APIs use methods and status codes.\n- Working knowledge of SQL and relational databases.\n- Experience writing automated tests.\n- Familiarity with Git and collaborative development.\n- Solid understanding of data structures and algorithms.\n\nPreferred qualifications\n- Experience with a Python web framework such as FastAPI or Flask.\n- Knowledge of database transactions and concurrency.\n- Familiarity with caching and basic system design concepts.\n- Awareness of common API security risks.\n- Experience with Docker or a major cloud provider.\n- Exposure to monitoring and alerting for production services.",
+  "profile": null,
+  "response": {
+    "decision": {
+      "route": "agentic_workflow",
+      "action": "needs_input",
+      "kind": "job_preparation",
+      "missing": [
+        "profile"
+      ],
+      "reason": "The user wants a personal preparation plan for a specific job with an attached job description.",
+      "requires_user_profile": true,
+      "requires_multi_step_workflow": true,
+      "decided_by": "model"
+    },
+    "outcome": "needs_input",
+    "message": "To prepare a personal plan I need your profile. Add it and send the request again.",
+    "answer": null,
+    "result": null,
+    "run_id": null
+  }
+}

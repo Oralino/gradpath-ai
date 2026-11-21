@@ -1,0 +1,50 @@
+{
+  "id": "ask-graceful-shutdown",
+  "title": "How should a service shut down gracefully?",
+  "summary": "Traditional RAG over the operations sources.",
+  "recorded_at": "2026-11-20",
+  "kind": "ask",
+  "message": "How should a service shut down gracefully?",
+  "job_description": null,
+  "profile": null,
+  "response": {
+    "decision": {
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "missing": [],
+      "reason": "This is a general technical question about graceful service shutdown that reference material can answer, with no personal job context.",
+      "requires_user_profile": false,
+      "requires_multi_step_workflow": false,
+      "decided_by": "model"
+    },
+    "outcome": "answered",
+    "message": null,
+    "answer": {
+      "question": "How should a service shut down gracefully?",
+      "status": "answered",
+      "answer": "Per the Twelve-Factor App, processes should shut down gracefully when they receive a SIGTERM signal from the process manager. How depends on the process type:\n\n- **Web process:** Stop listening on the service port (so new requests are refused), let current requests finish, then exit. This assumes HTTP requests are short (a few seconds at most). For long polling, the client should reconnect seamlessly when the connection drops.\n- **Worker process:** Return the current job to the work queue. For example, send a NACK on RabbitMQ. Beanstalkd returns the job automatically when a worker disconnects. Lock-based systems like Delayed Job must release their lock on the job record. This assumes jobs are reentrant, which is typically achieved by wrapping results in a transaction or making the operation idempotent.\n\nProcesses should also withstand sudden death, such as hardware failure. A robust queueing backend that returns jobs to the queue when clients disconnect or time out helps with this.",
+      "citations": [
+        {
+          "chunk_id": "be-twelve-factor:8:1",
+          "title": "The Twelve-Factor App",
+          "section": "IX. Disposability > Maximize robustness with fast startup and graceful shutdown",
+          "source_url": "https://12factor.net/disposability",
+          "score": 0.563
+        },
+        {
+          "chunk_id": "be-twelve-factor:8:2",
+          "title": "The Twelve-Factor App",
+          "section": "IX. Disposability > Maximize robustness with fast startup and graceful shutdown",
+          "source_url": "https://12factor.net/disposability",
+          "score": 0.489
+        }
+      ],
+      "route": "traditional_rag",
+      "note": null,
+      "not_covered": null
+    },
+    "result": null,
+    "run_id": null
+  }
+}

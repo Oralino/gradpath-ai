@@ -1,0 +1,57 @@
+{
+  "id": "ask-idempotent-endpoints",
+  "title": "What makes an API endpoint idempotent?",
+  "summary": "Traditional RAG over the HTTP and API sources.",
+  "recorded_at": "2026-11-20",
+  "kind": "ask",
+  "message": "What makes an API endpoint idempotent?",
+  "job_description": null,
+  "profile": null,
+  "response": {
+    "decision": {
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "missing": [],
+      "reason": "The user asks a general technical definition (what makes an API endpoint idempotent), which reference material can answer without any personal job context.",
+      "requires_user_profile": false,
+      "requires_multi_step_workflow": false,
+      "decided_by": "model"
+    },
+    "outcome": "answered",
+    "message": null,
+    "answer": {
+      "question": "What makes an API endpoint idempotent?",
+      "status": "partial",
+      "answer": "The evidence doesn't give a formal definition of idempotency, but it describes what it means in practice. An idempotent endpoint has \"exactly once\" semantics: a client can retry the same request without unintended consequences. This matters because cloud applications embrace failure, and retries let customers write fault-tolerant apps.\n\nWhat the Azure guidelines say about achieving it:\n- All HTTP methods, including POST, must be idempotent.\n- PUT and PATCH are recommended for creating resources. They are easy to implement, let the customer name the resource, and are idempotent.\n- POST can create a resource only if it is made idempotent. One way is the Repeatability-Request-ID and Repeatability-First-Sent headers. The response must return the created resource's URL with 201-Created.\n- For long-running PUTs, a request counts as idempotent if it has the same `operation-id` or the same body within a short time window. The service then returns the same response as before. If the client sends no Operation-Id, the service must work out how to handle retries and idempotency itself.\n- For a non-idempotent PUT, the service may overwrite the existing resource or return 409-Conflict.",
+      "citations": [
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:11",
+          "title": "Azure REST API Guidelines (Microsoft)",
+          "section": "Microsoft Azure REST API Guidelines > Building Blocks: HTTP, REST, & JSON > HTTP",
+          "source_url": "https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md",
+          "score": 0.578
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:12",
+          "title": "Azure REST API Guidelines (Microsoft)",
+          "section": "Microsoft Azure REST API Guidelines > Building Blocks: HTTP, REST, & JSON > HTTP",
+          "source_url": "https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md",
+          "score": 0.541
+        },
+        {
+          "chunk_id": "fund-ms-rest-guidelines:0:76",
+          "title": "Azure REST API Guidelines (Microsoft)",
+          "section": "Microsoft Azure REST API Guidelines > Common API Patterns > Long-Running Operations & Jobs",
+          "source_url": "https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md",
+          "score": 0.564
+        }
+      ],
+      "route": "traditional_rag",
+      "note": null,
+      "not_covered": "The evidence gives no formal definition of idempotency, only how the Azure guidelines apply it."
+    },
+    "result": null,
+    "run_id": null
+  }
+}

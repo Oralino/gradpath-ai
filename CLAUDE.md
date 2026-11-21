@@ -47,6 +47,7 @@ uv run python -m gradpath.evaluation.retrieval_eval [--k 1,3,5,10] [--hybrid 20 
 uv run python -m gradpath.evaluation.routing_eval [--rules-only] [--rescore FILE]   # routing eval (Haiku per open case)
 uv run python -m gradpath.evaluation.routing_compare     # adaptive vs always-RAG vs always-workflow (4 requests)
 uv run python -m gradpath.router.cli "message" [--job FILE] [--profile FILE] [--route-only] [--json]   # route + run
+uv run python -m gradpath.demo.record [--only ID ...] [--force] [--list]   # record demo runs (real calls, sample inputs only)
 uv run uvicorn gradpath.api.main:app --reload            # API on :8000 (docs at /docs)
 ```
 - Local Qdrant allows one process at a time: stop the API before running ingest, probe, ask or eval.

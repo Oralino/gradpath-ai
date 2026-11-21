@@ -257,6 +257,7 @@ limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are
 |---|---|---|---|---|
 | 0. Ticket + plan | ✅ | T-018, branch `feat/t-018-demo-live-modes`; plan approved; modes `local / demo / live`; separate demo endpoints | The owner decides scope and order before code | Resume upload moved out of 7 |
 | 1. Demo mode with no keys | ✅ | `APP_MODE` local/demo/live (default demo); `require_model_routes` on every model router (deny by default); lifespan skips Voyage and Qdrant in demo; `demo/` recordings validated against the live response models; `GET /api/demo`, `GET /api/demo/{id}`; tracing only in local | The public site must start and serve with no keys, and no route may spend quota in demo | 568 backend tests; review fixes applied (default and fail-closed guard tested, links and unreadable files skipped); a real startup with every key blanked opened no retrieval and refused `/api/chat` with 403 |
+| 2. Record the demo runs | ✅ | `demo/record.py`: 8 examples (3 RAG answers, a near-gap partial answer, the router asking for a profile, the router choosing the workflow, a job analysis, a plan) on the sample posting and fictional profile; each checked for the expected route and scanned before saving; one workflow run feeds both the workflow example and the plan | Something real to replay, showing both halves of the hybrid app | 8 recordings in ~4 min (Pro plan, ~7 Voyage calls); scan clean; the plan is `complete_with_limitations` (one blocking issue, shown honestly); 588 backend tests |
 
 ### Problems we hit and how we solved them
 - **The old default mode was "demo" but meant "local".** Tests, CLIs and the owner's runs used the
@@ -264,6 +265,10 @@ limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are
   sets it, and API tests force it through a `conftest.py` fixture.
 - **FastAPI 0.163 nests included routers**, so a test that walked `app.routes` for the guard found
   nothing. The route inventory now comes from the OpenAPI schema.
+- **The "not covered" example came back partly covered.** The Kubernetes question got an honest
+  partial answer (probe types from the Pod Lifecycle page, plus what isn't covered), not a refusal.
+  We relabelled it "a known gap" instead of spending another call; the recorder now also refuses an
+  example whose route differs from the one it is meant to show.
 
 ## Milestones 4–8: what's next
 

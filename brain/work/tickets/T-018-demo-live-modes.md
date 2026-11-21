@@ -79,5 +79,15 @@ Deferred from the step 1 review:
   "at least one" assert then.
 Owner: set `APP_MODE=local` in your own `.env` (it held `demo`, which now means recordings only).
 
-Remaining release checks are filled in at step 10. Release checks from `CLAUDE.md` apply (demo mode with no keys, visitor key never in logs,
+Step 2 (2026-11-20): `uv run python -m gradpath.demo.record` in the owner's Terminal panel saved 8
+recordings in about 4 minutes. Routes as intended (RAG x4, needs_input, workflow); the Kubernetes
+question came back `partial`, so its title says "a known gap". The plan is
+`complete_with_limitations` (1 revision, one blocking issue on a Docker item). Scanned: no local
+paths, contact details or keys (the only `@` is FastAPI's `@app.get` in a study note). code-reviewer:
+no leak path; fixed: expected route per example, corrupt files replaced, a forced workflow ask
+rebuilds or flags its plan, local paths and more key kinds in the scan, the refusal names the kind,
+a tracing check, Qdrant closed if model setup fails. 588 backend tests. Served through `/api/demo`
+with every key blanked.
+
+Remaining release checks are filled in at step 11. Release checks from `CLAUDE.md` apply (demo mode with no keys, visitor key never in logs,
 traces or responses, retrieval eval, the SECURITY.md checklist including its "From Milestone 7" line).

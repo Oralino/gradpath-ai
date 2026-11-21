@@ -148,7 +148,8 @@ def test_duplicate_ids_are_refused_when_built_directly():
 def test_every_committed_recording_is_valid():
     """Drift check: each file in `demo_runs/` still matches the API's response models."""
     folder = REPO_ROOT / "demo_runs"
-    files = sorted(folder.glob("*.json")) if folder.is_dir() else []
+    files = sorted(folder.glob("*.json"))
+    assert files, "demo_runs/ has no recordings"
     assert len(load_library(folder)) == len(files)
 
 
