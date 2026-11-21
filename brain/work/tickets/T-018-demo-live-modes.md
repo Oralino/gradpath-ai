@@ -32,10 +32,21 @@ Owner decisions, 2026-11-20 (plan approved):
   much friction).
 - **Auth:** a shared passcode in a request header (server env var) on live routes, plus per-IP limits;
   demo mode stays open. Rejected: per-IP limits alone; a passcode on demo too.
-- **Order:** 1 demo mode with no keys, 2 record demo runs, 3 sources date, 4 visitor key end to end,
-  5 422 handler that drops `input`, 6 passcode and per-IP limits, 7 CORS allow-list and CSRF test,
-  8 frontend demo/live switch (design-advisor first), 9 answer eval set and grounding check,
-  10 release checks and PR.
+- **Order:** 1 demo mode with no keys, 2 record demo runs, 3 sources date, 4 live source search
+  (added 2026-11-20, below), 5 visitor key end to end, 6 422 handler that drops `input`, 7 passcode
+  and per-IP limits, 8 CORS allow-list and CSRF test, 9 frontend demo/live switch (design-advisor
+  first), 10 answer eval set and grounding check, 11 release checks and PR.
+- **Live source search for visitors without a key (owner decision 2026-11-20):** both hybrid paths
+  (traditional RAG and the agentic workflow) need a model to write their output, so a visitor with
+  no key can't "fall back" to traditional RAG. Instead, demo and live mode add a search box: a real
+  retrieval over the knowledge base (the owner's Voyage key, no model call) that returns the
+  matching source passages with links, labelled "sources only, no written answer", plus a
+  rules-only routing preview (`router/rules.rule_kind`; "a model would decide" when the rules
+  can't). The server opens retrieval in demo mode only when `VOYAGE_API_KEY` is set; without it the
+  search is off and demo mode still starts with no keys (the release check holds). Needs a per-IP
+  limit (step 7) because Voyage's 3 requests a minute are shared; about 20 tokens a query from the
+  non-refreshing free tokens. Rejected: a server-paid model key (zero-cost rule); running the
+  owner's Pro plan on the server (tied to the owner's own login).
 - **Modes (step 1, owner decision 2026-11-20):** `APP_MODE` is `local` (owner's machine, server
   credentials, tracing allowed), `demo` (deployed, recordings only, model routes off) or `live`
   (deployed, visitor key). Default `demo`. Rejected: `local / public` with no recordings-only mode.

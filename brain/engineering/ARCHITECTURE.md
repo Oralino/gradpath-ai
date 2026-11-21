@@ -103,7 +103,7 @@ because it is the safe one for a server:
 | `APP_MODE` | Where | Model routes | Retrieval (Voyage + Qdrant) | Tracing |
 |---|---|---|---|---|
 | `local` | Owner's machine | On, with the server's credentials | Opened at startup | Allowed (`tracing.decide`) |
-| `demo` | Deployed | Off: 403 from `api/deps.require_model_routes` | Never opened, so no keys are needed | Off |
+| `demo` | Deployed | Off: 403 from `api/deps.require_model_routes` | Not opened today, so no keys are needed. Planned (T-018 step 4): opened only when `VOYAGE_API_KEY` is set, for a live source search with no model call | Off |
 | `live` | Deployed | Off until visitor keys are wired in (T-018 step 4) | Opened at startup | Off |
 
 The recordings in `demo_runs/` (`demo/library.py`) are served in every mode by `GET /api/demo` and

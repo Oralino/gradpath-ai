@@ -250,7 +250,7 @@ partial) and clear errors. `DESIGN.md` comes first; the owner approves it before
 *Ticket: `tickets/T-018-demo-live-modes.md`*
 
 **Goal:** a public site that costs nothing. Demo mode (the default) replays recorded runs with no
-keys; live mode runs on a visitor's own Anthropic key, never stored, logged or traced; plus the
+keys (plus a live source search, no model call, when the server has a Voyage key); live mode runs on a visitor's own Anthropic key, never stored, logged or traced; plus the
 limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are in the ticket.
 
 | Step | Status | What we built | Why | Result |
