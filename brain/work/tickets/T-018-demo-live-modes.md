@@ -194,5 +194,14 @@ sessionStorage, the key nowhere in the page; server log names the error type onl
 not follow to /plan). Not checkable: the key-set strip and a real model run (no paid key, zero-cost
 rule).
 
+Step 10 (2026-11-21): `evaluation/answer_cases.jsonl` (20 cases; facts taken from the indexed
+pages, owner-approved), `evaluation/answer_eval.py` (scored in code, `--rescore`, `--only`,
+`--no-grounding`) and `evaluation/grounding.py` (one Haiku call per answer, per-claim verdicts,
+arithmetic in code), by engineer; lead change: a refuse case whose judge finds no claims fails as
+"not checked" instead of passing. 803 backend tests, ruff clean. Real run from the owner's Terminal
+panel (Claude Code on the Pro plan, 20 Voyage queries): 12/14 answer cases, 6/6 refusals, 159/166
+claims supported, 24 s per case; details and the two retrieval-caused failures in EVALUATION.md.
+Follow-up in TASKS.md: answers add advice not in the evidence.
+
 Remaining release checks are filled in at step 11. Release checks from `CLAUDE.md` apply (demo mode with no keys, visitor key never in logs,
 traces or responses, retrieval eval, the SECURITY.md checklist including its "From Milestone 7" line).

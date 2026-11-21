@@ -13,8 +13,10 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 - [x] A "sources as of" date the API returns and the footer shows (T-018 step 3).
 
 Answer quality (owner decision 2026-11-19: before Milestone 7's public demo):
-- [ ] Answer eval set: ~20 questions with must-contain facts plus must-refuse cases, scored in code.
-- [ ] Grounding check: Haiku checks each claim against its cited chunk; report a "supported" rate.
+- [x] Answer eval set: 20 cases (14 must-contain, 6 must-refuse), scored in code (T-018 step 10).
+- [ ] Answers add unsupported advice and general knowledge (7 of 166 claims, 2026-11-21): decide
+      whether the answer prompt should forbid advice not in the evidence (EVALUATION.md).
+- [x] Grounding check: Haiku checks each claim against its cited chunk; 96% supported (T-018 step 10).
 - [ ] Re-run the retrieval and answer evals as a release check when sources, prompts or models change.
 
 Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):

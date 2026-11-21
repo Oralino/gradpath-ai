@@ -1082,3 +1082,30 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   - *"Why does demo still call the API?"* For the recordings and the search: no model runs, and
     demo starts with no keys at all (a release check).
 
+## Answer eval and grounding check (`evaluation/answer_eval.py`, `evaluation/grounding.py`, T-018 step 10)
+- **What it is:** the measurement of the written answers, the part visitors read. Retrieval,
+  routing and the workflow were already measured; this checks that answers contain the facts the
+  sources give, refuse when the sources don't cover a question, and say only what their citations
+  support.
+- **Decision: facts scored in code, not by a model.** Each case lists groups of acceptable
+  phrasings taken from the indexed page; an answer must contain one phrasing from every group
+  (whole words, any case). Cheap, repeatable, re-scorable for free (`--rescore`). Trade-off: an
+  answer can state a fact in words no group lists, so failures are read before labels change.
+- **Decision: grounding judged per claim, by Haiku.** One call per answer splits it into claims and
+  marks each supported by a cited chunk or not; a verdict pointing at a chunk the answer did not
+  cite counts as unsupported, and the rate is computed in code. Rejected: one verdict per answer
+  (hides a single unsupported claim).
+- **Decision: a near-topic refusal case also passes on a fully grounded partial answer** (owner,
+  2026-11-21): what matters is that nothing is invented, not the exact status. A judge that finds
+  no claims in a shown answer counts as "not checked", a fail.
+- **Gotchas:** the judge is a model and can be wrong both ways, so its unsupported verdicts are read
+  one by one; the cited chunk text comes from `knowledge_base/processed/` by chunk id (the same
+  text the answer model saw), so a re-ingest must happen before re-running.
+- **Likely questions:**
+  - *"What did it find?"* 12/14 answers pass, 6/6 gaps refused, 96% of claims supported. Both
+    failures were retrieval (a missing section; the known `q-041` miss), and the unsupported
+    claims were true advice or general knowledge, not invented specifics.
+  - *"Isn't using a model to grade a model circular?"* Partly, which is why the facts and refusals
+    are scored in code and the judge only answers a narrow question (does this passage state this
+    claim?), with its negative verdicts checked by reading.
+
