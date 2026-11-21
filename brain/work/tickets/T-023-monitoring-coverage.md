@@ -29,6 +29,8 @@ Owner, 2026-11-21: option (a), add both openly licensed sources (rejected for no
   The OpenTelemetry Authors, recorded in the manifest's licence column like the Kubernetes source),
   4 pages: observability primer and the logs, metrics and traces signals.
 - Both licences checked on the upstream repos' LICENSE files. Rows say `added_by: owner`.
+- Owner, 2026-11-21: the 28 older rows also say `added_by: owner` now (they said `claude`, which
+  broke the no-AI-attribution rule). The field isn't in chunk metadata, so no re-ingest.
 - Only the two new documents were embedded (`ingest --only`): the cache served the 1,592 existing
   chunks, 108 new chunks cost about 18.7K Voyage tokens.
 
