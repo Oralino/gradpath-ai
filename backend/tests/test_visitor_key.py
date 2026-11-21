@@ -30,7 +30,11 @@ from gradpath.workflows.runs import RunStore
 
 KEY_A = "sk-ant-api03-" + "A" * 40
 KEY_B = "sk-ant-api03-" + "B" * 40
-LIVE = Settings(_env_file=None, app_mode="live", llm_provider="anthropic_api")
+PASSCODE = "test-passcode-" + "p" * 20
+PASS = {"X-GradPath-Passcode": PASSCODE}
+LIVE = Settings(
+    _env_file=None, app_mode="live", llm_provider="anthropic_api", live_passcode=PASSCODE
+)
 ANSWER = ChatAnswer(
     question="What is an index?", status="answered", answer="It helps.", citations=[]
 )
@@ -77,7 +81,7 @@ def status_error(cls, status: int):
 
 def test_the_visitor_key_builds_the_model(live, monkeypatch):
     seen = spy_answer(monkeypatch)
-    resp = TestClient(live).post(
+    resp = TestClient(live, headers=PASS).post(
         "/api/chat", json={"question": "What is an index?"}, headers={KEY_HEADER: f"  {KEY_A} "}
     )
     assert resp.status_code == 200
@@ -103,7 +107,9 @@ def test_the_visitor_key_builds_the_model(live, monkeypatch):
 def test_a_missing_or_malformed_key_is_refused_before_any_model(live, monkeypatch, header):
     seen = spy_answer(monkeypatch)
     headers = {} if header is None else {KEY_HEADER: header}
-    resp = TestClient(live).post("/api/chat", json={"question": "What?"}, headers=headers)
+    resp = TestClient(live, headers=PASS).post(
+        "/api/chat", json={"question": "What?"}, headers=headers
+    )
     assert (resp.status_code, resp.json()) == (401, {"detail": KEY_NEEDED})
     assert seen == []
 
@@ -111,7 +117,7 @@ def test_a_missing_or_malformed_key_is_refused_before_any_model(live, monkeypatc
 def test_the_key_in_the_wrong_place_is_never_used(live, monkeypatch):
     """A key sent as a query parameter or another header doesn't count (and isn't echoed)."""
     spy_answer(monkeypatch)
-    c = TestClient(live)
+    c = TestClient(live, headers=PASS)
     resp = c.post(
         f"/api/chat?key={KEY_A}", json={"question": "What?"}, headers={"X-Api-Key": KEY_A}
     )
@@ -143,7 +149,9 @@ def test_non_ascii_header_bytes_are_refused(monkeypatch):
 def request_with(key: str | None):
     from fastapi import Request
 
-    headers = [] if key is None else [(KEY_HEADER.lower().encode(), key.encode())]
+    headers = [(b"x-gradpath-passcode", PASSCODE.encode())]
+    if key is not None:
+        headers.append((KEY_HEADER.lower().encode(), key.encode()))
     return Request({"type": "http", "headers": headers})
 
 
@@ -164,7 +172,7 @@ def test_a_refused_key_gets_a_fixed_message(live, monkeypatch, caplog, exc, stat
 
     monkeypatch.setattr(chat_module, "answer_question", refuse)
     with caplog.at_level(logging.DEBUG):
-        resp = TestClient(live).post(
+        resp = TestClient(live, headers=PASS).post(
             "/api/chat", json={"question": "What is an index?"}, headers={KEY_HEADER: KEY_A}
         )
     assert (resp.status_code, resp.json()) == (status, {"detail": detail})
@@ -178,10 +186,12 @@ def test_a_refused_key_gets_a_fixed_message(live, monkeypatch, caplog, exc, stat
 def test_a_full_request_logs_nothing_with_the_key(live, monkeypatch, caplog):
     spy_answer(monkeypatch)
     with caplog.at_level(logging.DEBUG):
-        TestClient(live).post(
+        TestClient(live, headers=PASS).post(
             "/api/chat", json={"question": "What is an index?"}, headers={KEY_HEADER: KEY_A}
         )
-        TestClient(live).post("/api/chat", json={"question": "What?"}, headers={KEY_HEADER: "bad"})
+        TestClient(live, headers=PASS).post(
+            "/api/chat", json={"question": "What?"}, headers={KEY_HEADER: "bad"}
+        )
     assert KEY_A not in caplog.text and "AAAAAAAAAA" not in caplog.text
 
 
@@ -197,7 +207,7 @@ def test_the_model_repr_masks_the_key():
 def live_runs(live):
     store = RunStore(limits.CAREER)
     live.dependency_overrides[get_run_store] = lambda: store
-    return TestClient(live), store
+    return TestClient(live, headers=PASS), store
 
 
 def finish(store, run_id: str, owner: str | None = None, timeout_s: float = 10.0):
@@ -256,7 +266,11 @@ def test_local_runs_are_not_bound():
 def test_live_needs_the_api_provider_and_no_server_key(restore_logger_levels):
     check_live_settings(LIVE)  # fine
     with pytest.raises(RuntimeError, match="LLM_PROVIDER=anthropic_api"):
-        check_live_settings(Settings(_env_file=None, app_mode="live", llm_provider="claude_code"))
+        check_live_settings(
+            Settings(
+                _env_file=None, app_mode="live", llm_provider="claude_code", live_passcode=PASSCODE
+            )
+        )
     with pytest.raises(RuntimeError, match="must not have ANTHROPIC_API_KEY") as err:
         check_live_settings(
             Settings(_env_file=None, app_mode="live", llm_provider="anthropic_api",
@@ -322,7 +336,7 @@ def test_every_model_route_builds_its_models_with_the_visitor_key(live, monkeypa
 
     monkeypatch.setattr(deps, "get_chat_model", spy)
     payload = body if body is not None else data().model_dump()
-    c = TestClient(live, raise_server_exceptions=False)
+    c = TestClient(live, headers=PASS, raise_server_exceptions=False)
     resp = c.post(path, json=payload, headers={KEY_HEADER: KEY_A})
     assert resp.status_code == 500 and KEY_A not in resp.text
     assert keys and set(keys) == {KEY_A}

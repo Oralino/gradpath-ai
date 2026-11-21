@@ -13,6 +13,7 @@ from gradpath.api.deps import (
     get_retrieval,
     require_model_routes,
 )
+from gradpath.api.ratelimit import limit
 from gradpath.jobs import JobAnalysis, analyze_job
 from gradpath.retrieval import RetrievalService
 
@@ -24,7 +25,7 @@ class AnalyzeRequest(BaseModel):
     job_description: str = Field(min_length=50, max_length=20_000)
 
 
-@router.post("/analyze", response_model=JobAnalysis)
+@router.post("/analyze", response_model=JobAnalysis, dependencies=[Depends(limit("model"))])
 def analyze(
     body: AnalyzeRequest,
     retrieval: Annotated[RetrievalService, Depends(get_retrieval)],

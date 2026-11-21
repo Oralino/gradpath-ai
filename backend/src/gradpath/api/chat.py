@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from gradpath.api import limits
 from gradpath.api.deps import get_answer_model, get_retrieval, require_model_routes
+from gradpath.api.ratelimit import limit
 from gradpath.rag import ChatAnswer, answer_question
 from gradpath.retrieval import RetrievalService
 
@@ -19,7 +20,7 @@ class ChatRequest(BaseModel):
     question: str = Field(min_length=3, max_length=2000, description="A focused question.")
 
 
-@router.post("/chat", response_model=ChatAnswer)
+@router.post("/chat", response_model=ChatAnswer, dependencies=[Depends(limit("model"))])
 def chat(
     body: ChatRequest,
     retrieval: Annotated[RetrievalService, Depends(get_retrieval)],

@@ -72,6 +72,21 @@ def _local_mode(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _fresh_rate_limits(monkeypatch):
+    """Rate limits start empty and off (local mode) in every test; `test_rate_limits.py` turns
+    them on itself."""
+    from gradpath.api import ratelimit
+    from gradpath.config import Settings
+
+    ratelimit.LIMITER.reset()
+    monkeypatch.setattr(
+        ratelimit, "get_settings", lambda: Settings(_env_file=None, app_mode="local")
+    )
+    yield
+    ratelimit.LIMITER.reset()
+
+
+@pytest.fixture(autouse=True)
 def _no_tracing():
     """Tests never send traces, even if the developer's shell sets LANGSMITH_TRACING=true."""
     import langsmith

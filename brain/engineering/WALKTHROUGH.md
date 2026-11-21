@@ -952,3 +952,37 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   guard and the key check run first and an invalid body still builds (but never calls) the models.
 - **Likely question:** *"Doesn't this make debugging harder?"* The location and message are enough
   to fix a request; the value is the one thing the client already has.
+
+## Passcode and per-IP limits (`api/ratelimit.py`, `api/deps.check_passcode`, T-018 step 7)
+- **What it is:** the gate in front of live mode and the meter on everything that costs something.
+  Live routes need a shared passcode (owner decision) before the visitor's key is even looked at;
+  every route that calls Voyage or a model counts requests per IP; source search also has a global
+  daily cap.
+- **Decision: own sliding windows, in memory.** A few dozen lines with a fake clock for tests.
+  Rejected: a rate-limit library (a dependency for something this small) and Redis (infrastructure
+  that can cost money). Trade-off: per process, so one worker, and a restart resets the counts.
+- **Decision: the passcode is checked before the key, and failures lock the IP.** Five wrong
+  guesses in 15 minutes and that IP gets 429 even with the right passcode; the compare is
+  constant-time and the guess is never logged (guide 02: brute force).
+- **Decision: a global cap on search.** Per-IP limits don't stop many IPs; 1,000 searches a day
+  in total protects the owner's non-refreshing Voyage tokens whatever happens.
+- **Decision: which address is the client.** Behind a proxy every request looks the same, but the
+  left end of `X-Forwarded-For` is written by the client and can be forged. With
+  `TRUSTED_PROXY_HOPS=n` we take the n-th entry from the right (the one our own proxy added).
+- **Decision (review): one IPv6 network is one client.** A home or server usually owns a whole /64,
+  so counting each IPv6 address separately would hand an attacker billions of fresh limits; keys
+  are the /64 network (IPv4-mapped addresses become IPv4), and only counting creates an entry.
+- **Decision (review): refuse huge bodies first.** FastAPI reads and parses the body before any
+  dependency runs, so the guard can't stop a 100 MB POST; a small ASGI middleware answers 413 over
+  256 KB, checking `Content-Length` and counting streamed bytes.
+- **Gotchas:** limits are off in local mode, so evals and the owner's runs aren't throttled. Polling
+  has its own generous bucket (the Plan page polls every 2 s). `/api/assist` charges the workflow
+  bucket when it starts a run, so it can't be used to skip that limit, and checks that quota before
+  its routing call. Search allows 2 a minute per client because Voyage allows 3 in total. Known and
+  accepted: concurrent wrong guesses can slightly exceed 5 before the lock (negligible against a
+  16+ character passcode).
+- **Likely questions:**
+  - *"Why not accounts?"* Owner decision: one shared passcode is enough for a portfolio demo, with
+    no passwords to store or reset (multi-user accounts are in "Later").
+  - *"What if the passcode leaks?"* Change `LIVE_PASSCODE` and restart; visitors pay with their own
+    keys, so a leak costs the owner at most the capped Voyage searches.

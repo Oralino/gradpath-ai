@@ -72,6 +72,12 @@ class Settings(BaseSettings):
     # allowed; demo = deployed, recorded runs only, model routes off; live = deployed, recordings
     # plus model routes with a visitor's key. Default demo: the safest, and it needs no keys.
     app_mode: Literal["local", "demo", "live"] = "demo"
+    # Live mode's shared passcode (T-018 step 7, owner decision): visitors send it in the
+    # X-GradPath-Passcode header; live refuses to start without one of 16+ characters.
+    live_passcode: SecretStr | None = None
+    # Proxies in front of the API that append to X-Forwarded-For (Render: set in Milestone 8).
+    # 0 = use the connection address; never trust the client-written left end of the header.
+    trusted_proxy_hops: int = Field(default=0, ge=0, le=5)
     # Recorded runs served in every mode (relative to the repo root).
     demo_runs_path: str = "demo_runs"
     # Index summary written by ingest, read by the API for "Sources as of" (T-018 step 3).

@@ -45,13 +45,11 @@ The milestone plan and its story (what, why, what it does) live in [MILESTONES.m
 
 ## Deferred from the Milestone 1 code review (2026-11-17)
 Before any deploy (Milestones 7–8):
-- [ ] Auth or passcode and per-IP rate limits on the model routes (each call can start a Claude
-      Code process and spend plan quota). T-018 step 7. From the step 5 review: a made-up key of
-      the right shape passes the live gate and spends one Voyage search before Anthropic refuses
-      it; the passcode and per-IP limits cover it, and a free key pre-check (models list, cached
-      per owner tag) is an option there. Also: a kinder message for Anthropic's "no credit" 400. Concurrency caps done: `api/limits.py` (T-003).
-      Known gap (T-006): `/api/assist` spends its routing call before the career cap can answer
-      503 while a workflow is running; per-IP limits close it.
+- [x] Passcode and per-IP rate limits on the model routes (T-018 step 7); closes the T-006 gap
+      (`/api/assist` spending its routing call while a workflow runs) and the step 5 finding (a
+      made-up key spending a Voyage search: now behind the passcode).
+- [ ] Optional: a free key pre-check (models list, cached per owner tag) and a kinder message for
+      Anthropic's "no credit" 400 (from the T-018 step 5 review).
 - [x] Enforce `APP_MODE`; the app starts and serves demo mode with no keys set (T-018 step 1).
 - [x] Live mode passes the visitor's key to every model route (T-018 step 5).
 - [x] LangGraph's "Retrying task" log line no longer carries exception text (filter in

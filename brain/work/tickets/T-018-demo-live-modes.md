@@ -131,6 +131,17 @@ Problem: commit 33dce49 pushed a test file with a syntax error (an escaped newli
 script became a real one, and the commit was chained with `;` after the failing check); fixed in
 the next commit. 680 backend tests.
 
+Step 7 (2026-11-20): passcode (`X-GradPath-Passcode`, 16+ printable ASCII, constant-time,
+5 failures per client in 15 min lock it), per-client limits off in local mode (search 2/min
+60/day + 1,000/day total; model 6/min 60/day; workflow 3/h 10/day, also charged and pre-checked by
+`/api/assist`; polling 60/min), `TRUSTED_PROXY_HOPS`, a 256 KB body cap (413). code-reviewer
+(security): no bypass; fixed: IPv6 /64 grouping and no entries from mere checks, global counters
+outside the evictable table, all `X-Forwarded-For` lines and ports, the body cap, a passcode with
+surrounding whitespace that could never match (bug), search 6 -> 2/min, assist pre-check, tests
+for each. Moved to Milestone 8: verify Render's proxy chain before setting the hops, uvicorn proxy
+headers, `/docs`. Accepted: a burst of concurrent guesses can slightly exceed 5. qa-checker: all
+clean (697 tests at that point). 716 backend tests after the fixes.
+
 For step 11 (owner decision 2026-11-20: left for the release checks): tests for the recorder's
 command-line entry point (`--only` with an unknown id, Qdrant closed in `main`) and for a leftover
 temp file after a failed write; a frontend test that leaving the page aborts the footer's health

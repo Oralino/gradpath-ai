@@ -9,7 +9,7 @@ the route log (`router/route_log.py`), including requests that fail.
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from gradpath.api import limits
@@ -21,6 +21,7 @@ from gradpath.api.deps import (
     require_model_routes,
     run_owner,
 )
+from gradpath.api.ratelimit import charge, ensure_room, limit
 from gradpath.api.runs import get_run_store
 from gradpath.config import get_settings
 from gradpath.retrieval import RetrievalService
@@ -40,8 +41,9 @@ from gradpath.workflows.schemas import WorkflowInput
 router = APIRouter(prefix="/api", tags=["assist"], dependencies=[Depends(require_model_routes)])
 
 
-@router.post("/assist", response_model=AssistResponse)
+@router.post("/assist", response_model=AssistResponse, dependencies=[Depends(limit("model"))])
 def assist(
+    request: Request,
     body: AssistRequest,
     retrieval: Annotated[RetrievalService, Depends(get_retrieval)],
     fast: Annotated[BaseChatModel, Depends(get_extraction_model)],
@@ -60,6 +62,9 @@ def assist(
     # Known limit (TASKS, Milestone 7): if a workflow is already running, a request routed to
     # the workflow spends its routing call before the career cap answers 503. Per-IP limits
     # come with auth before deploy.
+    if body.job_description is not None and body.profile is not None:
+        # A run is possible: refuse before the routing call if the caller's run quota is spent.
+        ensure_room("workflow", request)
     try:
         with limits.slot(limits.CHAT):
             decision = decide(body, fast)
@@ -73,6 +78,7 @@ def assist(
             # anyway (not `assert`, which `python -O` removes).
             if body.job_description is None or body.profile is None:
                 raise RuntimeError("workflow route chosen without both inputs")
+            charge("workflow", request)  # a run started here counts like /api/career/runs
             data = WorkflowInput(
                 job_description=body.job_description,
                 profile=body.profile,

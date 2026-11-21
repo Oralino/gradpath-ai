@@ -20,6 +20,7 @@ from gradpath.api.deps import (
     require_model_routes,
     run_owner,
 )
+from gradpath.api.ratelimit import limit
 from gradpath.config import get_settings
 from gradpath.retrieval import RetrievalService
 from gradpath.workflows import WorkflowContext
@@ -41,7 +42,9 @@ def get_run_store() -> RunStore:
     return RUNS
 
 
-@router.post("/runs", status_code=202, response_model=RunStarted)
+@router.post(
+    "/runs", status_code=202, response_model=RunStarted, dependencies=[Depends(limit("workflow"))]
+)
 def start_run(
     body: WorkflowInput,
     retrieval: Annotated[RetrievalService, Depends(get_retrieval)],
@@ -64,7 +67,7 @@ def start_run(
     return RunStarted(run_id=run_id)
 
 
-@router.get("/runs/{run_id}", response_model=RunStatus)
+@router.get("/runs/{run_id}", response_model=RunStatus, dependencies=[Depends(limit("poll"))])
 def get_run(
     run_id: str,
     store: Annotated[RunStore, Depends(get_run_store)],

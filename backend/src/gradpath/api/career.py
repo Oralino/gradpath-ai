@@ -18,6 +18,7 @@ from gradpath.api.deps import (
     get_retrieval,
     require_model_routes,
 )
+from gradpath.api.ratelimit import limit
 from gradpath.config import get_settings
 from gradpath.retrieval import RetrievalService
 from gradpath.workflows import CareerPrepResult, WorkflowContext, run_workflow
@@ -30,7 +31,7 @@ router = APIRouter(
 BUSY = "A preparation run is already in progress. Try again in a few minutes."
 
 
-@router.post("/prepare", response_model=CareerPrepResult)
+@router.post("/prepare", response_model=CareerPrepResult, dependencies=[Depends(limit("workflow"))])
 def prepare(
     body: WorkflowInput,
     retrieval: Annotated[RetrievalService, Depends(get_retrieval)],

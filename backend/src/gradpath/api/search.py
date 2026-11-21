@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, StringConstraints
 
 from gradpath.api import limits
+from gradpath.api.ratelimit import limit
 from gradpath.rag.sources import SourceSearch, search_sources
 from gradpath.retrieval import RetrievalService
 
@@ -34,7 +35,7 @@ def get_search_retrieval(request: Request) -> RetrievalService:
     return retrieval
 
 
-@router.post("/search", response_model=SourceSearch)
+@router.post("/search", response_model=SourceSearch, dependencies=[Depends(limit("search"))])
 def search(
     body: SearchRequest,
     retrieval: Annotated[RetrievalService, Depends(get_search_retrieval)],

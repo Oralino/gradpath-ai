@@ -20,12 +20,15 @@ from fastapi import Depends, HTTPException, Request
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import SecretStr
 
-from gradpath.config import get_settings
+from gradpath.api import ratelimit
+from gradpath.config import Settings, get_settings
 from gradpath.demo import DemoLibrary
 from gradpath.providers import get_chat_model
 from gradpath.retrieval import RetrievalService
 
 KEY_HEADER = "X-Anthropic-Key"
+PASSCODE_HEADER = "X-GradPath-Passcode"
+PASSCODE_NEEDED = "Enter the live-mode passcode to use your own key here."
 MODEL_ROUTES_OFF = "This site runs in demo mode: browse the recorded examples instead."
 KEY_NEEDED = "Add your Anthropic API key to use live mode. It is sent with each request only."
 # Shape only (no network call): Anthropic keys start with sk-ant-. Bounded so a huge header can't
@@ -37,18 +40,36 @@ _RUN_SECRET = secrets.token_bytes(32)
 
 
 def visitor_key(request: Request) -> SecretStr | None:
-    """The request's key in live mode, else None. Demo is refused here (403), and live without a
-    well-formed key header is refused (401), before any model or retrieval is built. Local mode
-    ignores the header: the owner's machine uses the server's own provider."""
-    mode = get_settings().app_mode
+    """The request's key in live mode, else None. Demo is refused here (403). Live needs the
+    passcode first (T-018 step 7: 401 if wrong, 429 after repeated failures from one IP) and
+    then a well-formed key header (401), all before any model or retrieval is built. Local mode
+    ignores both headers: the owner's machine uses the server's own provider."""
+    settings = get_settings()
+    mode = settings.app_mode
     if mode == "local":
         return None
     if mode != "live":  # demo, or anything unexpected: deny by default
         raise HTTPException(status_code=403, detail=MODEL_ROUTES_OFF)
+    check_passcode(request, settings)
     raw = request.headers.get(KEY_HEADER, "").strip()
     if not KEY_SHAPE.fullmatch(raw):
         raise HTTPException(status_code=401, detail=KEY_NEEDED)
     return SecretStr(raw)
+
+
+def check_passcode(request: Request, settings: Settings) -> None:
+    """Constant-time compare of the passcode header with LIVE_PASSCODE (`check_live_settings`
+    guarantees one is set). A locked-out IP gets 429 before its guess is even compared; a wrong
+    guess counts towards the lock. Neither the guess nor the passcode is ever logged."""
+    ratelimit.check_passcode_lock(request, settings)
+    expected = settings.live_passcode
+    given = request.headers.get(PASSCODE_HEADER, "").strip()
+    # Both sides trimmed (`check_live_settings` requires printable ASCII), compared as bytes.
+    if expected is None or not hmac.compare_digest(
+        given.encode("utf-8", "replace"), expected.get_secret_value().strip().encode()
+    ):
+        ratelimit.record_passcode_failure(request, settings)
+        raise HTTPException(status_code=401, detail=PASSCODE_NEEDED)
 
 
 VisitorKey = Annotated[SecretStr | None, Depends(visitor_key)]

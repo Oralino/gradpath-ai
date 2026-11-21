@@ -46,18 +46,26 @@ KEY_LIMITED = "Your Anthropic key is at its rate limit. Wait a minute, then try 
 # Loggers that could print request details at DEBUG; capped in live mode (visitor keys).
 QUIET_IN_LIVE = ("anthropic", "httpx", "httpcore")
 REDIRECT_VARS = ("ANTHROPIC_BASE_URL", "ANTHROPIC_API_URL")
+MIN_PASSCODE_CHARS = 16
 
 
 def check_live_settings(settings: Settings) -> None:
-    """Refuse to start live mode unless every model call must use the visitor's key: the
-    provider is the Anthropic API and no server key is set (owner rule: no key the owner pays
-    for). Called by `lifespan`; the message names settings, never values."""
+    """Refuse to start live mode unless every model call must use the visitor's key (the
+    provider is the Anthropic API, no server key is set: owner rule, no key the owner pays for)
+    and a passcode of 16+ characters guards it (T-018 step 7). Called by `lifespan`; the message
+    names settings, never values."""
     if settings.app_mode != "live":
         return
     if settings.llm_provider != "anthropic_api":
         raise RuntimeError("APP_MODE=live needs LLM_PROVIDER=anthropic_api (visitor keys)")
     if settings.anthropic_api_key is not None:
         raise RuntimeError("APP_MODE=live must not have ANTHROPIC_API_KEY set on the server")
+    passcode = "" if settings.live_passcode is None else settings.live_passcode.get_secret_value()
+    passcode = passcode.strip()
+    if len(passcode) < MIN_PASSCODE_CHARS or not all(33 <= ord(c) <= 126 for c in passcode):
+        raise RuntimeError(
+            f"APP_MODE=live needs LIVE_PASSCODE of {MIN_PASSCODE_CHARS}+ printable ASCII characters"
+        )
     # The Anthropic SDK and langchain_anthropic read these from the process environment: set on
     # the server, they would send every visitor's key to another host.
     for name in REDIRECT_VARS:
@@ -188,6 +196,54 @@ def open_retrieval(settings: Settings) -> RetrievalService | None:
         return None
 
 
+MAX_BODY_BYTES = 256 * 1024  # largest real body: ~12k profile + 20k posting, JSON-escaped
+TOO_LARGE = b'{"detail":"The request is too large."}'
+
+
+class BodySizeLimit:
+    """Refuse request bodies over MAX_BODY_BYTES with 413 before the app reads them (T-018 step
+    7: FastAPI parses the body before any guard runs). Checks Content-Length first, then counts
+    streamed bytes, buffering at most the limit. Added by `create_app`."""
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        length = dict(scope.get("headers") or []).get(b"content-length")
+        if length is not None and (not length.isdigit() or int(length) > MAX_BODY_BYTES):
+            await self._refuse(send)
+            return
+        body, more = b"", True
+        while more:
+            message = await receive()
+            if message["type"] != "http.request":
+                break
+            body += message.get("body", b"")
+            more = message.get("more_body", False)
+            if len(body) > MAX_BODY_BYTES:
+                await self._refuse(send)
+                return
+        sent = False
+
+        async def replay():
+            nonlocal sent
+            if not sent:
+                sent = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return await receive()
+
+        await self.app(scope, replay, send)
+
+    @staticmethod
+    async def _refuse(send) -> None:
+        await send({"type": "http.response.start", "status": 413,
+                    "headers": [(b"content-type", b"application/json")]})  # fmt: skip
+        await send({"type": "http.response.body", "body": TOO_LARGE})
+
+
 def create_app(*, use_lifespan: bool = True) -> FastAPI:
     """Build the app; tests pass `use_lifespan=False` and provide their own dependencies."""
     app = FastAPI(
@@ -196,6 +252,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
         summary="Adaptive RAG + agentic career preparation for new-grad engineers.",
         lifespan=lifespan if use_lifespan else None,
     )
+    app.add_middleware(BodySizeLimit)
     app.add_exception_handler(RequestValidationError, _validation_handler)
     # Subclasses are matched first (voyageai.error.RateLimitError before VoyageError).
     for exc_type, status, detail in [

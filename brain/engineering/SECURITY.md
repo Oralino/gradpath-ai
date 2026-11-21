@@ -52,7 +52,7 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 
 | Threat | Status | Rule for Milestone 7 |
 |---|---|---|
-| Brute force, password spraying, credential stuffing | 🕒 7 | No user passwords. If a demo passcode is added: long random value, constant-time compare, per-IP rate limit and back-off on failures, never logged. |
+| Brute force, password spraying, credential stuffing | ✅ | No user passwords. The live passcode (T-018 step 7): 16+ characters enforced at startup, constant-time compare, 5 failures per IP in 15 min lock that IP, never logged or echoed (tested). |
 | Session hijacking, session fixation | 🕒 7 | Prefer no sessions. If one is ever needed: `HttpOnly`, `Secure`, `SameSite=Strict`, a new id after login, short expiry. |
 | Privilege escalation, broken access control | 🕒 7 | One role (visitor). Settings that cost money (revision limit, model choice) come only from server settings, never from the request: already true for `max_revisions` (`api/career.py`). |
 | IDOR / BOLA | ✅ | Live mode (T-018 step 5): each run is bound to the key that started it (HMAC owner tag; another key gets the same 404 as an unknown id). Run ids (T-016): random uuid4, validated, not listable, the same 404 for unknown/expired/malformed; a run record never holds the posting or profile; the result (profile-derived reasoning) is kept in memory for 15 min after the run, at most 20 runs. Anyone holding a run id can read that result until it expires. Guide 02 says unguessable ids aren't access control: done for live mode (above); local mode stays unbound (one user). |
@@ -64,7 +64,7 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 | Input validation | ✅ | Pydantic schemas with bounds: resume text 100–15,000 (stripped), question 2,000, job description 50–20,000, profile 12,000 total, corrections 10 × 500, router message 3–2,000 (whitespace-only refused). | — |
 | Mass assignment | ✅ | `extra="forbid"`; the workflow refuses node writes to protected keys (`workflows/graph.py` `_wrap`). | — |
 | Excessive data exposure | ✅ | Fixed error messages (`api/main.py`); exception text never returned; results are typed response models. 422s carry only `loc`/`msg`/`type`: no `input` or `ctx`, unknown field names and non-identifier locations masked (`safe_validation_errors`, T-018 step 6). | — |
-| Resource limits | ✅ / 🕒 7 | Concurrency caps (`api/limits.py`: chat 2, jobs 1, career 1, search 2, else 503); source search embeds without waiting or retrying (`ThrottledEmbeddings.embed_query_now`: a full Voyage window or a 429 answers 429 at once, one Voyage request at most, T-018); revision limit 0–3; recursion backstop. | Workflow time budget done (T-006: 300 s, then a labelled fallback); per-IP rate limits (7). |
+| Resource limits | ✅ | Concurrency caps (`api/limits.py`: chat 2, jobs 1, career 1, search 2, else 503); source search embeds without waiting or retrying (`ThrottledEmbeddings.embed_query_now`: a full Voyage window or a 429 answers 429 at once, one Voyage request at most, T-018); revision limit 0–3; recursion backstop. | Workflow time budget done (T-006: 300 s, then a labelled fallback); per-IP rate limits done (T-018 step 7, `api/ratelimit.py`). |
 | Inventory | ✅ | Ten routes, all in `api/main.py` (resume import T-014; run start and poll T-016; `/api/demo` list and get and `/api/search`, T-018). `test_demo.py` fails if a route is added without being listed as open or guarded. | Keep the list in ARCHITECTURE.md current. |
 
 ## 04 Network and infrastructure
@@ -105,7 +105,7 @@ Solo project, so the realistic risks are a phished account or a leaked key.
 | Vector database attacks | ✅ / 🕒 8 | Local file store; only the ingest command writes. | Qdrant Cloud (8): key only on the server; use a read-only key for serving if the free tier offers one (check then). |
 | Excessive agency | ✅ | No model has tools: `ChatClaudeCode` runs with `tools=[]`, `setting_sources=[]`, `max_turns=3` (`providers/claude_code.py`). Every output is a validated Pydantic model; nothing the model says triggers an action. | Keep: any future tool needs an allow-list and server-side checks. |
 | Insecure output handling | ✅ | Outputs validated; ids filtered to known facts and chunks; model text bounded; the frontend renders it as text (see XSS). | — |
-| Unbounded consumption | ✅ / 🕒 7 | Size limits, concurrency caps, revision limit, `max_turns`, one batched Voyage call per request. | Time budget done (T-006); per-IP limits (7). |
+| Unbounded consumption | ✅ | Size limits, concurrency caps, revision limit, `max_turns`, one batched Voyage call per request; per-IP limits and a global daily search cap (T-018 step 7). | Time budget done (T-006). |
 | System prompt leakage | ✅ | The prompts are public in the repo by design; none holds a secret or a rule that security depends on. | — |
 | Model supply chain, theft, poisoning | — | Hosted models only; no model files, no fine-tuning. Libraries pinned (see 04). | — |
 | Hallucination | ✅ | Answers only from retrieved evidence, citations checked in code, abstention below the 0.45 threshold, critic + revision, evaluations in EVALUATION.md. | Grounding check beyond citation ids (TASKS). |
@@ -136,3 +136,8 @@ From guide 09, narrowed to this app. Run before each release; the project's rele
       are per process); never `--log-level trace`; no proxy or platform log format that records
       request headers (`X-Anthropic-Key`); `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_URL` unset (live
       refuses to start otherwise).
+- [ ] Live deploy, proxy (T-018 step 7 review): check the real `X-Forwarded-For` chain on Render
+      before setting `TRUSTED_PROXY_HOPS` (too low: every visitor shares one address and 5 wrong
+      passcodes lock everyone out; too high: a client-written entry is trusted); run uvicorn so it
+      does not rewrite the client address from the header itself (`--no-proxy-headers`, or no
+      `FORWARDED_ALLOW_IPS=*`); decide `/docs`, `/redoc`, `/openapi.json` in demo and live.

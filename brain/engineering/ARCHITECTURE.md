@@ -122,6 +122,16 @@ an owner tag (HMAC of the key with a per-process secret): polling with another k
 404 as an unknown id. The key lives in the request and, for a background run, in its worker thread
 until the run ends; nothing stores, logs, traces or returns it.
 
+**Passcode and per-IP limits (T-018 step 7):** live routes need `LIVE_PASSCODE` (16+ characters)
+in the `X-GradPath-Passcode` header, compared in constant time before the visitor key; 5 wrong
+guesses from one IP in 15 minutes lock that IP (429). `api/ratelimit.py` keeps in-memory sliding
+windows per client, off in local mode: search 2/min and 60/day (plus 1,000/day in total), model routes
+6/min and 60/day, workflow runs 3/hour and 10/day (also charged when `/api/assist` starts one), run
+polling 60/min. Over a limit: 429 with `Retry-After`. The client is the connection address, or
+with `TRUSTED_PROXY_HOPS=n` the n-th `X-Forwarded-For` entry from the right, normalised (IPv6 by
+/64 network, ports dropped). Request bodies over 256 KB get 413 before FastAPI reads them
+(`BodySizeLimit`). In memory and per process: deploy with one worker.
+
 **Source search (T-018 step 4):** `POST /api/search {query}` (`rag/sources.py`, `api/search.py`) is
 the retrieval half of RAG for visitors without a key: one Voyage request, the top passages (at most
 2 per document) as citations with a 600-character excerpt, an `insufficient` flag, and a rules-only

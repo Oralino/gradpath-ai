@@ -252,8 +252,8 @@ def test_model_routes_are_refused_outside_local_mode(monkeypatch, mode, method, 
         app.dependency_overrides[dep] = must_not_run
     # An invalid body too: the guard answers before validation, so nothing is echoed back.
     resp = getattr(TestClient(app), method)(path, **({"json": {}} if method == "post" else {}))
-    # Demo is closed; live without a key header asks for one (T-018 step 5).
-    expected = (403, deps.MODEL_ROUTES_OFF) if mode == "demo" else (401, deps.KEY_NEEDED)
+    # Demo is closed; live without the passcode asks for it first (T-018 step 7).
+    expected = (403, deps.MODEL_ROUTES_OFF) if mode == "demo" else (401, deps.PASSCODE_NEEDED)
     assert (resp.status_code, resp.json()) == (expected[0], {"detail": expected[1]})
 
 
