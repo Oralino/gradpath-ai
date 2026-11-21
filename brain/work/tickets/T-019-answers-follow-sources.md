@@ -32,7 +32,8 @@ the model should not give its own advice; answers follow the sources.
 - Files touched: `backend/src/gradpath/rag/answer.py` (prompt), `backend/tests/test_rag.py`,
   `demo_runs/ask-{multicolumn-indexes,idempotent-endpoints,graceful-shutdown,not-covered}.json`,
   `evaluation/results/answer-eval-20261121-0621.json`, EVALUATION, WALKTHROUGH, TASKS, DONE.
-- Commits (hash, message):
+- Commits (hash, message): `569adb5` change: answers state only what the cited sources say, no
+  added advice (T-019); merged to `main` as `926fd6c` ([#11](https://github.com/Oralino/gradpath-ai/pull/11)).
 
 ## Verification
 
