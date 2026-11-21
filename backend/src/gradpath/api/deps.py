@@ -76,6 +76,8 @@ def check_passcode(request: Request, settings: Settings, *, allow_token: bool = 
             return
     elif expected and token:
         key = request.headers.get(KEY_HEADER, "").strip()
+        if not key:  # a token is bound to a key: without one it can't be checked, so it's no guess
+            raise HTTPException(status_code=401, detail=KEY_NEEDED)
         status = token_status(token, expected, key)
         if status == "valid":
             return

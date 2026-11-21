@@ -199,6 +199,21 @@ def test_a_token_only_works_with_the_key_it_was_issued_for(monkeypatch, checked,
     assert resp.status_code == 401 and resp.json()["code"] == "passcode_required"
 
 
+def test_a_token_without_a_key_asks_for_it_and_is_no_guess(monkeypatch, checked, kb_service):
+    """Release review: a token can't be checked without its key, so it never counts toward the
+    lock (a script or a reload race would otherwise lock the visitor's IP)."""
+    c = client(monkeypatch, kb_service)
+    spy_answer(monkeypatch)
+    token = check(c).json()["token"]
+    for _ in range(8):
+        r = c.post("/api/chat", json={"question": "What?"},
+                   headers={TOKEN_HEADER: token, **ip(1)})  # fmt: skip
+        assert r.status_code == 401 and r.json()["code"] == "key_required"
+    good = c.post("/api/chat", json={"question": "What?"},
+                  headers={TOKEN_HEADER: token, KEY_HEADER: KEY_A, **ip(1)})  # fmt: skip
+    assert good.status_code == 200  # not locked
+
+
 def test_an_expired_token_is_refused_without_counting_as_a_guess(monkeypatch, checked, kb_service):
     c = client(monkeypatch, kb_service)
     old, _ = issue_token(PASSCODE, KEY_A, now=lambda: 1_000.0)  # long expired

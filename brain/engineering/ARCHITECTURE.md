@@ -144,7 +144,7 @@ models), and returns `{token, expires_at}`. The token is `<expiry>.<HMAC>` over 
 passcode and a SHA-256 of the key, with a per-process secret: it replaces the passcode header on
 later requests (`X-GradPath-Token`) for 12 hours, only together with the same key, and a restart or
 a new `LIVE_PASSCODE` voids every token. A token sent with a different key counts as a wrong
-passcode. Every error body is `{detail, code}`; the codes (`api/main.py` `error_codes`) let the
+passcode; a token sent with no key at all gets 401 `key_required` and does not count. Every error body is `{detail, code}`; the codes (`api/main.py` `error_codes`) let the
 frontend tell a wrong passcode from a refused key from a rate limit without matching text, and
 `/api/health` reports `search_enabled`.
 
