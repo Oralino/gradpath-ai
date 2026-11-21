@@ -57,8 +57,7 @@ Before any deploy (Milestones 7–8):
 - [x] LangGraph's "Retrying task" log line no longer carries exception text (filter in
       `workflows/graph.py`, T-003).
 - [x] `workflows.cli --out` saves a real profile's results only under `private/` (T-003).
-- [ ] Before live mode: a 422 handler that drops `input` from FastAPI's validation errors, so a
-      visitor key sent in a wrong field is never echoed back (found in T-017).
+- [x] A 422 handler that drops `input` from FastAPI's validation errors (T-018 step 6).
 - [x] Re-checked (T-018 step 5): every API route builds models through `deps.get_answer_model` /
       `get_extraction_model` -> `get_chat_model(api_key=...)`, and tracing is off in live mode.
 Milestone 2 (tracing):

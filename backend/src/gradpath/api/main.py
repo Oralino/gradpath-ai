@@ -3,14 +3,17 @@
 import json
 import logging
 import os
-from collections.abc import AsyncIterator
+import re
+from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from datetime import date
+from typing import Any
 
 import anthropic
 import pydantic
 import voyageai.error
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from langgraph.errors import GraphRecursionError
 from pydantic import BaseModel
@@ -72,6 +75,47 @@ class Health(BaseModel):
     app_mode: str
     sources_as_of: date | None = None
     sources_newest: date | None = None
+
+
+# A loc part we echo back as is: a plain field name (or an index). Anything else could be text the
+# client chose, such as an unknown field named after a secret. Note: no request model has a
+# dict field today; if one is added, its keys are client text that this pattern would echo when
+# they look like identifiers (mask loc parts that aren't model field names then).
+SAFE_LOC = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}")
+UNKNOWN_FIELD = "(unknown field)"
+
+
+def safe_validation_errors(errors: Sequence[Any]) -> list[dict[str, Any]]:
+    """FastAPI's 422 errors without what the client sent (T-018 step 6, found in T-017): only
+    `loc`, `msg` and `type` stay, `input` and `ctx` (which can quote the rejected value, e.g. a key
+    pasted into the wrong field) are dropped, and `loc` keeps only field names and indexes. The
+    frontend reads `loc` alone (`lib/api.ts` fieldPaths). Called by `_validation_handler`."""
+    cleaned = []
+    for error in errors:
+        loc = list(error.get("loc", ()))
+        if error.get("type") == "extra_forbidden" and loc:
+            loc[-1] = UNKNOWN_FIELD  # the name of an unknown field is client text
+        safe = [
+            part if isinstance(part, int) or part == UNKNOWN_FIELD
+            or (isinstance(part, str) and SAFE_LOC.fullmatch(part)) else "?"
+            for part in loc
+        ]  # fmt: skip
+        cleaned.append(
+            {
+                "loc": safe,
+                "msg": str(error.get("msg", ""))[:200],
+                "type": str(error.get("type", "")),
+            }
+        )
+    return cleaned
+
+
+async def _validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """422 for a request that failed validation, with `safe_validation_errors` as its detail.
+    Logged by count only (the errors themselves can carry the client's text)."""
+    errors = exc.errors()
+    log.info("validation failed on %s (%d errors)", request.url.path, len(errors))
+    return JSONResponse({"detail": safe_validation_errors(errors)}, status_code=422)
 
 
 def _error_handler(status: int, detail: str):
@@ -152,6 +196,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
         summary="Adaptive RAG + agentic career preparation for new-grad engineers.",
         lifespan=lifespan if use_lifespan else None,
     )
+    app.add_exception_handler(RequestValidationError, _validation_handler)
     # Subclasses are matched first (voyageai.error.RateLimitError before VoyageError).
     for exc_type, status, detail in [
         (ClaudeCodeError, 502, LLM_DOWN),

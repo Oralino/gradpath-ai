@@ -63,7 +63,7 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 |---|---|---|---|
 | Input validation | ✅ | Pydantic schemas with bounds: resume text 100–15,000 (stripped), question 2,000, job description 50–20,000, profile 12,000 total, corrections 10 × 500, router message 3–2,000 (whitespace-only refused). | — |
 | Mass assignment | ✅ | `extra="forbid"`; the workflow refuses node writes to protected keys (`workflows/graph.py` `_wrap`). | — |
-| Excessive data exposure | ✅ | Fixed error messages (`api/main.py`); exception text never returned; results are typed response models. | — |
+| Excessive data exposure | ✅ | Fixed error messages (`api/main.py`); exception text never returned; results are typed response models. 422s carry only `loc`/`msg`/`type`: no `input` or `ctx`, unknown field names and non-identifier locations masked (`safe_validation_errors`, T-018 step 6). | — |
 | Resource limits | ✅ / 🕒 7 | Concurrency caps (`api/limits.py`: chat 2, jobs 1, career 1, search 2, else 503); source search embeds without waiting or retrying (`ThrottledEmbeddings.embed_query_now`: a full Voyage window or a 429 answers 429 at once, one Voyage request at most, T-018); revision limit 0–3; recursion backstop. | Workflow time budget done (T-006: 300 s, then a labelled fallback); per-IP rate limits (7). |
 | Inventory | ✅ | Ten routes, all in `api/main.py` (resume import T-014; run start and poll T-016; `/api/demo` list and get and `/api/search`, T-018). `test_demo.py` fails if a route is added without being listed as open or guarded. | Keep the list in ARCHITECTURE.md current. |
 

@@ -936,3 +936,19 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
     HTTP-client loggers are capped at WARNING in live mode.
   - *"Why not store the key in a session?"* No sessions means nothing to steal and nothing to expire;
     the browser keeps it in memory (step 9) and sends it per request.
+
+## Validation errors that echo nothing (`api/main.py` `safe_validation_errors`, T-018 step 6)
+- **What it is:** our own handler for FastAPI's 422 responses. Each error keeps where it is
+  (`loc`), what is wrong (`msg`) and its kind (`type`); the rejected value (`input`) and its
+  context (`ctx`) are dropped.
+- **Why:** FastAPI's default 422 quotes what the client sent, so a key pasted into the wrong field
+  came straight back in the response (found in T-017), and logs or proxies that store responses
+  would keep it.
+- **Decision: field names are client text too.** An unknown field's name becomes "(unknown field)",
+  and any location part that isn't a plain identifier or an index becomes "?", so a key used as a
+  field name can't come back either. Indexes stay, because the frontend uses `loc` to mark the
+  exact row (for example the second skill).
+- **Gotcha:** FastAPI solves a route's dependencies before it reports body errors, so the mode
+  guard and the key check run first and an invalid body still builds (but never calls) the models.
+- **Likely question:** *"Doesn't this make debugging harder?"* The location and message are enough
+  to fix a request; the value is the one thing the client already has.
