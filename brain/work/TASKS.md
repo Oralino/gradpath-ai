@@ -6,8 +6,6 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 ## Current
 - [ ] [T-022](tickets/T-022-same-label-resources.md): roadmap resources from different pages can
       share a label and look like duplicates.
-- [ ] [T-023](tickets/T-023-monitoring-coverage.md): nothing indexed on metrics, monitoring and
-      alerting (the SRE source is link-only by licence); options for the owner in the ticket.
 - [ ] DESIGN.md: record the visible input rows and "Build plan again" on the Plan screen
       (design-advisor drafts, owner approves; T-011 design critique).
 - [ ] PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard). Moved out of Milestone 7

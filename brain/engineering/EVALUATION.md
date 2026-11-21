@@ -514,6 +514,15 @@ of uncovered rejected (`q-031`, `q-047`, `q-049`, `q-050` clear it); the same th
 (`q-001`, `q-027`, `q-034`). Milestone 7 changed modes, limits and the answer prompt, not
 retrieval. One Voyage call. Output: `evaluation/results/retrieval-20261121-063353.json`.
 
+### Retrieval re-check after adding monitoring sources (2026-11-21, corpus v3, T-023)
+Same labels v1.3, index now 1,700 chunks (Prometheus and OpenTelemetry added). Every summary number
+is unchanged: Recall@5 0.961, Precision@5 0.605, MRR 0.987; at 0.45, 97% of covered questions kept
+(`q-041` 0.393) and 67% of uncovered rejected; partial misses `q-001`, `q-027`, `q-034`. New chunks
+could have pushed relevant chunks out of a top 5; they didn't: they appear in a top 10 only for two
+uncovered questions (`q-032`, `q-033`, at 0.26 to 0.30, under the threshold). The set has no
+monitoring question, so the gain is shown by one real answer instead (T-023 ticket). One Voyage
+call. Output: `evaluation/results/retrieval-20261121-104638.json`.
+
 ### Routing after the topic-scope fix (2026-11-21, labels v1.1, T-021)
 Six new owner-approved cases (tag `topic_scope`, `rt-031`..`rt-036`): four questions about one
 topic of the attached job that must get a cited answer, and two whole-job requests that must still

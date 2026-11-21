@@ -2,6 +2,9 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-21
+- [T-023 Monitoring sources](tickets/T-023-monitoring-coverage.md): Prometheus (Apache 2.0) and
+  OpenTelemetry (CC BY 4.0) docs added, 1,700 chunks; retrieval eval unchanged; a monitoring
+  question now gets a cited answer.
 - **Milestone 7 (demo and live modes) finished:** [T-018](tickets/T-018-demo-live-modes.md).
   Demo mode with recorded runs and no keys, live mode on a visitor's own key, source search,
   passcode and per-IP limits, Origin check, the answer eval and grounding check; release checks
