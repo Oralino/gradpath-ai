@@ -664,7 +664,11 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   appear in identifiers and arithmetic (`snake_case`, `2 * 3`), so italics would mangle code more
   often than they help.
 
-## No added advice (`rag/answer.py` prompt, T-019)
+## No added advice (`rag/answer.py` prompt, T-019; reversed by T-024)
+- **Reversed (T-024, 2026-11-21):** after trying both locally, the owner chose fuller answers:
+  the rule below was removed, so answers may add advice around the cited facts again (6 of 178
+  claims unsupported, all general advice; refusals unchanged). Kept here because the trade-off is
+  a likely interview question: honest-but-thin versus helpful-but-partly-uncited.
 - **What it is:** a rule in the answer prompt: every sentence must be stated by a cited evidence
   block, so the model may rephrase the sources but not add its own advice, "use X when" guidance or
   well-known facts. Guidance the sources don't give is named in `not_covered`.

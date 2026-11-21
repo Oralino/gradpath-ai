@@ -13,7 +13,7 @@
       "action": "run",
       "kind": "knowledge_question",
       "missing": [],
-      "reason": "This is a general technical definition question about API idempotency that a single reference lookup can answer.",
+      "reason": "The user asks for a general technical definition of API idempotency, which reference material can answer without any personal job context.",
       "requires_user_profile": false,
       "requires_multi_step_workflow": false,
       "decided_by": "model"
@@ -23,7 +23,7 @@
     "answer": {
       "question": "What makes an API endpoint idempotent?",
       "status": "partial",
-      "answer": "The evidence doesn't define idempotency in general, but it does describe what idempotency means in the Azure REST guidelines:\n\n- An idempotent service uses an \"exactly once\" semantic, so developers can retry requests without the risk of unintended consequences. The guidelines tie this to \"client retries & service idempotency.\"\n- Azure requires all service operations, including POST, to be idempotent. The reason given is that cloud applications embrace failure, and idempotency lets customers write fault-tolerant applications.\n- PUT and PATCH are described as idempotent and easy to implement for creating resources. They also let the customer name their own resource.\n- POST can create a resource only if it is made idempotent. One way to do this is with the Repeatability-Request-ID and Repeatability-First-Sent headers.\n- For a long-running PUT, the request counts as idempotent if it has the same `operation-id` or the same request body within a short time window. In that case the service should return the same response as before.\n- If the client doesn't send an `Operation-Id` header, the service may generate one. It must then work out how to handle retries and idempotency itself.",
+      "answer": "The evidence doesn't give a formal definition of idempotency, but it describes what it means in practice. An idempotent endpoint can be retried without unintended consequences. The service gives \"exactly once\" behavior: the client retries and the service handles the repeats safely.\n\nKey points from the Azure guidelines:\n- All HTTP methods, including POST, must be idempotent, so developers can safely retry after failures.\n- PUT and PATCH are recommended for creating resources because they are easy to implement, let the customer name the resource, and are idempotent.\n- POST can create a resource only if you make it idempotent. One way is to use the Repeatability-Request-ID and Repeatability-First-Sent headers. The response must return the created resource's URL with 201-Created.\n- For long-running PUTs, an idempotent request is one with the same operation-id or the same request body within a short time window. The service returns the same response each time. If the client doesn't send an Operation-Id, the service must work out how to handle retries and idempotency itself.",
       "citations": [
         {
           "chunk_id": "fund-ms-rest-guidelines:0:11",
@@ -49,7 +49,7 @@
       ],
       "route": "traditional_rag",
       "note": null,
-      "not_covered": "The evidence gives no general formal definition of idempotency beyond Azure's retry-safe, \"exactly once\" framing."
+      "not_covered": "The evidence gives no formal definition of idempotency, such as the same request producing the same server state."
     },
     "result": null,
     "run_id": null

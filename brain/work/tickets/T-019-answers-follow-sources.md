@@ -7,6 +7,9 @@ The RAG answer prompt and how it was measured. Related: [T-018](T-018-demo-live-
 - **Opened:** 2026-11-21 · **Closed:** 2026-11-21
 - **GitHub Issue:** none
 
+> Reversed on 2026-11-21 by [T-024](T-024-answer-gap-filling.md): the owner chose to let answers
+> add advice again.
+
 ## Summary
 The first answer eval (T-018 step 10, 2026-11-21) found 7 of 166 claims not stated by the cited
 chunks: true, but the model's own advice or general knowledge ("use cache-aside when data can
