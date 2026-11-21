@@ -709,19 +709,18 @@ Don't:
   story; needs a backend field.
 - `errors[]` in a `partial` result: checked 2026-11-19, all fixed texts (`workflows/nodes.py`,
   `workflows/fallback.py`; `stopped early: {reason}` uses the `FallbackReason` literal). Keep it so.
-- Milestone 7 (designed above, awaiting approval). Backend contract gaps that make it harder:
-  - 401 (passcode / missing key / refused key) and 429 (passcode lockout / per-IP limits / the
-    visitor's Anthropic limit / Voyage) are told apart only by `detail` text; `lib/api.ts` trusts
-    `detail` only for 429/502/503. Needs a machine-readable `code` in error bodies (for example
-    `passcode_invalid`, `passcode_locked`, `key_missing`, `key_refused`, `rate_limited`) so the UI
-    routes each to the right field without matching strings.
-  - `/api/health` has no `search_enabled`, so search shows "off" only after a query fails.
-  - No credentials check (decision 12): errors surface on the first real request.
+- Milestone 7 (approved 2026-11-20). Contract gaps closed in T-018 step 9 (commit 89845b1): every
+  error body has a machine-readable `code` (`passcode_required`, `passcode_locked`, `key_required`,
+  `key_refused`, `key_rate_limited`, `rate_limited`, `search_off`, `search_rate_limited`,
+  `demo_mode`, ...; full list in `api/main.py` `error_codes`); `/api/health` has `search_enabled`;
+  `POST /api/live/check` checks passcode and key and returns the session token (decision 12).
+  Still true:
   - The key passes through the GradPath server, so the copy says "sent to the GradPath server,
     which passes it to Anthropic", not "straight to Anthropic".
   - A browser password manager may still offer to save the key; the copy promises only that
     GradPath never stores it.
   - Recording list items carry no outcome or status, so the picker relies on `summary` text.
+  - The session token is bound to the key: a different key after a reload needs the passcode again.
 - Milestone 8: Content-Security-Policy.
 - Font: Atkinson Hyperlegible Next is on Google Fonts (checked 2026-11-19); confirm the `next/font/google`
   import at build. Icons: about ten hand-drawn inline SVGs (no icon package).
