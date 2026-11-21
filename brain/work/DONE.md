@@ -4,8 +4,12 @@ Finished work and releases, newest first; closed tickets are linked here. Open w
 ## 2026-11-21
 - [T-022 Same-label chips told apart](tickets/T-022-same-label-resources.md): chips that share
   "title: section" in one list add the page name, e.g. "(docker overview)".
+- [T-023 Monitoring sources](tickets/T-023-monitoring-coverage.md): Prometheus (Apache 2.0) and
+  OpenTelemetry (CC BY 4.0) docs added, 1,700 chunks; retrieval eval unchanged; a monitoring
+  question now gets a cited answer.
 - [T-024 Answers may fill gaps again](tickets/T-024-answer-gap-filling.md): the no-advice rule of
   T-019 removed after the owner's local test; 172/178 claims supported, refusals unchanged.
+  Merged in [#14](https://github.com/Oralino/gradpath-ai/pull/14) (`49da242`).
 - [T-021 One topic of a job gets an answer](tickets/T-021-topic-routing.md): the whole-job rule
   needs whole-job wording; routing eval 36/36. Merged in
   [#13](https://github.com/Oralino/gradpath-ai/pull/13) (`15879f5`).

@@ -25,11 +25,12 @@ around the cited facts again (measured before: 7 of 166 claims not stated by the
 
 ## Changes
 - Branch: `change/t-024-answer-gap-filling`
-- PR:
+- PR: [#14](https://github.com/Oralino/gradpath-ai/pull/14), merged as `49da242`
 - Files touched: `backend/src/gradpath/rag/answer.py` (prompt), `backend/tests/test_rag.py`,
   `demo_runs/ask-{multicolumn-indexes,idempotent-endpoints,graceful-shutdown,not-covered}.json`,
   `evaluation/results/answer-eval-20261121-103106.json`, EVALUATION, WALKTHROUGH, T-019, DONE, TASKS.
-- Commits (hash, message):
+- Commits (hash, message): `c12e530` change: answers may add advice around the cited facts again
+  (T-024); `c3560b7` docs: record the gap-filling eval and re-record the demo answers (T-024).
 
 ## Verification
 809 backend tests; the prompt test now pins the evidence rules and that the no-advice rule is gone.
