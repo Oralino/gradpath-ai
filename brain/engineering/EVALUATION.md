@@ -542,3 +542,20 @@ Output: `evaluation/results/routing-20261121-101416.json`.
   the next four weeks") moved from the rules to the model and are still routed correctly.
 - Limits: one run; the model decides more cases than before (27 of 36 vs 20 of 30), each costing a
   routing call.
+
+### Answer eval with gap-filling again (2026-11-21, cases v1, T-024)
+The owner tested both prompts locally and chose to let answers add advice around the cited facts
+(the T-019 rule removed; the evidence rules stay). Same 20 cases, one run from the owner's
+terminal. Output: `evaluation/results/answer-eval-20261121-103106.json`.
+
+| Measure | T-018 run (0557) | T-019 strict (0621) | T-024 gap-filling (103106) |
+|---|---|---|---|
+| Answer cases passed | 12/14 | 12/14 | 12/14 |
+| Refuse cases passed | 6/6 | 6/6 | 6/6 |
+| Claims supported by their cited chunk | 159/166 (96%) | 150/151 (99%) | 172/178 (97%) |
+| Answers marked `partial` | 3 | 6 | 4 |
+
+- The 6 unsupported claims are general knowledge or advice ("EXPLAIN ANALYZE runs the query",
+  "exponential backoff is a reasonable approach to 429", "cache-aside is recommended for
+  read-heavy data"): the trade the owner chose for fuller answers. No invented specifics; refusals
+  unchanged; the same two retrieval failures (`a-005`, `a-013`).

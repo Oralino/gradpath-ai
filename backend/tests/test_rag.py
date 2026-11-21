@@ -142,12 +142,15 @@ def test_injected_delimiters_are_neutralised():
     assert user.content.count("<question>") == 1 and user.content.count("</question>") == 1
 
 
-def test_prompt_forbids_advice_the_evidence_does_not_state():
-    # T-019 (owner decision 2026-11-21): no added advice; missing guidance goes to not_covered.
+def test_prompt_keeps_the_evidence_rules_but_allows_advice():
+    # T-024 (owner decision 2026-11-21, reverses T-019): advice around the cited facts is allowed;
+    # facts still come only from the evidence, and gaps are still named.
     system, _ = build_messages("When should I use a cache?", [])
     rules = " ".join(system.content.split())
-    assert "Do not add your own advice" in rules
-    assert "name the missing guidance in `not_covered`" in rules
+    assert "Use only the evidence inside the <evidence> blocks" in rules
+    assert "Do not use outside knowledge" in rules
+    assert "`not_covered`" in rules
+    assert "Do not add your own advice" not in rules
 
 
 @pytest.fixture
