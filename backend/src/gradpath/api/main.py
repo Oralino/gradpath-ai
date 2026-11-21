@@ -4,6 +4,7 @@ import json
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import date
 
 import anthropic
 import pydantic
@@ -11,6 +12,7 @@ import voyageai.error
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from langgraph.errors import GraphRecursionError
+from pydantic import BaseModel
 
 from gradpath.api.assist import router as assist_router
 from gradpath.api.career import router as career_router
@@ -21,6 +23,7 @@ from gradpath.api.profile import router as profile_router
 from gradpath.api.runs import router as runs_router
 from gradpath.config import REPO_ROOT, get_settings
 from gradpath.demo import load_library
+from gradpath.ingestion.index_info import read_index_info
 from gradpath.providers import ClaudeCodeError
 from gradpath.retrieval import get_retrieval_service
 from gradpath.tracing import configure_tracing, flush
@@ -32,6 +35,14 @@ LLM_INVALID = "The language model returned an invalid response. Try again."
 SEARCH_LIMITED = "Search is rate limited on the free tier. Try again in a minute."
 SEARCH_DOWN = "Search is unavailable. Try again later."
 WORKFLOW_LIMIT = "The preparation workflow stopped at its step limit. Try again."
+
+
+class Health(BaseModel):
+    status: str
+    llm_provider: str
+    app_mode: str
+    sources_as_of: date | None = None
+    sources_newest: date | None = None
 
 
 def _error_handler(status: int, detail: str):
@@ -70,6 +81,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_tracing(settings)
     if getattr(app.state, "demo", None) is None:
         app.state.demo = load_library(REPO_ROOT / settings.demo_runs_path)
+    if getattr(app.state, "index_info", None) is None:
+        app.state.index_info = read_index_info(REPO_ROOT / settings.index_info_path)
     if settings.app_mode != "demo" and getattr(app.state, "retrieval", None) is None:
         app.state.retrieval = get_retrieval_service()
     try:
@@ -112,10 +125,18 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
     app.include_router(runs_router)
     app.include_router(demo_router)
 
-    @app.get("/api/health", tags=["meta"])
-    def health() -> dict[str, str]:
+    @app.get("/api/health", tags=["meta"], response_model=Health)
+    def health(request: Request) -> Health:
+        """Liveness plus what the footer shows: the sources date (null when unknown)."""
         s = get_settings()
-        return {"status": "ok", "llm_provider": s.llm_provider, "app_mode": s.app_mode}
+        info = getattr(request.app.state, "index_info", None)
+        return Health(
+            status="ok",
+            llm_provider=s.llm_provider,
+            app_mode=s.app_mode,
+            sources_as_of=info.sources_as_of if info else None,
+            sources_newest=info.sources_newest if info else None,
+        )
 
     return app
 

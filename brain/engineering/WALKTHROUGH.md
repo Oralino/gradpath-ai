@@ -851,3 +851,26 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
     and the recordings go stale.
   - *"Why keep a plan with open issues?"* The app's point is honesty: the demo shows the critic's
     blocking issue the same way a live run would.
+
+## Sources date (`ingestion/index_info.py`, `components/SourcesDate.tsx`, T-018 step 3)
+- **What it is:** the footer's "Sources as of 19 Nov 2026". Ingest writes a small committed file,
+  `knowledge_base/index_info.json`, after each index rebuild; the API reads it at startup and returns
+  the date from `/api/health`; a client component in the footer shows it.
+- **Decision: the oldest fetch date, not the newest.** "As of" claims the information is current
+  to that day. One page fetched on the 18th is only current to the 18th, so the newest date would
+  overstate it. The newest is returned too, for anyone who wants the range.
+- **Decision: a committed file, not a Qdrant query.** Demo mode never opens Qdrant, so a query
+  would leave the date empty exactly on the public site. The file is written only after a successful
+  rebuild, so it always describes what is really indexed.
+  - Rejected: a date typed by hand in the frontend (drifts the first time the corpus changes).
+- **Decision: manual sources don't date the index.** A source the owner saves by hand gets its
+  chunk date from the file's modified time, which is not a fetch date and changes on a fresh clone.
+  It is counted but skipped for the dates. The review caught this: our one manual source (BLS)
+  had pulled the footer back to 18 Nov while every web page was fetched on 19 Nov.
+- **Gotchas:** fetch stamps are UTC; a stamp with no zone is read as UTC too, and the frontend
+  formats the date in UTC so it never shifts by a day in the visitor's time zone. The footer
+  fetches after first paint and shows nothing on any failure, so a down API never breaks the page.
+  The API reads the file once at startup: restart it after a re-ingest. An approved source with
+  no processed chunks is logged, so a partial index doesn't pass silently.
+- **Likely questions:** *"Why does `--info-only` exist?"* To write the file for the current index
+  without re-fetching pages or spending Voyage tokens.

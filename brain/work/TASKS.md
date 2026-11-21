@@ -10,8 +10,7 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
       (design-advisor drafts, owner approves; T-011 design critique).
 - [ ] PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard). Moved out of Milestone 7
       (owner decision 2026-11-20, T-018) to a later milestone.
-- [ ] Milestone 7 (moved from 6 on 2026-11-20, not built there): a "sources as of" date the API
-      returns and the footer shows (`DESIGN.md` Known gaps and footer copy).
+- [x] A "sources as of" date the API returns and the footer shows (T-018 step 3).
 
 Answer quality (owner decision 2026-11-19: before Milestone 7's public demo):
 - [ ] Answer eval set: ~20 questions with must-contain facts plus must-refuse cases, scored in code.

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Atkinson_Hyperlegible_Next } from "next/font/google";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SourcesDate } from "@/components/SourcesDate";
 import "./globals.css";
 
 // Self-hosted at build time by next/font: no request to Google from the visitor's browser.
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </main>
         <footer className="border-t border-rule">
           <p className="mx-auto w-full max-w-5xl px-4 py-6 text-meta text-ink-muted sm:px-6 lg:px-8">
+            <SourcesDate />
             Preparation support only, not a hiring prediction · Answers can be wrong: check the
             sources.
           </p>

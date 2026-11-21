@@ -74,6 +74,8 @@ class Settings(BaseSettings):
     app_mode: Literal["local", "demo", "live"] = "demo"
     # Recorded runs served in every mode (relative to the repo root).
     demo_runs_path: str = "demo_runs"
+    # Index summary written by ingest, read by the API for "Sources as of" (T-018 step 3).
+    index_info_path: str = "knowledge_base/index_info.json"
 
 
 @lru_cache

@@ -13,6 +13,16 @@ export interface Citation {
   score: number;
 }
 
+// ---------- /api/health ----------
+
+export interface Health {
+  status: string;
+  llm_provider: string;
+  app_mode: string;
+  sources_as_of: string | null; // ISO date: the oldest page fetch in the index (T-018)
+  sources_newest: string | null; // ISO date
+}
+
 // ---------- /api/chat ----------
 
 export interface ChatRequest {

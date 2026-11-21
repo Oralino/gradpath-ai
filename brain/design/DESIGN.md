@@ -486,8 +486,9 @@ Don't:
 - Raw HTML, markdown beyond the safe subset (see Security rules), auto-linked URLs or retrieval scores shown as the main signal.
 
 ## Known gaps
-- **Sources date**: the API exposes no corpus date for "Sources as of {date}". Recommend the backend
-  return one (for example from ingestion, via `/api/health`) so it lives in one place; main session.
+- ~~**Sources date**~~: done in T-018 step 3. `/api/health` returns `sources_as_of` (the oldest page
+  fetch in the index, from `knowledge_base/index_info.json`); the footer shows "Sources as of 19 Nov
+  2026 · …" and leaves the date out when it is unavailable.
 - Decision 1 option A and decision 2 option B both need backend work and their own tickets.
 - `GapItem.profile_evidence_ids` (p-1, c-2) cannot be shown as text: the result does not return the
   profile facts. Showing "based on: your Study-group finder project" would strengthen the evidence

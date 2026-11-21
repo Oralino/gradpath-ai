@@ -89,5 +89,15 @@ rebuilds or flags its plan, local paths and more key kinds in the scan, the refu
 a tracing check, Qdrant closed if model setup fails. 588 backend tests. Served through `/api/demo`
 with every key blanked.
 
+Step 3 (2026-11-20): `knowledge_base/index_info.json` from `ingest --info-only` matches Qdrant
+(1,592 chunks, 27 documents); `/api/health` returns `sources_as_of`; the footer showed "Sources as
+of 18 Nov 2026 · …" in the browser (API + `next dev`), now 19 Nov after the review fix. code-reviewer:
+no bugs; fixed: manual sources no longer date the index (file time, not a fetch date), the summary
+is computed before the rebuild and written after it, a missing processed file is logged, tests for
+the run ordering. Not changed: the footer line reflows once when the date arrives (the date leads
+the sentence per DESIGN.md's copy); the "·" separators are read aloud like the rest of the footer.
+602 backend + 195 frontend tests; lint, type check and build clean. Note: running `npx prettier`
+once downloaded Prettier from npm (not a project tool); its formatting was reverted by hand.
+
 Remaining release checks are filled in at step 11. Release checks from `CLAUDE.md` apply (demo mode with no keys, visitor key never in logs,
 traces or responses, retrieval eval, the SECURITY.md checklist including its "From Milestone 7" line).

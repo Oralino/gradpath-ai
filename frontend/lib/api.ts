@@ -9,6 +9,7 @@ import type {
   CareerPrepResult,
   ChatAnswer,
   ChatRequest,
+  Health,
   JobAnalysis,
   ResumeImport,
   RunStarted,
@@ -109,6 +110,7 @@ function get<T>(path: string, signal?: AbortSignal): Promise<T> {
 }
 
 export const api = {
+  health: (signal?: AbortSignal) => get<Health>("/api/health", signal),
   assist: (body: AssistRequest, signal?: AbortSignal) =>
     post<AssistResponse>("/api/assist", body, signal),
   chat: (body: ChatRequest, signal?: AbortSignal) => post<ChatAnswer>("/api/chat", body, signal),

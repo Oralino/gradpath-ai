@@ -113,6 +113,14 @@ They are made by `demo/record.py` (step 2): a fixed list of examples run through
 the routes call, on the committed sample posting and fictional profile only, never traced, each
 file scanned for contact details, keys and local paths before it is written.
 
+**Sources date (T-018 step 3):** ingest writes `knowledge_base/index_info.json` (committed) after
+each successful index rebuild: the oldest and newest page fetch dates plus document and chunk
+counts (`ingestion/index_info.py`; `ingest --info-only` rewrites it from the processed chunks with
+no fetch or Voyage). The API reads it at startup in every mode and `/api/health` returns
+`sources_as_of` (the oldest date: an "as of" claim every source supports) and `sources_newest`; the
+footer shows "Sources as of {date}". Manual (owner-saved) sources are counted but don't set the
+dates (their stamp is a file time). Read once at startup: restart the API after a re-ingest.
+
 Deployed site:
 - **Demo mode (default):** replays recorded runs from `demo_runs/`; no model or embedding calls, no
   keys needed.
