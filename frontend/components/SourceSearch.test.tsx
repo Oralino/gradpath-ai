@@ -206,7 +206,8 @@ describe("limits and off", () => {
     const second = render(inMode(<SourceSearch />));
     search("a question");
     await screen.findByText("0:30");
-    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    // The interval starts in an effect after that render: wait for it rather than race it.
+    await waitFor(() => expect(vi.getTimerCount()).toBeGreaterThan(0));
     second.unmount();
     expect(vi.getTimerCount()).toBe(0);
   });
