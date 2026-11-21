@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import date
@@ -37,6 +38,32 @@ LLM_INVALID = "The language model returned an invalid response. Try again."
 SEARCH_LIMITED = "Search is rate limited on the free tier. Try again in a minute."
 SEARCH_DOWN = "Search is unavailable. Try again later."
 WORKFLOW_LIMIT = "The preparation workflow stopped at its step limit. Try again."
+KEY_REFUSED = "Anthropic refused this API key. Check the key, then try again."
+KEY_LIMITED = "Your Anthropic key is at its rate limit. Wait a minute, then try again."
+# Loggers that could print request details at DEBUG; capped in live mode (visitor keys).
+QUIET_IN_LIVE = ("anthropic", "httpx", "httpcore")
+REDIRECT_VARS = ("ANTHROPIC_BASE_URL", "ANTHROPIC_API_URL")
+
+
+def check_live_settings(settings: Settings) -> None:
+    """Refuse to start live mode unless every model call must use the visitor's key: the
+    provider is the Anthropic API and no server key is set (owner rule: no key the owner pays
+    for). Called by `lifespan`; the message names settings, never values."""
+    if settings.app_mode != "live":
+        return
+    if settings.llm_provider != "anthropic_api":
+        raise RuntimeError("APP_MODE=live needs LLM_PROVIDER=anthropic_api (visitor keys)")
+    if settings.anthropic_api_key is not None:
+        raise RuntimeError("APP_MODE=live must not have ANTHROPIC_API_KEY set on the server")
+    # The Anthropic SDK and langchain_anthropic read these from the process environment: set on
+    # the server, they would send every visitor's key to another host.
+    for name in REDIRECT_VARS:
+        if os.environ.get(name, "").strip():
+            raise RuntimeError(
+                f"APP_MODE=live must not have {name} set (it redirects visitor keys)"
+            )
+    for name in QUIET_IN_LIVE:
+        logging.getLogger(name).setLevel(logging.WARNING)
 
 
 class Health(BaseModel):
@@ -81,6 +108,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     Tests set `app.state` themselves and skip this. Tracing is decided here, once per process.
     """
     settings = get_settings()
+    check_live_settings(settings)
     configure_tracing(settings)
     if getattr(app.state, "demo", None) is None:
         app.state.demo = load_library(REPO_ROOT / settings.demo_runs_path)
@@ -128,6 +156,11 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
     for exc_type, status, detail in [
         (ClaudeCodeError, 502, LLM_DOWN),
         (anthropic.APIError, 502, LLM_DOWN),
+        # A visitor's key (live mode): refused or at its own limit. Matched before APIError by
+        # class (Starlette picks the most specific handler).
+        (anthropic.AuthenticationError, 401, KEY_REFUSED),
+        (anthropic.PermissionDeniedError, 401, KEY_REFUSED),
+        (anthropic.RateLimitError, 429, KEY_LIMITED),
         (voyageai.error.RateLimitError, 429, SEARCH_LIMITED),
         (WindowFull, 429, SEARCH_LIMITED),
         (voyageai.error.VoyageError, 503, SEARCH_DOWN),

@@ -104,7 +104,7 @@ because it is the safe one for a server:
 |---|---|---|---|---|
 | `local` | Owner's machine | On, with the server's credentials | Opened at startup | Allowed (`tracing.decide`) |
 | `demo` | Deployed | Off: 403 from `api/deps.require_model_routes` | Opened only when `VOYAGE_API_KEY` is set, for source search (`POST /api/search`, no model call); a failure to open turns search off instead of stopping startup, so demo still needs no keys | Off |
-| `live` | Deployed | Off until visitor keys are wired in (T-018 step 4) | Opened at startup | Off |
+| `live` | Deployed | On with the visitor's key from the `X-Anthropic-Key` header (401 without a well-formed one); refuses to start unless `LLM_PROVIDER=anthropic_api` and no server `ANTHROPIC_API_KEY` | Opened at startup (the owner's Voyage key) | Off |
 
 The recordings in `demo_runs/` (`demo/library.py`) are served in every mode by `GET /api/demo` and
 `GET /api/demo/{id}`. Each JSON file holds the inputs and the exact response, validated against the
@@ -112,6 +112,15 @@ same response models as the live routes; a file that drifts is skipped and `test
 They are made by `demo/record.py` (step 2): a fixed list of examples run through the same functions
 the routes call, on the committed sample posting and fictional profile only, never traced, each
 file scanned for contact details, keys and local paths before it is written.
+
+**Visitor keys (T-018 step 5):** in live mode `api/deps.visitor_key` reads `X-Anthropic-Key`
+(a header, because FastAPI echoes rejected body values in 422 responses), checks its shape only,
+and `get_answer_model` / `get_extraction_model` pass it to `get_chat_model(api_key=...)`; every
+API route builds its models through these two dependencies. A refused key answers 401, the
+visitor's own rate limit 429, both with fixed text and logged by type only. Background runs carry
+an owner tag (HMAC of the key with a per-process secret): polling with another key gets the same
+404 as an unknown id. The key lives in the request and, for a background run, in its worker thread
+until the run ends; nothing stores, logs, traces or returns it.
 
 **Source search (T-018 step 4):** `POST /api/search {query}` (`rag/sources.py`, `api/search.py`) is
 the retrieval half of RAG for visitors without a key: one Voyage request, the top passages (at most

@@ -12,6 +12,7 @@ can't be listed, finished runs expire after RUN_TTL_S, and an API restart forget
 """
 
 import contextvars
+import hmac
 import logging
 import threading
 import time
@@ -122,6 +123,7 @@ class _Run:
     finished: float | None = None
     result: CareerPrepResult | None = None
     error: str | None = None
+    owner: str | None = None  # live mode: a keyed hash of the starter's key (`deps.run_owner`)
 
 
 class RunStore:
@@ -145,8 +147,10 @@ class RunStore:
         context: WorkflowContext,
         settings: Settings,
         impl: NodeSet | None = None,
+        owner: str | None = None,
     ) -> str:
         """Take the slot (or raise RunBusy), start the run in a thread, return its id at once.
+        With an `owner` tag (live mode), `get` shows the run only to a caller with the same tag.
 
         The thread runs in a copy of the caller's context (`contextvars`), so the tracing rules
         and any request-scoped settings apply exactly as they would in the request itself.
@@ -157,7 +161,7 @@ class RunStore:
         # the thread owns the slot and releases it itself, so nothing after start() may release.
         try:
             run_id = str(uuid.uuid4())
-            run = _Run(started=self._clock())
+            run = _Run(started=self._clock(), owner=owner)
             worker = threading.Thread(
                 target=contextvars.copy_context().run,
                 args=(self._work, run, data, context, settings, impl),
@@ -231,8 +235,9 @@ class RunStore:
                 int(run.finished - run.started),
             )
 
-    def get(self, run_id: str) -> RunStatus | None:
-        """The run's current status, or None if the id is unknown, expired or not a uuid."""
+    def get(self, run_id: str, owner: str | None = None) -> RunStatus | None:
+        """The run's current status, or None if the id is unknown, expired, not a uuid, or the
+        run belongs to another key: all four look the same to the caller (no way to probe ids)."""
         try:
             key = str(uuid.UUID(run_id))
         except (ValueError, AttributeError, TypeError):
@@ -241,6 +246,8 @@ class RunStore:
             self._purge()
             run = self._runs.get(key)
             if run is None:
+                return None
+            if run.owner is not None and not hmac.compare_digest(run.owner, owner or ""):
                 return None
             end = run.finished if run.finished is not None else self._clock()
             return RunStatus(

@@ -109,5 +109,18 @@ breaks and cut cleanly, tests for the Voyage error paths. Left: the cross-module
 (the project's existing pattern). Per-IP limits (step 7) and CORS for this route (step 8) still to
 do. 629 backend tests.
 
+Step 5 (2026-11-20): visitor key in the `X-Anthropic-Key` header; live answers 401 without a
+well-formed one; every API route builds both model tiers through the key-aware dependencies (a spy
+test per route); refused key 401, the visitor's rate limit 429; runs bound to their key (HMAC owner
+tag, tested through `/api/career/runs` and `/api/assist`); live refuses to start without
+`LLM_PROVIDER=anthropic_api`, with a server `ANTHROPIC_API_KEY`, or with `ANTHROPIC_BASE_URL` /
+`ANTHROPIC_API_URL` set; SDK loggers capped at WARNING. code-reviewer (security): no path stores,
+logs, traces or returns the key; fixed: route-level ownership and per-route key tests, logger levels
+restored in tests, the host-redirect refusal, deploy notes in SECURITY.md. Moved to step 7: a made-up
+key of the right shape spends one Voyage search before Anthropic refuses it (passcode, per-IP
+limits, optional key pre-check), and a "no credit" message. qa-checker: ruff, 662 backend + 195
+frontend tests, secret and attribution scan, no key in any log call, `.env` untracked: all clean.
+Not tested with a real key: the owner has none (zero-cost rule).
+
 Remaining release checks are filled in at step 11. Release checks from `CLAUDE.md` apply (demo mode with no keys, visitor key never in logs,
 traces or responses, retrieval eval, the SECURITY.md checklist including its "From Milestone 7" line).

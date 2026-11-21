@@ -903,3 +903,36 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
     the evidence an answer would be grounded in.
   - *"Why show the route?"* It demonstrates the adaptive half of the app (which path a request would
     take) without a model call.
+
+## Visitor keys in live mode (`api/deps.py`, `api/main.py`, `workflows/runs.py`, T-018 step 5)
+- **What it is:** how a visitor's own Anthropic key reaches the model, and nothing else. The
+  browser sends it in an `X-Anthropic-Key` header on each request; `visitor_key` checks its shape;
+  the two model dependencies build Claude clients with it. Always-hard area: written by the lead,
+  reviewed and QA'd.
+- **Decision: a header, not a body field.** FastAPI's 422 responses echo the rejected input, so a
+  key in a mistyped body field could come straight back (found in T-017). A header we read
+  ourselves is never part of a validation error.
+- **Decision: shape check only.** `sk-ant-` plus 20-200 safe characters. Checking with Anthropic
+  would cost a call; a bad key fails on the first real call instead and gets "Anthropic refused this
+  key" (401).
+- **Decision: live mode cannot run on the owner's money.** Startup refuses unless the provider is
+  the Anthropic API and no server key is set, and the factory never falls back to a server key. So
+  even a misconfigured deploy can't bill the owner.
+- **Decision: runs belong to their key.** A background run stores an HMAC of the key (with a random
+  per-process secret), not the key; polling with a different key gets exactly the same 404 as a
+  missing run, so ids can't be probed (guide 02: unguessable ids alone aren't access control).
+  Rejected: a separate run token (another secret for the browser to keep).
+- **Decision: live refuses a redirected Anthropic host.** The SDK reads `ANTHROPIC_BASE_URL` /
+  `ANTHROPIC_API_URL` from the environment; set on a server they would send every visitor's key
+  elsewhere, so live mode won't start with either. (Claude Code's own shell sets one, which is how
+  the tests first caught it.)
+- **Gotchas:** the key lives in the worker thread while a run is going, then is gone. Local mode
+  ignores the header. The CAREER slot is still global: one visitor's run blocks others until step 7's
+  per-IP limits. There is no real-key test: the owner has no paid key (zero-cost rule); tests use
+  real `ChatAnthropic` objects with fake keys and simulated Anthropic errors.
+- **Likely questions:**
+  - *"How do you know the key never hits the logs?"* Tests run whole requests at DEBUG level,
+    including refused keys, and assert the key is absent from the logs and responses; the SDK and
+    HTTP-client loggers are capped at WARNING in live mode.
+  - *"Why not store the key in a session?"* No sessions means nothing to steal and nothing to expire;
+    the browser keeps it in memory (step 9) and sends it per request.

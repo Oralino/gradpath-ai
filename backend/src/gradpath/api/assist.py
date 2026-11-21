@@ -19,6 +19,7 @@ from gradpath.api.deps import (
     get_extraction_model,
     get_retrieval,
     require_model_routes,
+    run_owner,
 )
 from gradpath.api.runs import get_run_store
 from gradpath.config import get_settings
@@ -46,6 +47,7 @@ def assist(
     fast: Annotated[BaseChatModel, Depends(get_extraction_model)],
     smart: Annotated[BaseChatModel, Depends(get_answer_model)],
     store: Annotated[RunStore, Depends(get_run_store)],
+    owner: Annotated[str | None, Depends(run_owner)],
 ) -> AssistResponse:
     """Route, then run the chosen path under that path's concurrency cap: the routing call and
     a RAG answer share the chat cap. The workflow starts in the background (T-016): it takes the
@@ -81,6 +83,7 @@ def assist(
                     data,
                     context=WorkflowContext(retrieval=retrieval, fast_llm=fast, smart_llm=smart),
                     settings=settings,
+                    owner=owner,
                 )
             except RunBusy:
                 raise HTTPException(status_code=503, detail=CAREER_BUSY) from None

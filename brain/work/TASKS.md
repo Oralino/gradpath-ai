@@ -46,19 +46,21 @@ The milestone plan and its story (what, why, what it does) live in [MILESTONES.m
 ## Deferred from the Milestone 1 code review (2026-11-17)
 Before any deploy (Milestones 7–8):
 - [ ] Auth or passcode and per-IP rate limits on the model routes (each call can start a Claude
-      Code process and spend plan quota). Concurrency caps done: `api/limits.py` (T-003).
+      Code process and spend plan quota). T-018 step 7. From the step 5 review: a made-up key of
+      the right shape passes the live gate and spends one Voyage search before Anthropic refuses
+      it; the passcode and per-IP limits cover it, and a free key pre-check (models list, cached
+      per owner tag) is an option there. Also: a kinder message for Anthropic's "no credit" 400. Concurrency caps done: `api/limits.py` (T-003).
       Known gap (T-006): `/api/assist` spends its routing call before the career cap can answer
       503 while a workflow is running; per-IP limits close it.
 - [x] Enforce `APP_MODE`; the app starts and serves demo mode with no keys set (T-018 step 1).
-- [ ] `POST /api/career/prepare` (like the other routes) uses the server's model credentials
-      whatever `APP_MODE` says; live mode must pass the visitor's key instead (T-003 review).
+- [x] Live mode passes the visitor's key to every model route (T-018 step 5).
 - [x] LangGraph's "Retrying task" log line no longer carries exception text (filter in
       `workflows/graph.py`, T-003).
 - [x] `workflows.cli --out` saves a real profile's results only under `private/` (T-003).
 - [ ] Before live mode: a 422 handler that drops `input` from FastAPI's validation errors, so a
       visitor key sent in a wrong field is never echoed back (found in T-017).
-- [ ] When live-mode key handling lands: the visitor-key tracing guard in `get_chat_model` checks
-      once, when the model is built; re-check it covers how routes build models (T-002 review).
+- [x] Re-checked (T-018 step 5): every API route builds models through `deps.get_answer_model` /
+      `get_extraction_model` -> `get_chat_model(api_key=...)`, and tracing is off in live mode.
 Milestone 2 (tracing):
 - [x] Wire `LANGSMITH_TRACING` explicitly and decide what may reach LangSmith (T-002, `tracing.py`).
 - [x] `ChatClaudeCode._generate` worker thread now runs in a copy of the caller's context (T-002).

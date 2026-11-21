@@ -5,7 +5,7 @@ import logging
 from datetime import date
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from fastapi.testclient import TestClient
 
 from gradpath.api import deps
@@ -252,8 +252,9 @@ def test_model_routes_are_refused_outside_local_mode(monkeypatch, mode, method, 
         app.dependency_overrides[dep] = must_not_run
     # An invalid body too: the guard answers before validation, so nothing is echoed back.
     resp = getattr(TestClient(app), method)(path, **({"json": {}} if method == "post" else {}))
-    assert resp.status_code == 403
-    assert resp.json() == {"detail": deps.MODEL_ROUTES_OFF}
+    # Demo is closed; live without a key header asks for one (T-018 step 5).
+    expected = (403, deps.MODEL_ROUTES_OFF) if mode == "demo" else (401, deps.KEY_NEEDED)
+    assert (resp.status_code, resp.json()) == (expected[0], {"detail": expected[1]})
 
 
 def test_the_default_mode_is_demo(monkeypatch):
@@ -262,13 +263,17 @@ def test_the_default_mode_is_demo(monkeypatch):
     assert Settings(_env_file=None).app_mode == "demo"
 
 
-@pytest.mark.parametrize("mode", ["demo", "live", "staging", ""])
-def test_the_guard_fails_closed_for_anything_but_local(monkeypatch, mode):
-    """Even a mode value that validation would reject (a future or mistyped mode) is refused."""
+@pytest.mark.parametrize(
+    ("mode", "status"), [("demo", 403), ("staging", 403), ("", 403), ("live", 401)]
+)
+def test_the_guard_fails_closed_for_anything_but_local(monkeypatch, mode, status):
+    """Even a mode value that validation would reject (a future or mistyped mode) is refused;
+    live without a key header is refused too."""
     monkeypatch.setattr(deps, "get_settings", lambda: Settings.model_construct(app_mode=mode))
+    request = Request({"type": "http", "headers": []})
     with pytest.raises(HTTPException) as err:
-        deps.require_model_routes()
-    assert err.value.status_code == 403
+        deps.visitor_key(request)
+    assert err.value.status_code == status
 
 
 # --- starting the app -------------------------------------------------------------------------
