@@ -1124,3 +1124,18 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
     are scored in code and the judge only answers a narrow question (does this passage state this
     claim?), with its negative verdicts checked by reading.
 
+## One topic of a job is a question, not a plan (`router/rules.py`, `router/route.py`, T-021)
+- **What happened:** with a posting and profile attached, "How should I prepare for the PostgreSQL
+  indexing part of this role?" ran the full workflow. A rule treated any personal message with
+  "prepare" plus both inputs as whole-job preparation, without asking the model.
+- **Decision:** the rule decides the workflow only on whole-job words (roadmap, plan, missing,
+  gaps, "am I ready") and never when the message narrows itself ("part", "only", "just",
+  "section"...); the classifier prompt says one-topic preparation is a knowledge question.
+  Rejected: keeping "prepare" in the rule and guessing the topic with more regexes (rules should
+  decide only what is certain; the model is there for the rest).
+- **Measured:** 6 new labels, 36/36 correct; two old cases moved from rules to the model and stayed
+  correct.
+- **Gotcha:** "ready" alone was too broad ("get ready for the SQL questions"), found while tracing
+  the new labels before the run; only "am I ready" counts now.
+- **Likely question:** *"Why not let the model decide everything?"* Rules are free and instant for
+  the certain cases; every case they give up costs a routing call (about 3 s).

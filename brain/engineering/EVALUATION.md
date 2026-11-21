@@ -513,3 +513,23 @@ Unchanged from the labels v1.3 semantic baseline (same index: corpus v2, 1,592 c
 of uncovered rejected (`q-031`, `q-047`, `q-049`, `q-050` clear it); the same three partial misses
 (`q-001`, `q-027`, `q-034`). Milestone 7 changed modes, limits and the answer prompt, not
 retrieval. One Voyage call. Output: `evaluation/results/retrieval-20261121-063353.json`.
+
+### Routing after the topic-scope fix (2026-11-21, labels v1.1, T-021)
+Six new owner-approved cases (tag `topic_scope`, `rt-031`..`rt-036`): four questions about one
+topic of the attached job that must get a cited answer, and two whole-job requests that must still
+run the workflow. The rule now decides the workflow only on whole-job wording, and the classifier
+prompt says one-topic preparation is a knowledge question. One run, Haiku via Claude Code.
+Output: `evaluation/results/routing-20261121-101416.json`.
+
+| Measure | Result |
+|---|---|
+| Accuracy (route + action), 36 cases | 36/36 |
+| Decided by rules / by the model | 9/9 / 27/27 correct |
+| Workflow precision / recall | 1.0 / 1.0 |
+| `topic_scope` cases | 6/6 |
+| Mean routing call (model) | 2.88 s |
+
+- Two original cases ("What should I study to get this job?", "Help me prepare for this role in
+  the next four weeks") moved from the rules to the model and are still routed correctly.
+- Limits: one run; the model decides more cases than before (27 of 36 vs 20 of 30), each costing a
+  routing call.
