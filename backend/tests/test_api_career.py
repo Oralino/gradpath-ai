@@ -1,6 +1,7 @@
 """`POST /api/career/prepare` and the workflow CLI report: fake models, in-memory knowledge base."""
 
 import pytest
+from conftest import plain
 from fastapi.testclient import TestClient
 from langgraph.errors import GraphRecursionError
 from test_workflow_planning import (
@@ -100,7 +101,7 @@ def test_step_limit_gives_a_fixed_message(kb_service, monkeypatch):
         "/api/career/prepare", json={"job_description": JD, "profile": PROFILE}
     )
     assert resp.status_code == 500
-    assert resp.json() == {
+    assert plain(resp.json()) == {
         "detail": "The preparation workflow stopped at its step limit. Try again."
     }
 

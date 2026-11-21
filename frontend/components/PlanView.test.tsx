@@ -1,3 +1,4 @@
+import { inLocal, stubFetch } from "@/components/serverFixtures";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { jsonResponse, planResult, runStatus } from "@/components/planFixtures";
@@ -19,7 +20,7 @@ function mockApi({ start, poll }: { start?: Handler; poll?: Handler }) {
     if (init.method === "POST") return start ? start(url, init) : jsonResponse(202, { run_id: RUN_ID });
     return poll ? poll(url, init) : jsonResponse(200, runStatus());
   });
-  vi.stubGlobal("fetch", fn);
+  stubFetch(fn);
   return fn;
 }
 
@@ -46,7 +47,7 @@ afterEach(() => {
 describe("inputs", () => {
   test("Build plan is disabled until a posting and a profile are set, with the reason", () => {
     mockApi({});
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     const button = screen.getByRole("button", { name: "Build plan" }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     expect(screen.getByText("Add a job posting and choose a profile to build a plan.")).toBeTruthy();
@@ -58,14 +59,14 @@ describe("inputs", () => {
 
   test("picks up a posting handed over by the Job screen once and clears it", () => {
     window.sessionStorage.setItem("gradpath-posting", POSTING);
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     expect(screen.getByText(`Job posting: pasted, ${POSTING.length} chars`)).toBeTruthy();
     expect(window.sessionStorage.getItem("gradpath-posting")).toBeNull();
   });
 
   test("a handed-over posting over the limit is not dropped silently", () => {
     window.sessionStorage.setItem("gradpath-posting", "x".repeat(20_001));
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     expect(screen.getByText(/over the 20,000 character limit, so it was not carried over/)).toBeTruthy();
     expect(screen.getByText("Job posting: missing")).toBeTruthy();
     expect(window.sessionStorage.getItem("gradpath-posting")).toBeNull();
@@ -75,7 +76,7 @@ describe("inputs", () => {
     const saved = { ...SAMPLE_PROFILE, skills: ["Rust"] };
     saveProfile(saved);
     const fetchMock = mockApi({ poll: () => jsonResponse(200, runStatus({ status: "done", result: planResult() })) });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     fireEvent.click(screen.getByRole("button", { name: "Use the sample posting" }));
     fireEvent.click(await screen.findByRole("button", { name: "Use your saved profile" }));
     build();
@@ -87,7 +88,7 @@ describe("inputs", () => {
 
   test("a posting under 50 characters blocks the start", () => {
     const fetchMock = mockApi({});
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     fireEvent.click(screen.getByRole("button", { name: "Paste a job posting" }));
     fireEvent.change(screen.getByLabelText("Job posting"), { target: { value: "too short" } });
     fireEvent.click(screen.getByRole("button", { name: "Use the sample profile (fictional)" }));
@@ -107,7 +108,7 @@ describe("a run", () => {
       },
     });
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     fillInputs();
     build();
     await screen.findByText("running");
@@ -139,7 +140,7 @@ describe("a run", () => {
       },
       poll: () => jsonResponse(200, runStatus({ status: "done", result: planResult() })),
     });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     fillInputs();
     build();
     const heading = await screen.findByRole("heading", { name: "Another preparation run is in progress." });
@@ -152,7 +153,7 @@ describe("a run", () => {
 
   test("a 404 while polling says the run expired", async () => {
     mockApi({ poll: () => jsonResponse(404, { detail: "not found" }) });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     fillInputs();
     build();
     await screen.findByRole("heading", { name: "This run has expired" });
@@ -163,7 +164,7 @@ describe("a run", () => {
 
   test("a failed run shows the fixed text, never other server text", async () => {
     mockApi({ poll: () => jsonResponse(200, runStatus({ status: "failed", error: "x".repeat(400) })) });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     fillInputs();
     build();
     await screen.findByRole("heading", { name: "The preparation run failed" });
@@ -175,7 +176,7 @@ describe("a run", () => {
     const fetchMock = mockApi({
       poll: () => jsonResponse(200, done ? runStatus({ status: "done", result: planResult() }) : runStatus()),
     });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     fillInputs();
     build();
     fireEvent.click(await screen.findByRole("button", { name: "Stop waiting" }));
@@ -193,7 +194,7 @@ describe("a run", () => {
   test("a reload resumes the run kept in sessionStorage", async () => {
     window.sessionStorage.setItem(RUN_STORAGE_KEY, RUN_ID);
     const fetchMock = mockApi({ poll: () => jsonResponse(200, runStatus({ elapsed_s: 95 })) });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     await screen.findByText("1:35");
     expect(screen.getByText("running")).toBeTruthy();
     expect(posts(fetchMock)).toHaveLength(0);
@@ -202,7 +203,7 @@ describe("a run", () => {
   test("a junk run id in storage is ignored", () => {
     window.sessionStorage.setItem(RUN_STORAGE_KEY, "../../etc");
     const fetchMock = mockApi({});
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     expect(screen.getByRole("button", { name: "Build plan" })).toBeTruthy();
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -211,7 +212,7 @@ describe("a run", () => {
     // The first poll never answers (no reply): the timer runs on until the deadline.
     mockApi({ poll: () => new Promise<Response>(() => {}) });
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     fillInputs();
     build();
     await screen.findByRole("button", { name: "Stop waiting" });
@@ -238,7 +239,7 @@ describe("a run", () => {
         offline ? Promise.reject(new TypeError("offline")) : jsonResponse(200, runStatus({ status: "done", result: planResult() })),
     });
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     fillInputs();
     build();
     await screen.findByRole("button", { name: "Stop waiting" });
@@ -258,7 +259,7 @@ describe("a run", () => {
   test("an unknown server error text is replaced by the fixed one; a known one is shown", async () => {
     let error = "disk full on /var/secret";
     mockApi({ poll: () => jsonResponse(200, runStatus({ status: "failed", error })) });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     fillInputs();
     build();
     await screen.findByRole("heading", { name: "The preparation run failed" });
@@ -275,7 +276,7 @@ describe("a run", () => {
       poll: () => jsonResponse(404, { detail: "gone" }),
       start: () => new Promise<Response>(() => {}),
     });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     await screen.findByRole("heading", { name: "This run has expired" });
     window.sessionStorage.setItem(RUN_STORAGE_KEY, RUN_ID); // as if left over from another tab state
     fillInputs();
@@ -297,7 +298,7 @@ describe("a run", () => {
       },
     });
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     fillInputs();
     build();
     await screen.findByRole("button", { name: "Stop waiting" });
@@ -314,13 +315,13 @@ describe("a run", () => {
 describe("result and corrections", () => {
   test("the last plan is shown again after a reload", () => {
     window.sessionStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(planResult({ status: "partial" })));
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     return screen.findByRole("heading", { level: 2, name: "Partial preparation plan" });
   });
 
   test("a junk stored result is ignored and removed", () => {
     window.sessionStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify({ status: "hacked" }));
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     expect(screen.queryByRole("navigation", { name: "Plan sections" })).toBeNull();
     expect(window.sessionStorage.getItem(RESULT_STORAGE_KEY)).toBeNull();
   });
@@ -332,7 +333,7 @@ describe("result and corrections", () => {
     ["a gap that is not an object", planResult({ gaps: [null] as never })],
   ])("right top-level shape with %s does not crash and is dropped", (_name, bad) => {
     window.sessionStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(bad));
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     expect(screen.getByRole("button", { name: "Build plan" })).toBeTruthy();
     expect(screen.queryByRole("navigation", { name: "Plan sections" })).toBeNull();
     expect(window.sessionStorage.getItem(RESULT_STORAGE_KEY)).toBeNull();
@@ -340,14 +341,14 @@ describe("result and corrections", () => {
 
   test("a stored result over 500 KB is ignored", () => {
     window.sessionStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(planResult({ errors: ["x".repeat(500_001)] })));
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     expect(screen.queryByRole("navigation", { name: "Plan sections" })).toBeNull();
   });
 
   test("a busy re-run keeps the previous plan", async () => {
     window.sessionStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(planResult()));
     mockApi({ start: () => jsonResponse(503, { detail: "busy" }) });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     await screen.findByRole("heading", { name: "Correct an assumption" });
     fillInputs();
     fireEvent.click(screen.getByRole("button", { name: "Build plan again" }));
@@ -359,7 +360,7 @@ describe("result and corrections", () => {
   test("corrections: add, count, remove, limits, and a re-run sends them", async () => {
     window.sessionStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(planResult()));
     const fetchMock = mockApi({ poll: () => jsonResponse(200, runStatus({ status: "done", result: planResult() })) });
-    render(<PlanView />);
+    render(inLocal(<PlanView />));
     await screen.findByRole("heading", { name: "Correct an assumption" });
     const rerun = screen.getByRole("button", { name: "Re-run with corrections" }) as HTMLButtonElement;
     expect(rerun.disabled).toBe(true);
@@ -392,7 +393,7 @@ describe("result and corrections", () => {
 
 test("an 11th correction is refused", async () => {
   window.sessionStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(planResult()));
-  render(<PlanView />);
+  render(inLocal(<PlanView />));
   await screen.findByRole("heading", { name: "Correct an assumption" });
   for (let i = 1; i <= 10; i += 1) {
     fireEvent.change(screen.getByLabelText("Correction"), { target: { value: `Correction ${i}` } });

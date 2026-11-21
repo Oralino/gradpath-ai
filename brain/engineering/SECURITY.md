@@ -14,7 +14,9 @@ statuses and permissions are decided in our code; the model only fills validated
 ## Attack surface today
 - **API** (`api/`): `/api/chat`, `/api/jobs/analyze`, `/api/assist`, `/api/career/prepare`,
   `/api/career/runs` (start) and `/api/career/runs/{id}` (poll), `/api/profile/from-resume`,
-  `/api/health`; no login, no cookies, no CORS middleware, not deployed. Runs on the owner's PC.
+  `/api/health`, `/api/demo`, `/api/demo/{id}` and `/api/search` (T-018: no model call, the owner's
+  Voyage key, per-IP limited); live routes behind a passcode; no cookies, no CORS middleware, an
+  Origin check on POSTs (T-018 step 8); not deployed. Runs on the owner's PC.
 - **Frontend** (`frontend/`, Milestone 6): Next.js pages that call same-origin `/api/*`, which Next
   forwards to the API, so the backend address stays server-side. The profile and the last plan stay
   in the browser (localStorage / sessionStorage) and leave it only inside a request the visitor makes.
@@ -23,8 +25,10 @@ statuses and permissions are decided in our code; the model only fills validated
 - **Ingestion** (`ingestion/`): fetches approved URLs from `knowledge_base/source_manifest.csv`, run
   by the owner only.
 - **Vector store**: local Qdrant in file mode (`backend/data/qdrant/`, no network port).
-- **Not built yet**: demo/live modes and visitor keys (7), deploy (8), file uploads (7; T-014 takes
-  pasted resume text only).
+- **Modes** (T-018): `APP_MODE` local / demo / live, default demo. Outside local every model route
+  answers 403 (`api/deps.require_model_routes`, deny by default); `/api/demo` serves recorded runs.
+- **Not built yet**: visitor keys (7), deploy (8), file uploads (later; T-014 takes pasted resume
+  text only).
 
 Status key: ✅ defended · ⚠️ gap, fix now · 🕒 applies from a later milestone · — does not apply.
 
@@ -33,8 +37,8 @@ Status key: ✅ defended · ⚠️ gap, fix now · 🕒 applies from a later mil
 | Threat | Status | Where / defence today | Gap and when |
 |---|---|---|---|
 | SQL injection | — | No SQL database. Qdrant is queried through its client with typed filters, never string-built queries. | If a database is added (accounts, Later), parameterised queries only. |
-| XSS | ✅ / 🕒 8 | API returns JSON only; model text is bounded (1,000 chars, router reason 200). The frontend (Milestone 6, release-checked 2026-11-20) follows the rules in the next column. | Keep these rules: render model and retrieved text as plain text (React escaping, no `dangerouslySetInnerHTML`, no raw-HTML markdown: only the safe subset in `frontend/lib/modelText.ts`, parsed to data and rendered as fixed React elements, links reduced to their text); links only `http(s)` and only `source_url` values from the manifest. Still to do: a Content-Security-Policy on deploy (8). |
-| CSRF | 🕒 7 | No cookies or sessions, so a cross-site page has no credentials to ride on. | Milestone 7: keep auth out of cookies (header token or passcode per request); CORS allow-list of the frontend origin only; test that a cross-site `text/plain` form POST is refused (check FastAPI's JSON content-type handling then, not assumed). |
+| XSS | ✅ / 🕒 8 | API returns JSON only; model text is bounded (1,000 chars, router reason 200). The frontend (Milestone 6, release-checked 2026-11-20) follows the rules in the next column. | Keep these rules: render model and retrieved text as plain text (React escaping, no `dangerouslySetInnerHTML`, no raw-HTML markdown: only the safe subset in `frontend/lib/modelText.ts`, parsed to data and rendered as fixed React elements, links reduced to their text); links only `http(s)` and only `source_url` values from the manifest. Source search (T-018) returns retrieved excerpts: same rule, plain text only, links only from `source_url`. Still to do: a Content-Security-Policy on deploy (8). |
+| CSRF | ✅ | No cookies or sessions; the live passcode and visitor key are custom headers a form can't set; FastAPI rejects every content type a form can send (measured: `text/plain`, url-encoded, multipart, none -> 422); `OriginCheck` refuses a POST whose `Origin` isn't in `ALLOWED_ORIGINS` (403, before anything runs); no CORS middleware, so cross-origin reads and preflights get no permission (T-018 step 8, `test_cross_site.py`, checked through `next dev`). | Milestone 8: add the deployed frontend's origin to `ALLOWED_ORIGINS` and check that Vercel's rewrite forwards the browser's `Origin` (if it drops it, requests arrive with none and pass, which is still safe; if it rewrites it, allow that value). Make a real POST through the deployed site and one with a forged foreign `Origin` through the Vercel URL (expect 403); preview-deployment URLs get 403 unless listed. |
 | SSRF | ✅ | `ingestion/fetch.py`: only manifest URLs with status `approved`; robots.txt re-checked on every redirect hop; content-type allow-list; at most 5 redirects. Users can't submit URLs. | Fixed in T-007: every URL and redirect hop must be https on port 443 and a manifest host; private, numeric and localhost hosts refused. Known limit: no DNS check of a manifest host. |
 | Path traversal | ✅ | `workflows/cli.py` `out_allowed`: a real profile's results only under `private/`; `evaluation/workflow_eval.py` `load_profile` refuses paths outside the repo. The API takes no file paths. | Uploads (7) must never use a client file name as a path. |
 | Unsafe file uploads | 🕒 7 | No upload endpoint. | Before any upload: size limit, type from the file's signature not its name, parse in memory, never execute or serve back, never index into the shared collection. High-risk area in CLAUDE.md. |
@@ -49,10 +53,10 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 
 | Threat | Status | Rule for Milestone 7 |
 |---|---|---|
-| Brute force, password spraying, credential stuffing | 🕒 7 | No user passwords. If a demo passcode is added: long random value, constant-time compare, per-IP rate limit and back-off on failures, never logged. |
+| Brute force, password spraying, credential stuffing | ✅ | No user passwords. The live passcode (T-018 step 7): 16+ characters enforced at startup, constant-time compare, 5 failures per IP in 15 min lock that IP, never logged or echoed (tested). |
 | Session hijacking, session fixation | 🕒 7 | Prefer no sessions. If one is ever needed: `HttpOnly`, `Secure`, `SameSite=Strict`, a new id after login, short expiry. |
 | Privilege escalation, broken access control | 🕒 7 | One role (visitor). Settings that cost money (revision limit, model choice) come only from server settings, never from the request: already true for `max_revisions` (`api/career.py`). |
-| IDOR / BOLA | ✅ | Run ids (T-016): random uuid4, validated, not listable, the same 404 for unknown/expired/malformed; a run record never holds the posting or profile; the result (profile-derived reasoning) is kept in memory for 15 min after the run, at most 20 runs. Anyone holding a run id can read that result until it expires. |
+| IDOR / BOLA | ✅ | Live mode (T-018 step 5): each run is bound to the key that started it (HMAC owner tag; another key gets the same 404 as an unknown id). Run ids (T-016): random uuid4, validated, not listable, the same 404 for unknown/expired/malformed; a run record never holds the posting or profile; the result (profile-derived reasoning) is kept in memory for 15 min after the run, at most 20 runs. Anyone holding a run id can read that result until it expires. Guide 02 says unguessable ids aren't access control: done for live mode (above); local mode stays unbound (one user). |
 
 ## 03 API security
 
@@ -60,9 +64,9 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 |---|---|---|---|
 | Input validation | ✅ | Pydantic schemas with bounds: resume text 100–15,000 (stripped), question 2,000, job description 50–20,000, profile 12,000 total, corrections 10 × 500, router message 3–2,000 (whitespace-only refused). | — |
 | Mass assignment | ✅ | `extra="forbid"`; the workflow refuses node writes to protected keys (`workflows/graph.py` `_wrap`). | — |
-| Excessive data exposure | ✅ | Fixed error messages (`api/main.py`); exception text never returned; results are typed response models. | — |
-| Resource limits | ✅ / 🕒 7 | Concurrency caps (`api/limits.py`: chat 2, jobs 1, career 1, else 503); revision limit 0–3; recursion backstop. | Workflow time budget done (T-006: 300 s, then a labelled fallback); per-IP rate limits (7). |
-| Inventory | ✅ | Seven routes, all in `api/main.py` (resume import T-014; run start and poll T-016). | Keep the list in ARCHITECTURE.md current. |
+| Excessive data exposure | ✅ | Fixed error messages (`api/main.py`); exception text never returned; results are typed response models. 422s carry only `loc`/`msg`/`type`: no `input` or `ctx`, unknown field names and non-identifier locations masked (`safe_validation_errors`, T-018 step 6). | — |
+| Resource limits | ✅ | Concurrency caps (`api/limits.py`: chat 2, jobs 1, career 1, search 2, else 503); source search embeds without waiting or retrying (`ThrottledEmbeddings.embed_query_now`: a full Voyage window or a 429 answers 429 at once, one Voyage request at most, T-018); revision limit 0–3; recursion backstop. | Workflow time budget done (T-006: 300 s, then a labelled fallback); per-IP rate limits done (T-018 step 7, `api/ratelimit.py`). |
+| Inventory | ✅ | Ten routes, all in `api/main.py` (resume import T-014; run start and poll T-016; `/api/demo` list and get and `/api/search`, T-018). `test_demo.py` fails if a route is added without being listed as open or guarded. | Keep the list in ARCHITECTURE.md current. |
 
 ## 04 Network and infrastructure
 
@@ -97,12 +101,12 @@ Solo project, so the realistic risks are a phished account or a leaked key.
 | Direct prompt injection | ✅ | User text is data in delimited blocks (`workflows/prompting.py` `block()`, `rag/answer.py`); the router HTML-escapes the whole message and the model only names a `kind`, while code picks the route (`router/route.py`). Ids, statuses, pass/fail and limits are decided in code. Tested: `test_router.py`, the wf-004 injection eval case. | — |
 | Indirect prompt injection | ✅ | Retrieved chunks and postings are wrapped and labelled as data; models have no tools, so injected text can only bend wording. | Fixed in T-008: untrusted text is NFKC-normalised and stripped of invisible format characters, and any tag opener (or a look-alike bracket) followed by one of our tag names is neutralised. |
 | RAG poisoning | ✅ | See 05 Tampering: approved sources only, provenance per chunk, rebuild and rollback. | A diff review of changed chunks on re-ingest (Later). |
-| Sensitive information disclosure | ✅ | No secrets in prompts. Logs record exception types only (router, workflow retry filter, API handlers). Tracing redacts and is off for visitors (`tracing.py`). Voyage receives questions and requirement text, not the profile; Anthropic receives the job description and profile (needed for the task). Resume import (T-014): the pasted resume goes to the fast model once, under `tracing_context(enabled=False)` (tested, also through `ChatClaudeCode`), is never logged or stored, and model/SDK errors are logged by type only; contact details are dropped by the prompt and scrubbed in code. | Live mode (7): the visitor's key is never logged, stored or traced (release check). |
+| Sensitive information disclosure | ✅ | No secrets in prompts. Logs record exception types only (router, workflow retry filter, API handlers). Tracing redacts and is off for visitors (`tracing.py`). Voyage receives questions and requirement text, not the profile; Anthropic receives the job description and profile (needed for the task). Resume import (T-014): the pasted resume goes to the fast model once, under `tracing_context(enabled=False)` (tested, also through `ChatClaudeCode`), is never logged or stored, and model/SDK errors are logged by type only; contact details are dropped by the prompt and scrubbed in code. | Live mode (T-018 step 5): the key travels in the `X-Anthropic-Key` header, is shape-checked, passed only to the model client and never logged, stored, traced or returned (tested in `test_visitor_key.py`); live refuses to start with a server key; the anthropic/httpx loggers are capped at WARNING. Still a release check on the deployed site. |
 | Cross-tenant leakage | — | Single shared public corpus; no user documents are indexed. | Rule: uploads are never added to the shared collection. |
 | Vector database attacks | ✅ / 🕒 8 | Local file store; only the ingest command writes. | Qdrant Cloud (8): key only on the server; use a read-only key for serving if the free tier offers one (check then). |
 | Excessive agency | ✅ | No model has tools: `ChatClaudeCode` runs with `tools=[]`, `setting_sources=[]`, `max_turns=3` (`providers/claude_code.py`). Every output is a validated Pydantic model; nothing the model says triggers an action. | Keep: any future tool needs an allow-list and server-side checks. |
 | Insecure output handling | ✅ | Outputs validated; ids filtered to known facts and chunks; model text bounded; the frontend renders it as text (see XSS). | — |
-| Unbounded consumption | ✅ / 🕒 7 | Size limits, concurrency caps, revision limit, `max_turns`, one batched Voyage call per request. | Time budget done (T-006); per-IP limits (7). |
+| Unbounded consumption | ✅ | Size limits, concurrency caps, revision limit, `max_turns`, one batched Voyage call per request; per-IP limits and a global daily search cap (T-018 step 7). | Time budget done (T-006). |
 | System prompt leakage | ✅ | The prompts are public in the repo by design; none holds a secret or a rule that security depends on. | — |
 | Model supply chain, theft, poisoning | — | Hosted models only; no model files, no fine-tuning. Libraries pinned (see 04). | — |
 | Hallucination | ✅ | Answers only from retrieved evidence, citations checked in code, abstention below the 0.45 threshold, critic + revision, evaluations in EVALUATION.md. | Grounding check beyond citation ids (TASKS). |
@@ -129,3 +133,12 @@ From guide 09, narrowed to this app. Run before each release; the project's rele
 - [ ] From Milestone 7: auth on model routes, per-IP limits, CORS allow-list, visitor key never
       logged or traced, demo mode works with no keys.
 - [ ] From Milestone 8: HTTPS only, security headers, `/docs` decision, separate dev and prod keys.
+- [ ] Live deploy (T-018): exactly one uvicorn worker (the run store, run-owner secret and slots
+      are per process); never `--log-level trace`; no proxy or platform log format that records
+      request headers (`X-Anthropic-Key`); `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_URL` unset (live
+      refuses to start otherwise).
+- [ ] Live deploy, proxy (T-018 step 7 review): check the real `X-Forwarded-For` chain on Render
+      before setting `TRUSTED_PROXY_HOPS` (too low: every visitor shares one address and 5 wrong
+      passcodes lock everyone out; too high: a client-written entry is trusted); run uvicorn so it
+      does not rewrite the client address from the header itself (`--no-proxy-headers`, or no
+      `FORWARDED_ALLOW_IPS=*`); decide `/docs`, `/redoc`, `/openapi.json` in demo and live.

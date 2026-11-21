@@ -1,3 +1,4 @@
+import { inLocal, stubFetch } from "@/components/serverFixtures";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ProfileForm } from "@/components/ProfileForm";
@@ -43,14 +44,14 @@ function jsonResponse(status: number, body: unknown): Response {
 
 function mockFetch(impl: (init: RequestInit) => Promise<Response>) {
   const fn = vi.fn((_url: string, init: RequestInit) => impl(init));
-  vi.stubGlobal("fetch", fn);
+  stubFetch(fn);
   return fn;
 }
 
 const click = (name: string) => fireEvent.click(screen.getByRole("button", { name }));
 
 async function renderForm() {
-  render(<ProfileForm />);
+  render(inLocal(<ProfileForm />));
   await screen.findByText(/Stored only in this browser/);
   document.querySelector("details")!.open = true;
 }

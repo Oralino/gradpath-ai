@@ -8,6 +8,7 @@ date, the configuration and the dataset version. Design is in `ARCHITECTURE.md`.
 | `retrieval_questions.jsonl` | Questions with their relevant pages or sections (v1.3, 2026-11-19) | 50 (38 covered, 12 uncovered) |
 | `routing_cases.jsonl` | Requests labelled with the expected route and action (run, needs input, unsupported), tagged; owner-approved 2026-11-18 | 30 |
 | `workflow_cases.jsonl` | JD + sample profile cases with expected behaviour, scored in code (2026-11-18) | 4 |
+| `answer_cases.jsonl` | Questions with must-contain fact groups (any phrasing per group, from the indexed passage named in `source`) or `expect: refuse`; owner-approved 2026-11-21 | 20 (14 answer, 6 refuse) |
 | `profiles/sample_*.json` | Fictional profiles: new grad (demos, tests, traces), sparse, injection | 3 |
 | `job_descriptions/sample_backend_new_grad.txt` | Fictional new-grad backend posting (the real one stays in `private/`) | 1 |
 
@@ -440,3 +441,75 @@ questions kept (`q-041` 0.393) and 67% of uncovered rejected (`q-031`, `q-047`, 
 clear it); the same three partial misses (`q-001`, `q-027`, `q-034`). Milestone 6 changed the
 frontend and the API around retrieval, not retrieval itself (T-015 rewrites citation URLs after
 search). One batched Voyage call (1.5 s). Output: `evaluation/results/retrieval-20261120-073033.json`.
+
+### Answer eval and grounding check (2026-11-21, cases v1, T-018 step 10)
+`answer_eval` runs `rag.answer_question` (Sonnet via Claude Code on the owner's plan) on 20 cases,
+then a grounding check (`evaluation/grounding.py`: Haiku splits each shown answer into claims and
+marks each supported or not by the chunks it cites; the arithmetic is in code). Scored in code:
+an answer case passes when it is `answered` or `partial`, cites something and contains every fact
+group (case-insensitive, whole words); a refuse case passes when it refuses, or when it shows a
+partial answer whose claims are all supported. One run from the owner's terminal, 24 s per case.
+Output: `evaluation/results/answer-eval-20261121-0557.json` (`--rescore` re-scores it for free).
+
+| Measure | Result |
+|---|---|
+| Answer cases passed | 12/14 (86%) |
+| Refuse cases passed | 6/6: all refused (`insufficient_evidence`); none grounded-partial, none invented |
+| Claims supported by their cited chunk | 159/166 (96%) |
+| Mean latency (answer + grounding) | 24.0 s |
+
+The two failures:
+- `a-005` (Read Committed vs Repeatable Read): an honest `partial`. Retrieval brought the
+  Repeatable Read section but not the Read Committed one, so the answer said Read Committed was
+  only implied, and it never mentioned nonrepeatable reads (the missed fact group). A retrieval
+  coverage gap, labelled correctly by the answer step.
+- `a-013` (SQLSTATE 40001): refused before the model ran: best score 0.392, under the 0.45
+  threshold. The same known retrieval miss as `q-041` in every retrieval run (0.393). The safe
+  failure: no answer rather than a wrong one.
+
+The 7 unsupported claims (read one by one; the judge's verdict was right each time): all are true
+but not stated by the cited chunks. Three are the model's own advice or general knowledge
+("EXPLAIN ANALYZE also runs the query", "use cache-aside when data can tolerate staleness",
+"slowing down and retrying fits 429"); three in `a-007` name the Repeatability headers, which are
+in the corpus (Microsoft API guidelines) but in a chunk the answer did not cite. So the prompt's
+"only the evidence" rule holds for facts but not for advice, and citations can be incomplete.
+
+What it shows:
+- **Refusal is solid:** 6/6 near-topic gaps refused, consistent with the 2026-11-19 abstention run.
+- **Answers are grounded but add advice:** 96% supported; the gaps are recommendations and
+  well-known facts, not invented specifics. Worth a prompt change only if the owner wants
+  answers stricter than the docs (follow-up, not done here).
+- **The weak spot is retrieval, not the model:** both failures trace to what retrieval returned.
+- Limits: 20 cases, one run (Sonnet varies between runs), a model judge that can be wrong both
+  ways (spot-checked here only on the unsupported verdicts), fact groups matched as phrases (an
+  answer can state a fact in words no group lists).
+
+### Answer eval after "no added advice" (2026-11-21, cases v1, T-019)
+Same 20 cases, after the answer prompt gained an explicit rule: every sentence must be stated by a
+cited block; no own advice, recommendations, "use X when" guidance or well-known facts; missing
+guidance goes to `not_covered` (owner decision 2026-11-21). One run from the owner's terminal.
+Output: `evaluation/results/answer-eval-20261121-0621.json`.
+
+| Measure | Before (0557) | After (0621) |
+|---|---|---|
+| Answer cases passed | 12/14 | 12/14 (same two retrieval failures) |
+| Refuse cases passed | 6/6 refused | 6/6 refused |
+| Claims supported by their cited chunk | 159/166 (96%) | 150/151 (99%) |
+| Answers marked `partial` | 3 | 6 |
+| Mean latency | 24.0 s | 24.1 s |
+
+- **The rule works:** the added advice is gone. The one remaining "unsupported" claim is the
+  answer's own statement that the evidence gives no 429-specific guidance: a remark about the
+  gap, not an invented fact (a judge artefact).
+- **The cost is more partial answers, each honest:** the three new partials name a real gap
+  ("no explicit guidance on when to choose cache-aside versus write-through, only their
+  characteristics", "doesn't show how to read EXPLAIN output", "doesn't cover checking the
+  exception's message"). Facts still pass: the answers lost advice, not content.
+- Limits as before: one run each, a model judge (its one negative verdict read by hand).
+
+### Retrieval re-check (2026-11-21, release check for Milestone 7)
+Unchanged from the labels v1.3 semantic baseline (same index: corpus v2, 1,592 chunks): Recall@5
+0.961, Precision@5 0.605, MRR 0.987; at 0.45, 97% of covered questions kept (`q-041` 0.393) and 67%
+of uncovered rejected (`q-031`, `q-047`, `q-049`, `q-050` clear it); the same three partial misses
+(`q-001`, `q-027`, `q-034`). Milestone 7 changed modes, limits and the answer prompt, not
+retrieval. One Voyage call. Output: `evaluation/results/retrieval-20261121-063353.json`.

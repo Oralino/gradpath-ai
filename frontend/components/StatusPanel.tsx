@@ -25,18 +25,20 @@ export function StatusPanel({
   tone,
   heading,
   headingRef,
+  describedBy,
   children,
 }: {
   tone: Tone;
   heading: string;
   headingRef?: Ref<HTMLHeadingElement>;
+  describedBy?: string; // id of the recording strip, for a recorded result (DESIGN.md)
   children: ReactNode;
 }) {
   return (
     <section className={`rounded-md border-l-4 p-4 sm:p-6 ${PANEL[tone]}`}>
       <div className="flex items-center gap-2">
         {defaultIcon(tone)}
-        <h2 ref={headingRef} tabIndex={-1} className="text-title">
+        <h2 ref={headingRef} tabIndex={-1} aria-describedby={describedBy} className="text-title">
           {heading}
         </h2>
       </div>

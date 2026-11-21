@@ -1,3 +1,4 @@
+import { inLocal, stubFetch } from "@/components/serverFixtures";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Assistant } from "@/components/Assistant";
@@ -50,7 +51,7 @@ function assist(over: Partial<AssistResponse> = {}): AssistResponse {
 
 function mockFetch(impl: (init: RequestInit) => Promise<Response>) {
   const fn = vi.fn((_url: string, init: RequestInit) => impl(init));
-  vi.stubGlobal("fetch", fn);
+  stubFetch(fn);
   return fn;
 }
 
@@ -75,7 +76,7 @@ afterEach(() => {
 describe("composer", () => {
   test("an example question fills the box without sending", () => {
     const fetchMock = mockFetch(async () => jsonResponse(200, assist()));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     fireEvent.click(screen.getByRole("button", { name: "What makes an API endpoint idempotent?" }));
     expect((screen.getByLabelText("Your question") as HTMLTextAreaElement).value).toBe(
       "What makes an API endpoint idempotent?",
@@ -85,7 +86,7 @@ describe("composer", () => {
 
   test("a too-short or too-long message blocks submit with a field error", () => {
     const fetchMock = mockFetch(async () => jsonResponse(200, assist()));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("hi");
     ask();
     expect(screen.getByRole("alert").textContent).toContain("at least 3 characters");
@@ -97,7 +98,7 @@ describe("composer", () => {
 
   test("the body has job_description and profile only when set", async () => {
     const fetchMock = mockFetch(async () => jsonResponse(200, assist()));
-    const { unmount } = render(<Assistant />);
+    const { unmount } = render(inLocal(<Assistant />));
     typeMessage("How do indexes work?");
     ask();
     await screen.findByText("Use the leftmost column first.");
@@ -105,7 +106,7 @@ describe("composer", () => {
     unmount();
 
     const second = mockFetch(async () => jsonResponse(200, assist()));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     fireEvent.click(screen.getByRole("button", { name: "Paste a job posting" }));
     fireEvent.change(screen.getByLabelText("Job posting"), { target: { value: "j".repeat(60) } });
@@ -122,7 +123,7 @@ describe("composer", () => {
 
   test("a posting under 50 characters blocks submit", () => {
     const fetchMock = mockFetch(async () => jsonResponse(200, assist()));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     fireEvent.click(screen.getByRole("button", { name: "Paste a job posting" }));
     fireEvent.change(screen.getByLabelText("Job posting"), { target: { value: "too short" } });
@@ -150,7 +151,7 @@ describe("results", () => {
         }),
       ),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("How do I configure liveness probes?");
     ask();
     const heading = await screen.findByRole("heading", { name: "Partial answer" });
@@ -176,7 +177,7 @@ describe("results", () => {
         },
       });
     mockFetch(async () => jsonResponse(200, partial("<b>x</b>")));
-    const { container, unmount } = render(<Assistant />);
+    const { container, unmount } = render(inLocal(<Assistant />));
     typeMessage("How do probes work?");
     ask();
     await screen.findByRole("heading", { name: "Partial answer" });
@@ -185,7 +186,7 @@ describe("results", () => {
     unmount();
 
     mockFetch(async () => jsonResponse(200, partial(null)));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("How do probes work?");
     ask();
     await screen.findByRole("heading", { name: "Partial answer" });
@@ -212,7 +213,7 @@ describe("results", () => {
         }),
       ),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("How do indexes work?");
     ask();
     const heading = await screen.findByRole("heading", { name: "Answer" });
@@ -248,7 +249,7 @@ describe("results", () => {
         }),
       ),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("What is quantum gravity?");
     ask();
     await screen.findByRole("heading", { name: "Not covered by the knowledge base" });
@@ -274,7 +275,7 @@ describe("results", () => {
         }),
       ),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Make me a plan");
     ask();
     const heading = await screen.findByRole("heading", { name: "More input needed" });
@@ -292,7 +293,7 @@ describe("results", () => {
     mockFetch(async () =>
       jsonResponse(200, assist({ outcome: "unsupported", message: "Resume rewriting is not supported.", answer: null })),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Rewrite my resume");
     ask();
     await screen.findByRole("heading", { name: "Not supported yet" });
@@ -326,7 +327,7 @@ describe("results", () => {
         }),
       ),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     ask();
     await screen.findByRole("heading", { name: heading });
@@ -342,7 +343,7 @@ describe("errors and loading", () => {
       calls += 1;
       return calls === 1 ? jsonResponse(503, { detail: "x" }) : jsonResponse(200, assist());
     });
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     ask();
     await screen.findByRole("heading", { name: "Another preparation run is in progress." });
@@ -355,7 +356,7 @@ describe("errors and loading", () => {
 
   test("server error shows the fixed message and no body text", async () => {
     mockFetch(async () => jsonResponse(500, { detail: "Traceback: secret internals" }));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("How do indexes work?");
     ask();
     await screen.findByRole("heading", { name: "The request failed" });
@@ -368,7 +369,7 @@ describe("errors and loading", () => {
     mockFetch(async () =>
       jsonResponse(422, { detail: [{ loc: ["body", "profile", "skills", 3], msg: "bad", input: "secret" }] }),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("How do indexes work?");
     ask();
     const alert = await screen.findByRole("alert");
@@ -385,7 +386,7 @@ describe("errors and loading", () => {
           init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
         }),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("How do indexes work?");
     ask();
     expect(await screen.findByText(/Searching the knowledge base and writing an answer.../)).toBeTruthy();
@@ -393,7 +394,7 @@ describe("errors and loading", () => {
     fireEvent.click(screen.getByRole("button", { name: "Stop waiting" }));
     expect(signal?.aborted).toBe(true);
     await waitFor(() => expect(screen.queryByText(/Searching the knowledge base and writing an answer.../)).toBeNull());
-    expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
+    expect(screen.queryByRole("heading", { level: 2, name: /^(?!Recorded examples).+/ })).toBeNull();
     expect((screen.getByRole("button", { name: "Ask" }) as HTMLButtonElement).disabled).toBe(false);
   });
 });
@@ -401,7 +402,7 @@ describe("errors and loading", () => {
 describe("review fixes", () => {
   test("a 422 with no field paths still shows the generic line and focuses the summary", async () => {
     mockFetch(async () => jsonResponse(422, { detail: "nope" }));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("How do indexes work?");
     ask();
     const alert = await screen.findByRole("alert");
@@ -411,7 +412,7 @@ describe("review fixes", () => {
 
   test("prepared with no result shows the stopped panel, not Checked", async () => {
     mockFetch(async () => jsonResponse(200, assist({ outcome: "prepared", answer: null, result: null })));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     ask();
     await screen.findByText("The server returned no result for this request.");
@@ -441,7 +442,7 @@ describe("review fixes", () => {
         }),
       ),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     ask();
     await screen.findByText("1 minor note");
@@ -450,7 +451,7 @@ describe("review fixes", () => {
 
   test("missing answer or message falls back to the fixed copy", async () => {
     mockFetch(async () => jsonResponse(200, assist({ outcome: "unsupported", message: null, answer: null })));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Rewrite my resume");
     ask();
     await screen.findByText("The server returned no content for this request.");
@@ -472,7 +473,7 @@ describe("review fixes", () => {
         }),
       ),
     );
-    const first = render(<Assistant />);
+    const first = render(inLocal(<Assistant />));
     typeMessage("What is quantum gravity?");
     ask();
     const h1 = await screen.findByRole("heading", { name: "Not covered by the knowledge base" });
@@ -490,7 +491,7 @@ describe("review fixes", () => {
         }),
       ),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Make me a plan");
     ask();
     const h2 = await screen.findByRole("heading", { name: "More input needed" });
@@ -499,7 +500,7 @@ describe("review fixes", () => {
 
   test("a too-long posting blocks submit", () => {
     const fetchMock = mockFetch(async () => jsonResponse(200, assist()));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     fireEvent.click(screen.getByRole("button", { name: "Paste a job posting" }));
     fireEvent.change(screen.getByLabelText("Job posting"), { target: { value: "j".repeat(20001) } });
@@ -510,7 +511,7 @@ describe("review fixes", () => {
 
   test("length checks use the trimmed text", () => {
     const fetchMock = mockFetch(async () => jsonResponse(200, assist()));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("  ab  ");
     ask();
     expect(screen.getByRole("alert").textContent).toContain("at least 3 characters");
@@ -524,7 +525,7 @@ describe("review fixes", () => {
           init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
         }),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("How do indexes work?");
     ask();
     const stop = await screen.findByRole("button", { name: "Stop waiting" });
@@ -542,7 +543,7 @@ describe("review fixes", () => {
           resolvers.push(resolve);
         }),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("How do indexes work?");
     ask();
     fireEvent.click(await screen.findByRole("button", { name: "Stop waiting" }));
@@ -568,7 +569,7 @@ describe("review fixes", () => {
           init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
         }),
     );
-    const view = render(<Assistant />);
+    const view = render(inLocal(<Assistant />));
     typeMessage("How do indexes work?");
     ask();
     await screen.findByText(/Searching the knowledge base and writing an answer.../);
@@ -595,7 +596,7 @@ describe("review fixes", () => {
         }),
       ),
     );
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     fireEvent.click(screen.getByRole("button", { name: "Paste a job posting" }));
     typeMessage("What is quantum gravity?");
     ask();
@@ -612,7 +613,7 @@ describe("saved profile", () => {
     const saved = { skills: ["Rust"], coursework: [], projects: [], experience: [] };
     saveProfile(saved);
     const fetchMock = mockFetch(async () => jsonResponse(200, assist()));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     fireEvent.click(await screen.findByRole("button", { name: "Use your saved profile" }));
     expect(screen.getByText("Profile: Your saved profile")).toBeTruthy();
@@ -623,13 +624,13 @@ describe("saved profile", () => {
   });
 
   test("no saved profile: only the sample is offered", () => {
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     expect(screen.queryByRole("button", { name: "Use your saved profile" })).toBeNull();
   });
 
   test("leaves a handed-over posting for the Plan screen", () => {
     window.sessionStorage.setItem("gradpath-posting", "A handed-over posting that is long enough to pass the minimum.");
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     expect(screen.getByText("Job posting: none")).toBeTruthy();
     expect(window.sessionStorage.getItem("gradpath-posting")).not.toBeNull();
     window.sessionStorage.clear();
@@ -639,7 +640,7 @@ describe("saved profile", () => {
     const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("blocked");
     });
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     expect(screen.getByText("Job posting: none")).toBeTruthy();
     spy.mockRestore();
   });
@@ -657,7 +658,7 @@ describe("started (background workflow run, T-016)", () => {
 
   function routed(poll: () => Response) {
     const fn = vi.fn(async (url: string) => (url === "/api/assist" ? jsonResponse(200, started()) : poll()));
-    vi.stubGlobal("fetch", fn);
+    stubFetch(fn);
     return fn;
   }
 
@@ -669,7 +670,7 @@ describe("started (background workflow run, T-016)", () => {
         ? jsonResponse(200, runStatus())
         : jsonResponse(200, runStatus({ status: "done", result: planResult() }));
     });
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     ask();
     await screen.findByRole("heading", { name: "Preparing your plan" });
@@ -684,7 +685,7 @@ describe("started (background workflow run, T-016)", () => {
   test("Stop waiting re-enables Ask; a failed run offers Try again", async () => {
     let fail = false;
     routed(() => jsonResponse(200, fail ? runStatus({ status: "failed", error: "The preparation run could not finish. Try again in a few minutes." }) : runStatus()));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     ask();
     await screen.findByText("running");
@@ -699,14 +700,14 @@ describe("started (background workflow run, T-016)", () => {
 
   test("started without a run id shows the no-result panel", async () => {
     mockFetch(async () => jsonResponse(200, { ...started(), run_id: null }));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     ask();
     await screen.findByText("The server returned no result for this request.");
   });
   test("attaches to the run id and announces stage changes in the live region", async () => {
     const fn = routed(() => jsonResponse(200, runStatus()));
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     ask();
     await screen.findByText("running");
@@ -725,7 +726,7 @@ describe("started (background workflow run, T-016)", () => {
       polls += 1;
       return polls === 1 ? jsonResponse(200, runStatus()) : jsonResponse(404, { detail: "not found" });
     });
-    render(<Assistant />);
+    render(inLocal(<Assistant />));
     typeMessage("Plan for this role");
     ask();
     await screen.findByText("running");

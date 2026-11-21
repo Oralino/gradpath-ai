@@ -1,0 +1,57 @@
+{
+  "id": "ask-multicolumn-indexes",
+  "title": "How do multicolumn indexes work in PostgreSQL?",
+  "summary": "A focused question: the router picks traditional RAG and the answer cites the sources.",
+  "recorded_at": "2026-11-21",
+  "kind": "ask",
+  "message": "How do multicolumn indexes work in PostgreSQL?",
+  "job_description": null,
+  "profile": null,
+  "response": {
+    "decision": {
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "missing": [],
+      "reason": "A general definition or explanation question.",
+      "requires_user_profile": false,
+      "requires_multi_step_workflow": false,
+      "decided_by": "rules"
+    },
+    "outcome": "answered",
+    "message": null,
+    "answer": {
+      "question": "How do multicolumn indexes work in PostgreSQL?",
+      "status": "answered",
+      "answer": "An index in PostgreSQL can be defined on more than one column, e.g. `CREATE INDEX test2_mm_idx ON test2 (major, minor);` for queries that filter on both major and minor. Only B-tree, GiST, GIN, and BRIN index types support multiple key columns. Indexes can have up to 32 columns, including INCLUDE columns (this limit can be changed when building PostgreSQL).\n\nHow they behave depends on the index type:\n- **B-tree**: It can be used with conditions on any subset of the index's columns, but it is most efficient when there are constraints on the leading (leftmost) columns. Equality constraints on leading columns, plus any inequality constraint on the first column without an equality constraint, limit the portion of the index that is scanned. Constraints on columns further right are checked in the index, which saves visits to the table, but they don't necessarily reduce the portion of the index scanned. If the skip scan optimization can be applied effectively, it applies every column constraint while navigating the index, which can reduce the portion read.\n- **GiST**: It can be used with conditions on any subset of columns. Conditions on additional columns restrict the entries returned, but the first column's condition matters most for how much of the index is scanned. A GiST index is relatively ineffective if its first column has only a few distinct values, even if other columns have many.\n- **GIN**: It can be used with conditions on any subset of columns, and search effectiveness is the same regardless of which columns the query uses.\n- **BRIN**: It can be used with conditions on any subset of columns, and search effectiveness is the same regardless of which columns are used. The only reason to have multiple BRIN indexes instead of one multicolumn BRIN index is to have a different pages_per_range storage parameter.",
+      "citations": [
+        {
+          "chunk_id": "db-postgres-indexes:2:1",
+          "title": "PostgreSQL docs: Indexes",
+          "section": "11.3. Multicolumn Indexes",
+          "source_url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html",
+          "score": 0.681
+        },
+        {
+          "chunk_id": "db-postgres-indexes:2:2",
+          "title": "PostgreSQL docs: Indexes",
+          "section": "11.3. Multicolumn Indexes",
+          "source_url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html",
+          "score": 0.631
+        },
+        {
+          "chunk_id": "db-postgres-indexes:2:6",
+          "title": "PostgreSQL docs: Indexes",
+          "section": "11.3. Multicolumn Indexes",
+          "source_url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html",
+          "score": 0.664
+        }
+      ],
+      "route": "traditional_rag",
+      "note": null,
+      "not_covered": null
+    },
+    "result": null,
+    "run_id": null
+  }
+}

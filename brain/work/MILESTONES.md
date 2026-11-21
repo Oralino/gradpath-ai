@@ -246,6 +246,55 @@ partial) and clear errors. `DESIGN.md` comes first; the owner approves it before
 
 ---
 
+## Milestone 7: Demo and live modes ⏳
+*Ticket: `tickets/T-018-demo-live-modes.md`*
+
+**Goal:** a public site that costs nothing. Demo mode (the default) replays recorded runs with no
+keys (plus a live source search, no model call, when the server has a Voyage key); live mode runs on a visitor's own Anthropic key, never stored, logged or traced; plus the
+limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are in the ticket.
+
+| Step | Status | What we built | Why | Result |
+|---|---|---|---|---|
+| 0. Ticket + plan | ✅ | T-018, branch `feat/t-018-demo-live-modes`; plan approved; modes `local / demo / live`; separate demo endpoints | The owner decides scope and order before code | Resume upload moved out of 7 |
+| 1. Demo mode with no keys | ✅ | `APP_MODE` local/demo/live (default demo); `require_model_routes` on every model router (deny by default); lifespan skips Voyage and Qdrant in demo; `demo/` recordings validated against the live response models; `GET /api/demo`, `GET /api/demo/{id}`; tracing only in local | The public site must start and serve with no keys, and no route may spend quota in demo | 568 backend tests; review fixes applied (default and fail-closed guard tested, links and unreadable files skipped); a real startup with every key blanked opened no retrieval and refused `/api/chat` with 403 |
+| 2. Record the demo runs | ✅ | `demo/record.py`: 8 examples (3 RAG answers, a near-gap partial answer, the router asking for a profile, the router choosing the workflow, a job analysis, a plan) on the sample posting and fictional profile; each checked for the expected route and scanned before saving; one workflow run feeds both the workflow example and the plan | Something real to replay, showing both halves of the hybrid app | 8 recordings in ~4 min (Pro plan, ~7 Voyage calls); scan clean; the plan is `complete_with_limitations` (one blocking issue, shown honestly); 588 backend tests |
+| 3. Sources date | ✅ | `knowledge_base/index_info.json` written by ingest (oldest/newest fetch, counts); `/api/health` returns `sources_as_of`; footer "Sources as of 19 Nov 2026 · …" | Visitors see how fresh the knowledge base is (DESIGN.md footer copy) | Matches Qdrant (1,592 chunks, 27 documents); review fix: the one manual source no longer sets the date (18 → 19 Nov); 602 backend + 195 frontend tests; checked in the browser |
+| 4. Live source search | ✅ | `POST /api/search`: real retrieval, cited passages with excerpts, a rules-only route preview, no model call; demo opens retrieval only with a Voyage key and keeps starting if it fails | Visitors without a key can try the retrieval half of RAG live (owner decision 2026-11-20) | Real demo-mode run: 4 multicolumn-index passages from SQLite and PostgreSQL docs, preview "traditional RAG by rules", `/api/chat` still 403; review fix: search never waits or retries on Voyage's free-tier window (instant 429); 629 backend tests |
+| 5. Visitor key end to end | ✅ | `X-Anthropic-Key` header, shape-checked; both model tiers on the visitor's key; refused key 401, rate limit 429; runs bound to their key (HMAC tag); live refuses a server key, the wrong provider or a redirected Anthropic host; SDK loggers capped | Live mode must run only on the visitor's own key and never leak it | Security review: no leak path found; QA clean; 662 backend tests; no real-key test (no paid key) |
+| 6. 422 handler | ✅ | Validation errors keep `loc`/`msg`/`type` only; unknown field names and odd locations masked | A key pasted in the wrong place must never come back (T-017 finding) | Tests: a key as an unknown field, inside a field, as a field name, in broken JSON: never echoed; 680 backend tests |
+| 7. Passcode and per-IP limits | ✅ | Live passcode with a brute-force lock; per-client sliding windows (search, model, workflow, polling) and a global daily search cap; trusted-proxy client address; 256 KB body cap | The public site's gate and meter: nobody can run up the owner's Voyage tokens or hold the run slot | Security review: no bypass, 7 fixes applied (IPv6 grouping, body cap, a passcode whitespace bug); QA clean; 716 backend tests |
+| 8. CORS and CSRF | ✅ | No CORS middleware (deny cross-origin by default); `OriginCheck` refuses POSTs from origins not in `ALLOWED_ORIGINS`; measured FastAPI refusing form content types | Another site can't read our API or make it act for a visitor (SECURITY.md 01) | Real servers: page POST via `next dev` passed, evil/null origins 403, `text/plain` 422, preflight 405 with no CORS headers; review: no bypass (two Origin headers now refused); 761 backend tests |
+| 9. Frontend demo and live | ✅ | Backend: `POST /api/live/check` (passcode, key shape, a free Anthropic call) returns a 12 h token bound to the key; every error has a `code`; health reports `search_enabled`. Frontend: one shared health request; key in memory only, token in sessionStorage; credentials on model routes only; header mode badge and a mode note per screen; recorded examples per screen with a "Not generated now" strip; `/search` page; inline live panel with every 401/403/429 state | Visitors see what is real and what is recorded, and can bring their own key without it ever being stored (DESIGN.md decisions 7-12) | 787 backend + 286 frontend tests; review: no key-handling issue, 6 fixes applied (silent 401 with an unknown code, picker during a run, stale refusal on the next page, non-ASCII headers, lockout countdown, a lighter Search bundle); QA clean; browser check in demo (recordings, search) and live (wrong passcode, refused key, nothing stored) |
+| 10. Answer eval + grounding check | ✅ | 20 owner-approved cases (14 with must-contain facts from the indexed pages, 6 near-topic gaps that must be refused), scored in code; a Haiku judge splits each answer into claims and checks each against its cited chunk | Retrieval and routing were measured; the written answers weren't, and the public demo shows them | 12/14 answers pass (both failures are retrieval: a missing section, the known `q-041` miss), 6/6 refused, 159/166 claims supported (the rest: true advice or general knowledge, not invented); 803 backend tests |
+
+### Problems we hit and how we solved them
+- **The old default mode was "demo" but meant "local".** Tests, CLIs and the owner's runs used the
+  server's credentials under `APP_MODE=demo`. Fixed with a third value, `local`; `.env.example` now
+  sets it, and API tests force it through a `conftest.py` fixture.
+- **FastAPI 0.163 nests included routers**, so a test that walked `app.routes` for the guard found
+  nothing. The route inventory now comes from the OpenAPI schema.
+- **The "not covered" example came back partly covered.** The Kubernetes question got an honest
+  partial answer (probe types from the Pod Lifecycle page, plus what isn't covered), not a refusal.
+  We relabelled it "a known gap" instead of spending another call; the recorder now also refuses an
+  example whose route differs from the one it is meant to show.
+- **A broken test file reached GitHub (step 6).** An edit script turned an escaped newline in a string into a real
+  line break, and the commit was chained after the failing lint with `;`, so it ran anyway. Fixed in
+  the next commit; from then on, commits are chained with `&&` after lint and tests.
+- **Live mode wouldn't start for the browser check (step 9).** The owner's `.env` holds a server
+  Anthropic key, and live mode refuses to start with one (by design: no key the owner pays for).
+  An empty environment variable can't hide a `.env` value, so the check used a throwaway launcher
+  that loads `.env` without that key; `.env` itself was not changed.
+- **A refusal followed the visitor to the next page (step 9 review).** The live session is shared
+  by every page, so "Anthropic refused this key" from one screen reappeared on the next and pulled
+  focus there. The panel now forgets the refusal when it unmounts, and its focus effect reads the
+  store's current state instead of the render's (the new page renders once before the old panel's
+  cleanup runs).
+- **A flaky test reached GitHub (step 9).** `npm test | grep ...` inside an `&&` chain reports
+  grep's exit code, not the tests', so one failing run still committed and pushed. The test raced
+  React: it checked for the countdown's interval right after "0:30" appeared, before the effect that
+  starts it had run; it now waits for it (6 clean runs in a row). Never pipe a check inside the
+  commit chain.
+
 ## Milestones 4–8: what's next
 
 | # | Milestone | What it will do | Why it matters |

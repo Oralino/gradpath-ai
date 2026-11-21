@@ -13,6 +13,84 @@ export interface Citation {
   score: number;
 }
 
+// ---------- /api/health ----------
+
+export interface Health {
+  status: string;
+  llm_provider: string;
+  app_mode: string;
+  sources_as_of: string | null; // ISO date: the oldest page fetch in the index (T-018)
+  sources_newest: string | null; // ISO date
+  search_enabled: boolean; // POST /api/search works on this server (T-018)
+}
+
+export type AppMode = "local" | "demo" | "live";
+
+// ---------- /api/demo (recorded runs, T-018) ----------
+
+export type RecordingKind = "ask" | "job" | "plan";
+
+export interface RecordingSummary {
+  id: string;
+  kind: RecordingKind;
+  title: string;
+  summary: string;
+  recorded_at: string; // ISO date
+}
+
+interface RecordingBase {
+  id: string;
+  title: string;
+  summary: string;
+  recorded_at: string;
+}
+
+export interface AskRecording extends RecordingBase {
+  kind: "ask";
+  message: string;
+  job_description: string | null;
+  profile: UserProfile | null;
+  response: AssistResponse; // never "started": a recording is always finished
+}
+
+export interface JobRecording extends RecordingBase {
+  kind: "job";
+  job_description: string;
+  analysis: JobAnalysis;
+}
+
+export interface PlanRecording extends RecordingBase {
+  kind: "plan";
+  job_description: string;
+  profile: UserProfile;
+  corrections: string[];
+  result: CareerPrepResult;
+}
+
+export type Recording = AskRecording | JobRecording | PlanRecording;
+
+// ---------- /api/search (no model, T-018) ----------
+
+export interface SourceHit {
+  citation: Citation;
+  excerpt: string; // retrieved: plain text only, may contain line breaks and code
+}
+
+export interface SourceSearch {
+  query: string;
+  hits: SourceHit[];
+  insufficient: boolean;
+  route_preview: RouteDecision | null; // rules-only
+  route_note: string | null; // fixed server text
+}
+
+// ---------- /api/live/check (T-018) ----------
+
+export interface LiveCheck {
+  token: string; // stands in for the passcode; kept in sessionStorage by lib/liveSession.ts
+  expires_at: string; // ISO datetime (UTC)
+}
+
 // ---------- /api/chat ----------
 
 export interface ChatRequest {

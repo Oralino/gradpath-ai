@@ -62,6 +62,31 @@ def kb_service() -> RetrievalService:
 
 
 @pytest.fixture(autouse=True)
+def _local_mode(monkeypatch):
+    """API tests run in local mode (model routes on), whatever `.env` or CI sets. Demo and live
+    tests patch `gradpath.api.deps.get_settings` again themselves."""
+    from gradpath.api import deps
+    from gradpath.config import Settings
+
+    monkeypatch.setattr(deps, "get_settings", lambda: Settings(_env_file=None, app_mode="local"))
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits(monkeypatch):
+    """Rate limits start empty and off (local mode) in every test; `test_rate_limits.py` turns
+    them on itself."""
+    from gradpath.api import ratelimit
+    from gradpath.config import Settings
+
+    ratelimit.LIMITER.reset()
+    monkeypatch.setattr(
+        ratelimit, "get_settings", lambda: Settings(_env_file=None, app_mode="local")
+    )
+    yield
+    ratelimit.LIMITER.reset()
+
+
+@pytest.fixture(autouse=True)
 def _no_tracing():
     """Tests never send traces, even if the developer's shell sets LANGSMITH_TRACING=true."""
     import langsmith
@@ -89,3 +114,9 @@ def placeholder_nodes(**real):
         "revise": lambda s: {"roadmap": s.get("roadmap", [])},
     }
     return NodeSet(**{**placeholders, **real})
+
+
+def plain(body: dict) -> dict:
+    """An error body without its machine-readable `code` (T-018 step 9), for tests that compare
+    the fixed `detail` text; `test_error_codes.py` checks the codes themselves."""
+    return {k: v for k, v in body.items() if k != "code"}

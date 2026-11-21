@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ModeBadge } from "@/components/ModeBadge";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-// The header on every page (DESIGN.md, Screens): wordmark, four nav links, theme toggle. A client
+// The header on every page (DESIGN.md, Screens): wordmark, five nav links, mode indicator, theme toggle. A client
 // component only because it needs the current path for aria-current. No hamburger menu: at phone
 // width the links wrap to a second row.
 const NAV = [
@@ -12,6 +13,7 @@ const NAV = [
   { href: "/job", label: "Analyse a job" },
   { href: "/plan", label: "Plan" },
   { href: "/profile", label: "Profile" },
+  { href: "/search", label: "Search sources" },
 ] as const;
 
 export function SiteHeader() {
@@ -41,6 +43,9 @@ export function SiteHeader() {
             );
           })}
         </nav>
+        <div className="order-4 w-full sm:order-none sm:ml-0 sm:w-auto">
+          <ModeBadge />
+        </div>
         <div className="ml-auto sm:ml-0">
           <ThemeToggle />
         </div>

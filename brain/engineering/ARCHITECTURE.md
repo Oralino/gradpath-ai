@@ -97,12 +97,88 @@ All LLM calls go through one factory that returns a LangChain chat model.
 | `anthropic_api` | `ChatAnthropic` with a server key or the visitor's key | Live mode |
 | `fake` | LangChain fake chat model with canned responses | Tests |
 
+`APP_MODE` (T-018, owner decision 2026-11-20) picks one of three modes; the default is `demo`
+because it is the safe one for a server:
+
+| `APP_MODE` | Where | Model routes | Retrieval (Voyage + Qdrant) | Tracing |
+|---|---|---|---|---|
+| `local` | Owner's machine | On, with the server's credentials | Opened at startup | Allowed (`tracing.decide`) |
+| `demo` | Deployed | Off: 403 from `api/deps.require_model_routes` | Opened only when `VOYAGE_API_KEY` is set, for source search (`POST /api/search`, no model call); a failure to open turns search off instead of stopping startup, so demo still needs no keys | Off |
+| `live` | Deployed | On with the visitor's key from the `X-Anthropic-Key` header (401 without a well-formed one); refuses to start unless `LLM_PROVIDER=anthropic_api` and no server `ANTHROPIC_API_KEY` | Opened at startup (the owner's Voyage key) | Off |
+
+The recordings in `demo_runs/` (`demo/library.py`) are served in every mode by `GET /api/demo` and
+`GET /api/demo/{id}`. Each JSON file holds the inputs and the exact response, validated against the
+same response models as the live routes; a file that drifts is skipped and `test_demo.py` fails.
+They are made by `demo/record.py` (step 2): a fixed list of examples run through the same functions
+the routes call, on the committed sample posting and fictional profile only, never traced, each
+file scanned for contact details, keys and local paths before it is written.
+
+**Visitor keys (T-018 step 5):** in live mode `api/deps.visitor_key` reads `X-Anthropic-Key`
+(a header, because FastAPI echoes rejected body values in 422 responses), checks its shape only,
+and `get_answer_model` / `get_extraction_model` pass it to `get_chat_model(api_key=...)`; every
+API route builds its models through these two dependencies. A refused key answers 401, the
+visitor's own rate limit 429, both with fixed text and logged by type only. Background runs carry
+an owner tag (HMAC of the key with a per-process secret): polling with another key gets the same
+404 as an unknown id. The key lives in the request and, for a background run, in its worker thread
+until the run ends; nothing stores, logs, traces or returns it.
+
+**Passcode and per-IP limits (T-018 step 7):** live routes need `LIVE_PASSCODE` (16+ characters)
+in the `X-GradPath-Passcode` header, compared in constant time before the visitor key; 5 wrong
+guesses from one IP in 15 minutes lock that IP (429). `api/ratelimit.py` keeps in-memory sliding
+windows per client, off in local mode: search 2/min and 60/day (plus 1,000/day in total), model routes
+6/min and 60/day, workflow runs 3/hour and 10/day (also charged when `/api/assist` starts one), run
+polling 60/min. Over a limit: 429 with `Retry-After`. The client is the connection address, or
+with `TRUSTED_PROXY_HOPS=n` the n-th `X-Forwarded-For` entry from the right, normalised (IPv6 by
+/64 network, ports dropped). Request bodies over 256 KB get 413 before FastAPI reads them
+(`BodySizeLimit`). In memory and per process: deploy with one worker.
+
+**Cross-site requests (T-018 step 8):** no CORS middleware: the browser only calls its own origin
+and Next's `/api` rewrite proxies to the API server-side, so cross-origin reads stay blocked.
+`OriginCheck` (outermost ASGI middleware) answers 403 to a POST whose `Origin` header is present
+and not in `ALLOWED_ORIGINS`; requests with no `Origin` (curl, CLIs) pass.
+
+**Live check and session token (T-018 step 9):** `POST /api/live/check` (`api/live.py`, live mode
+only; demo 403, local 404) takes the passcode and key as headers, checks the passcode (counted
+towards the lock), the key's shape, then the key itself with one free Anthropic call (listing
+models), and returns `{token, expires_at}`. The token is `<expiry>.<HMAC>` over the expiry, the
+passcode and a SHA-256 of the key, with a per-process secret: it replaces the passcode header on
+later requests (`X-GradPath-Token`) for 12 hours, only together with the same key, and a restart or
+a new `LIVE_PASSCODE` voids every token. A token sent with a different key counts as a wrong
+passcode; a token sent with no key at all gets 401 `key_required` and does not count. Every error body is `{detail, code}`; the codes (`api/main.py` `error_codes`) let the
+frontend tell a wrong passcode from a refused key from a rate limit without matching text, and
+`/api/health` reports `search_enabled`.
+
+**Frontend modes (T-018 step 9):** `lib/serverInfo.tsx` makes one `/api/health` request per page
+load and shares `mode` (an unknown value reads as demo), `searchEnabled` and `sourcesAsOf` with the
+header, footer and screens. `lib/liveSession.ts` holds the visitor's key in module memory only and
+the session token in sessionStorage (with an in-memory copy, so live mode still works when storage
+is blocked). `lib/api.ts` adds the token and key headers to the model routes only (never to health,
+recordings or search), parses `code` and `Retry-After`, and on a 401 tells the live session what to
+forget (`passcode_required` drops the token, `key_refused` / `key_required` the key) and why, so
+the live panel reopens with the right message.
+
+**Source search (T-018 step 4):** `POST /api/search {query}` (`rag/sources.py`, `api/search.py`) is
+the retrieval half of RAG for visitors without a key: one Voyage request, the top passages (at most
+2 per document) as citations with a 600-character excerpt, an `insufficient` flag, and a rules-only
+route preview (`router/rules.rule_kind` + the route table; null with a note when only the model
+could decide). No model call, so it is open in every mode; 503 when the server has no retrieval;
+its own concurrency cap (`limits.SEARCH`, 2); the query is never logged.
+
+**Sources date (T-018 step 3):** ingest writes `knowledge_base/index_info.json` (committed) after
+each successful index rebuild: the oldest and newest page fetch dates plus document and chunk
+counts (`ingestion/index_info.py`; `ingest --info-only` rewrites it from the processed chunks with
+no fetch or Voyage). The API reads it at startup in every mode and `/api/health` returns
+`sources_as_of` (the oldest date: an "as of" claim every source supports) and `sources_newest`; the
+footer shows "Sources as of {date}". Manual (owner-saved) sources are counted but don't set the
+dates (their stamp is a file time). Read once at startup: restart the API after a re-ingest.
+
 Deployed site:
 - **Demo mode (default):** replays recorded runs from `demo_runs/`; no model or embedding calls, no
   keys needed.
 - **Live mode:** the visitor pastes an Anthropic key. It travels over HTTPS with each request, lives
   only in memory for that request, and is never stored, logged, traced or returned. Query embeddings
-  use the owner's Voyage key with a rate limit (TBD, see REQUIREMENTS).
+  use the owner's Voyage key with a per-IP rate limit, and live routes need a shared passcode in a
+  header (owner decision 2026-11-20, T-018).
 
 ## Tracing
 Built in Milestone 2 (`tracing.py`, ticket T-002). One function, `configure_tracing(settings)`, decides
@@ -112,7 +188,7 @@ for the whole process; the API lifespan and the model-calling CLIs (`rag.ask`, `
 | Rule | Where |
 |---|---|
 | On only if `LANGSMITH_TRACING=true` **and** `LANGSMITH_API_KEY` is set in `.env` | `tracing.decide` |
-| Always off in live mode (`APP_MODE=live`), whatever `.env` says | `tracing.decide` |
+| Off unless `APP_MODE=local`: never on the deployed site (demo or live), whatever `.env` says | `tracing.decide` |
 | Off from import: `gradpath.tracing` sets `enabled=False` when first imported (retrieval and providers import it), so ingest, probe and eval never trace. Only `configure_tracing` turns it on, from our settings; langsmith's own variables (`LANGSMITH_TRACING`, `LANGCHAIN_TRACING_V2`) can't act alone | `tracing.py` |
 | Uploads go only to `LANGSMITH_ENDPOINT` from settings (default LangSmith US); refused if `LANGSMITH_RUNS_ENDPOINTS` (extra destinations) is set | `tracing.decide`, `configure_tracing` |
 | A request (visitor) API key is refused while tracing is on (checked when the model is built) | `providers.factory.get_chat_model` |

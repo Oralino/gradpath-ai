@@ -7,11 +7,17 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, ConfigDict, Field
 
 from gradpath.api import limits
-from gradpath.api.deps import get_answer_model, get_extraction_model, get_retrieval
+from gradpath.api.deps import (
+    get_answer_model,
+    get_extraction_model,
+    get_retrieval,
+    require_model_routes,
+)
+from gradpath.api.ratelimit import limit
 from gradpath.jobs import JobAnalysis, analyze_job
 from gradpath.retrieval import RetrievalService
 
-router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+router = APIRouter(prefix="/api/jobs", tags=["jobs"], dependencies=[Depends(require_model_routes)])
 
 
 class AnalyzeRequest(BaseModel):
@@ -19,7 +25,7 @@ class AnalyzeRequest(BaseModel):
     job_description: str = Field(min_length=50, max_length=20_000)
 
 
-@router.post("/analyze", response_model=JobAnalysis)
+@router.post("/analyze", response_model=JobAnalysis, dependencies=[Depends(limit("model"))])
 def analyze(
     body: AnalyzeRequest,
     retrieval: Annotated[RetrievalService, Depends(get_retrieval)],

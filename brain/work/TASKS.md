@@ -4,15 +4,19 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
+- [ ] [T-018](tickets/T-018-demo-live-modes.md): Milestone 7, demo and live modes (plan approved
+      2026-11-20: scope, order and decisions in the ticket).
 - [ ] DESIGN.md: record the visible input rows and "Build plan again" on the Plan screen
       (design-advisor drafts, owner approves; T-011 design critique).
-- [ ] Milestone 7: PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard).
-- [ ] Milestone 7 (moved from 6 on 2026-11-20, not built there): a "sources as of" date the API
-      returns and the footer shows (`DESIGN.md` Known gaps and footer copy).
+- [ ] PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard). Moved out of Milestone 7
+      (owner decision 2026-11-20, T-018) to a later milestone.
+- [x] A "sources as of" date the API returns and the footer shows (T-018 step 3).
 
 Answer quality (owner decision 2026-11-19: before Milestone 7's public demo):
-- [ ] Answer eval set: ~20 questions with must-contain facts plus must-refuse cases, scored in code.
-- [ ] Grounding check: Haiku checks each claim against its cited chunk; report a "supported" rate.
+- [x] Answer eval set: 20 cases (14 must-contain, 6 must-refuse), scored in code (T-018 step 10).
+- [x] Answers add unsupported advice: fixed by the no-advice prompt rule, 7/166 -> 1/151
+      unsupported claims ([T-019](tickets/T-019-answers-follow-sources.md)).
+- [x] Grounding check: Haiku checks each claim against its cited chunk; 96% supported (T-018 step 10).
 - [ ] Re-run the retrieval and answer evals as a release check when sources, prompts or models change.
 
 Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
@@ -43,21 +47,19 @@ The milestone plan and its story (what, why, what it does) live in [MILESTONES.m
 
 ## Deferred from the Milestone 1 code review (2026-11-17)
 Before any deploy (Milestones 7–8):
-- [ ] Auth or passcode and per-IP rate limits on the model routes (each call can start a Claude
-      Code process and spend plan quota). Concurrency caps done: `api/limits.py` (T-003).
-      Known gap (T-006): `/api/assist` spends its routing call before the career cap can answer
-      503 while a workflow is running; per-IP limits close it.
-- [ ] Enforce `APP_MODE` (demo vs live); the app must start and serve demo mode with no keys set
-      (today the lifespan needs `VOYAGE_API_KEY`).
-- [ ] `POST /api/career/prepare` (like the other routes) uses the server's model credentials
-      whatever `APP_MODE` says; live mode must pass the visitor's key instead (T-003 review).
+- [x] Passcode and per-IP rate limits on the model routes (T-018 step 7); closes the T-006 gap
+      (`/api/assist` spending its routing call while a workflow runs) and the step 5 finding (a
+      made-up key spending a Voyage search: now behind the passcode).
+- [ ] Optional: a free key pre-check (models list, cached per owner tag) and a kinder message for
+      Anthropic's "no credit" 400 (from the T-018 step 5 review).
+- [x] Enforce `APP_MODE`; the app starts and serves demo mode with no keys set (T-018 step 1).
+- [x] Live mode passes the visitor's key to every model route (T-018 step 5).
 - [x] LangGraph's "Retrying task" log line no longer carries exception text (filter in
       `workflows/graph.py`, T-003).
 - [x] `workflows.cli --out` saves a real profile's results only under `private/` (T-003).
-- [ ] Before live mode: a 422 handler that drops `input` from FastAPI's validation errors, so a
-      visitor key sent in a wrong field is never echoed back (found in T-017).
-- [ ] When live-mode key handling lands: the visitor-key tracing guard in `get_chat_model` checks
-      once, when the model is built; re-check it covers how routes build models (T-002 review).
+- [x] A 422 handler that drops `input` from FastAPI's validation errors (T-018 step 6).
+- [x] Re-checked (T-018 step 5): every API route builds models through `deps.get_answer_model` /
+      `get_extraction_model` -> `get_chat_model(api_key=...)`, and tracing is off in live mode.
 Milestone 2 (tracing):
 - [x] Wire `LANGSMITH_TRACING` explicitly and decide what may reach LangSmith (T-002, `tracing.py`).
 - [x] `ChatClaudeCode._generate` worker thread now runs in a copy of the caller's context (T-002).

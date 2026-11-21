@@ -2,7 +2,7 @@
 
 Traces hold full prompts (retrieved text, job descriptions, later profiles), so tracing is:
 - off unless `LANGSMITH_TRACING=true` in settings AND `LANGSMITH_API_KEY` is set;
-- always off in live mode (visitor requests on the deployed site);
+- on only in local mode: always off on the deployed site (demo and live, visitor requests);
 - off from the moment this module is imported (retrieval and providers import it), and set
   explicitly in code, which langsmith checks before its own environment variables; so
   `LANGSMITH_TRACING` / `LANGCHAIN_TRACING_V2` in the shell can't switch it on by themselves,
@@ -62,8 +62,9 @@ def decide(settings: Settings) -> TracingStatus:
     """The on/off rule alone (no side effects), so it can be tested and logged."""
     if not settings.langsmith_tracing:
         return TracingStatus(False, "LANGSMITH_TRACING is not true")
-    if settings.app_mode == "live":
-        return TracingStatus(False, "live mode never traces (visitor requests)")
+    if settings.app_mode != "local":
+        # Deployed (demo or live): visitor requests must never reach LangSmith.
+        return TracingStatus(False, f"{settings.app_mode} mode never traces (deployed site)")
     key = settings.langsmith_api_key
     if key is None or not key.get_secret_value().strip():
         return TracingStatus(False, "LANGSMITH_API_KEY is not set")
@@ -91,6 +92,12 @@ def configure_tracing(settings: Settings) -> TracingStatus:
         _client = None
         langsmith.configure(client=None, enabled=False)
     log.info("LangSmith tracing %s (%s)", "on" if status.enabled else "off", status.reason)
+    if settings.langsmith_tracing and settings.app_mode != "local":
+        # Asked for but refused by mode: say how to get it back on the owner's machine (T-018).
+        log.warning(
+            "LANGSMITH_TRACING is true but APP_MODE=%s; set APP_MODE=local to trace locally",
+            settings.app_mode,
+        )
     return status
 
 

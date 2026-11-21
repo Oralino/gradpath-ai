@@ -1,6 +1,11 @@
 # DONE.md
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
+## 2026-11-21
+- [T-019 Answers follow the sources](tickets/T-019-answers-follow-sources.md): the answer prompt
+  forbids advice the evidence doesn't state; unsupported claims 7/166 -> 1/151; the 4 RAG
+  recordings re-recorded.
+
 ## 2026-11-20
 - **Milestone 6 (frontend) finished:** [T-011](tickets/T-011-frontend.md). Ask, Job, Plan and
   Profile screens; design critique fixes `e694acb`; release checks recorded in the ticket

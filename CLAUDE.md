@@ -38,7 +38,8 @@ uv run pytest -q                            # tests (fake LLM provider, no API c
 uv run pytest --html=reports/tests.html --self-contained-html   # browsable report (gitignored)
 uv run ruff check . && uv run ruff format --check .
 uv run python -m gradpath.providers.smoke   # manual: one real call through LLM_PROVIDER (Haiku)
-uv run python -m gradpath.ingestion.ingest [--dry-run]   # build the knowledge base index
+uv run python -m gradpath.ingestion.ingest [--dry-run]   # build the knowledge base index (+ index_info.json)
+uv run python -m gradpath.ingestion.ingest --info-only   # rewrite index_info.json only (no fetch, no Voyage)
 uv run python -m gradpath.retrieval.probe                # real retrieval scores (threshold check)
 uv run python -m gradpath.rag.ask "question"             # one RAG answer from the terminal
 uv run python -m gradpath.jobs.cli <job_description_file> [--json]   # analyse a posting
@@ -46,7 +47,9 @@ uv run python -m gradpath.workflows.cli <jd_file> <profile.json> [--correction T
 uv run python -m gradpath.evaluation.retrieval_eval [--k 1,3,5,10] [--hybrid 20 | --rerank 10,20]   # retrieval eval (1 Voyage call)
 uv run python -m gradpath.evaluation.routing_eval [--rules-only] [--rescore FILE]   # routing eval (Haiku per open case)
 uv run python -m gradpath.evaluation.routing_compare     # adaptive vs always-RAG vs always-workflow (4 requests)
+uv run python -m gradpath.evaluation.answer_eval [--only a-001 ...] [--no-grounding] [--rescore FILE]   # answer facts, refusals, grounding (Sonnet + Haiku per case)
 uv run python -m gradpath.router.cli "message" [--job FILE] [--profile FILE] [--route-only] [--json]   # route + run
+uv run python -m gradpath.demo.record [--only ID ...] [--force] [--list]   # record demo runs (real calls, sample inputs only)
 uv run uvicorn gradpath.api.main:app --reload            # API on :8000 (docs at /docs)
 ```
 - Local Qdrant allows one process at a time: stop the API before running ingest, probe, ask or eval.

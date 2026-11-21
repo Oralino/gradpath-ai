@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     retrieval_k: int = 5
     retrieval_min_score: float = 0.45  # probe 2026-11-17: covered >= 0.59, uncovered <= 0.39
 
-    # Tracing rules live in tracing.py: off unless true AND a key is set; never in live mode.
+    # Tracing rules live in tracing.py: off unless true AND a key is set; only in local mode.
     langsmith_tracing: bool = False
     langsmith_api_key: SecretStr | None = None
     langsmith_endpoint: str = "https://api.smith.langchain.com"
@@ -68,7 +68,24 @@ class Settings(BaseSettings):
     # Relative to the repo root; "" turns it off. `logs/` is gitignored.
     route_log_path: str = "logs/routes.jsonl"
 
-    app_mode: Literal["demo", "live"] = "demo"
+    # T-018 (owner decision 2026-11-20): local = the owner's machine, server credentials, tracing
+    # allowed; demo = deployed, recorded runs only, model routes off; live = deployed, recordings
+    # plus model routes with a visitor's key. Default demo: the safest, and it needs no keys.
+    app_mode: Literal["local", "demo", "live"] = "demo"
+    # Live mode's shared passcode (T-018 step 7, owner decision): visitors send it in the
+    # X-GradPath-Passcode header; live refuses to start without one of 16+ characters.
+    live_passcode: SecretStr | None = None
+    # Proxies in front of the API that append to X-Forwarded-For (Render: set in Milestone 8).
+    # 0 = use the connection address; never trust the client-written left end of the header.
+    trusted_proxy_hops: int = Field(default=0, ge=0, le=5)
+    # Browser origins allowed to POST (T-018 step 8, CSRF defence in depth): comma-separated, exact
+    # scheme://host[:port]. Requests with no Origin header (curl, CLIs) are unaffected. There is
+    # no CORS middleware: the browser only calls its own origin, through Next's /api proxy.
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    # Recorded runs served in every mode (relative to the repo root).
+    demo_runs_path: str = "demo_runs"
+    # Index summary written by ingest, read by the API for "Sources as of" (T-018 step 3).
+    index_info_path: str = "knowledge_base/index_info.json"
 
 
 @lru_cache

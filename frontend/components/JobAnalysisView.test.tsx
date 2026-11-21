@@ -1,3 +1,4 @@
+import { inLocal, stubFetch } from "@/components/serverFixtures";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { JobAnalysisView } from "@/components/JobAnalysisView";
@@ -69,7 +70,7 @@ function analysis(over: Partial<JobAnalysis> = {}): JobAnalysis {
 
 function mockFetch(impl: (init: RequestInit) => Promise<Response>) {
   const fn = vi.fn((_url: string, init: RequestInit) => impl(init));
-  vi.stubGlobal("fetch", fn);
+  stubFetch(fn);
   return fn;
 }
 
@@ -92,14 +93,14 @@ afterEach(() => {
 
 describe("JobAnalysisView", () => {
   test("the sample button fills the box", () => {
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     fireEvent.click(screen.getByRole("button", { name: "Use sample posting" }));
     expect((screen.getByLabelText("Job posting") as HTMLTextAreaElement).value).toContain("Fernhill Parcel Co.");
   });
 
   test("too short or too long sends nothing", () => {
     const fn = mockFetch(async () => jsonResponse(200, analysis()));
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type("short");
     analyse();
     expect(screen.getByText(/needs at least 50 characters/)).toBeTruthy();
@@ -111,12 +112,12 @@ describe("JobAnalysisView", () => {
 
   test("shows a full result", async () => {
     const fn = mockFetch(async () => jsonResponse(200, analysis()));
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     const h2 = await screen.findByRole("heading", { level: 2, name: "Backend Engineer" });
     expect(JSON.parse(fn.mock.calls[0][1].body as string)).toEqual({ job_description: LONG });
-    expect(document.activeElement).toBe(h2);
+    await waitFor(() => expect(document.activeElement).toBe(h2)); // focus is set by an effect after the h2 appears
     expect(screen.getByText("New grad")).toBeTruthy();
     expect(screen.getByText("4 requirements: 1 covered, 1 weak evidence, 1 not covered, 1 eligibility")).toBeTruthy();
     expect(screen.getByText("Responsibilities (2)")).toBeTruthy();
@@ -136,7 +137,7 @@ describe("JobAnalysisView", () => {
     mockFetch(async () =>
       jsonResponse(200, analysis({ stats: { requirements: 2, covered: 2, weak_evidence: 0, not_covered: 0, not_applicable: 0 } })),
     );
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     expect(await screen.findByText("2 requirements: 2 covered")).toBeTruthy();
@@ -144,7 +145,7 @@ describe("JobAnalysisView", () => {
 
   test("chips use note_citations and never link an unsafe url", async () => {
     mockFetch(async () => jsonResponse(200, analysis()));
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     await screen.findByRole("heading", { level: 2, name: "Backend Engineer" });
@@ -163,7 +164,7 @@ describe("JobAnalysisView", () => {
 
   test("a 503 shows the busy panel, other errors the stopped panel", async () => {
     mockFetch(async () => jsonResponse(503, { detail: "busy" }));
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     expect(await screen.findByRole("heading", { level: 2, name: "Another preparation run is in progress." })).toBeTruthy();
@@ -171,7 +172,7 @@ describe("JobAnalysisView", () => {
     cleanup();
 
     mockFetch(async () => jsonResponse(500, { detail: "secret trace" }));
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     expect(await screen.findByRole("heading", { level: 2, name: "The request failed" })).toBeTruthy();
@@ -185,19 +186,19 @@ describe("JobAnalysisView", () => {
           init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
         }),
     );
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     expect((await screen.findAllByText(/Reading the posting and searching the knowledge base/)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Stop waiting" }));
     await waitFor(() => expect(screen.queryByRole("button", { name: "Stop waiting" })).toBeNull());
     expect(screen.queryByText("The request failed")).toBeNull();
-    expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
+    expect(screen.queryByRole("heading", { level: 2, name: /^(?!Recorded examples).+/ })).toBeNull();
   });
 
   test("the plan button stores the posting and navigates", async () => {
     mockFetch(async () => jsonResponse(200, analysis()));
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     await screen.findByRole("heading", { level: 2, name: "Backend Engineer" });
@@ -210,7 +211,7 @@ describe("JobAnalysisView", () => {
     mockFetch(async () =>
       jsonResponse(200, analysis({ requirements: [req({ sources: [cite(), cite({ chunk_id: "c9" })] })] })),
     );
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     await screen.findByRole("heading", { level: 2, name: "Backend Engineer" });
@@ -225,7 +226,7 @@ describe("JobAnalysisView", () => {
         req({ skill: "B", sources: [cite({ chunk_id: "c5", title })] }),
       ] })),
     );
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     await screen.findByRole("heading", { level: 2, name: "Backend Engineer" });
@@ -245,7 +246,7 @@ describe("JobAnalysisView", () => {
         req({ skill: "Elig", importance: "preferred", coverage: "not_applicable" }),
       ] })),
     );
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     await screen.findByRole("heading", { level: 2, name: "Backend Engineer" });
@@ -257,7 +258,7 @@ describe("JobAnalysisView", () => {
 
   test("an empty title and no requirements fall back to fixed copy", async () => {
     mockFetch(async () => jsonResponse(200, analysis({ title: "", requirements: [], stats: { requirements: 0 } })));
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     expect(await screen.findByRole("heading", { level: 2, name: "Job analysis" })).toBeTruthy();
@@ -266,7 +267,7 @@ describe("JobAnalysisView", () => {
 
   test("a failed check clears the previous result", async () => {
     mockFetch(async () => jsonResponse(200, analysis()));
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     await screen.findByRole("heading", { level: 2, name: "Backend Engineer" });
@@ -278,7 +279,7 @@ describe("JobAnalysisView", () => {
   test("a stale response after Stop waiting is not rendered", async () => {
     const resolvers: ((r: Response) => void)[] = [];
     mockFetch(() => new Promise<Response>((resolve) => resolvers.push(resolve)));
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     fireEvent.click(await screen.findByRole("button", { name: "Stop waiting" }));
@@ -301,7 +302,7 @@ describe("JobAnalysisView", () => {
         ] }),
       ] })),
     );
-    render(<JobAnalysisView />);
+    render(inLocal(<JobAnalysisView />));
     type(LONG);
     analyse();
     await screen.findByRole("heading", { level: 2, name: "Backend Engineer" });

@@ -664,6 +664,21 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   appear in identifiers and arithmetic (`snake_case`, `2 * 3`), so italics would mangle code more
   often than they help.
 
+## No added advice (`rag/answer.py` prompt, T-019)
+- **What it is:** a rule in the answer prompt: every sentence must be stated by a cited evidence
+  block, so the model may rephrase the sources but not add its own advice, "use X when" guidance or
+  well-known facts. Guidance the sources don't give is named in `not_covered`.
+- **Why:** the first answer eval found 7 of 166 claims true but unsupported, all advice or general
+  knowledge. "Use only the evidence" stopped invented facts but not added advice. The owner's
+  rule: answers follow the sources.
+- **Measured:** unsupported claims 7/166 -> 1/151, facts and refusals unchanged; answers marked
+  partial 3 -> 6, each naming a real gap.
+- **Rejected for now:** a grounding check on every live answer that drops unsupported sentences
+  (one more Haiku call, 7-11 s, on the visitor's key).
+- **Likely question:** *"Doesn't that make answers less helpful?"* Less chatty, more honest: the
+  answer says what the docs say and names what they don't, so the reader knows where the sources
+  end instead of trusting advice that sounds like it came from them.
+
 ## Partial answers (`rag/answer.py`, T-012)
 - **What it is:** a third RAG answer status. `answered` means the sources cover the question,
   `partial` means they cover part of it, `insufficient_evidence` means not enough to answer. A partial
@@ -794,4 +809,318 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Likely questions:** *"Why isn't there a progress bar?"* The stages vary in length and a revise
   loop may or may not run, so a percentage would be invented. A stage list and a timer show what is
   really known.
+
+## App modes and demo mode (`config.py`, `api/deps.py`, `demo/`, `api/demo.py`, T-018 step 1)
+- **What it is:** `APP_MODE` says where the server runs. `local` is the owner's machine (models on
+  the server's credentials, tracing allowed). `demo` is the deployed default: recorded runs only.
+  `live` is deployed with a visitor's own key (wired in step 4). Recorded runs from `demo_runs/`
+  are served in every mode by `GET /api/demo` (a list) and `GET /api/demo/{id}` (one run).
+- **Decision: deny by default.** One router-level dependency, `require_model_routes`, sits on every
+  router that calls a model or Voyage, and lets only `local` through. FastAPI solves it before the
+  route's other dependencies and before body validation, so a refused request builds no model,
+  opens no retrieval and echoes nothing back. The default mode is `demo`, so a server with a
+  missing setting is safe rather than spending the owner's quota.
+  - Rejected: hiding the screens in the frontend only. Guide 02: the frontend is untrusted.
+  - Rejected: two modes (demo/live), where today's local behaviour ran under the name "demo".
+- **Decision: separate demo endpoints, not replay on the same routes.** Matching a request body to
+  a recording is brittle and keeps the model routes reachable. Separate read-only endpoints keep
+  the model routes simply off; the frontend shows a picker (step 8).
+- **Decision: demo never opens Voyage or Qdrant.** The lifespan skips the retrieval service in demo
+  mode, which is why the API starts with no keys at all (a release check).
+- **Gotchas:**
+  - Each recording is validated against the live response models (`AssistResponse`,
+    `JobAnalysis`, `CareerPrepResult`). If the API changes, a stale recording is skipped at startup
+    and `test_every_committed_recording_is_valid` fails, so drift is caught in CI.
+  - A bad file is logged by name and error count only: validation messages can quote content.
+  - Ids are looked up in a dict; a client id is never turned into a file path.
+  - API tests run in local mode through an autouse fixture in `conftest.py`; the demo tests switch
+    it back. FastAPI 0.163 nests included routers, so the guard test checks the OpenAPI route list
+    instead of walking router internals.
+- **Likely questions:**
+  - *"How do you know no route was forgotten?"* `test_every_route_is_either_open_or_in_the_guard_test`
+    lists every route from the OpenAPI schema; a new route fails until it is listed as open or
+    guarded, and each guarded one is proven to answer 403 in demo and live.
+  - *"Why 403 and not 404?"* The route exists; the server refuses it in this mode, and the message
+    points to the recorded examples.
+
+## Recording the demo runs (`demo/record.py`, T-018 step 2)
+- **What it is:** the command that makes `demo_runs/`. It runs a fixed list of examples through
+  the functions the API routes call (`decide` + `respond` for Ask, `analyze_job`, the workflow) and
+  saves each result as a recording.
+- **Decision: no file arguments.** Inputs are always the committed sample posting and fictional
+  profile, so a real profile can't end up in a public file. Rejected: `--job` / `--profile` flags
+  like the other CLIs.
+- **Decision: refuse rather than fix.** Before writing, each file is scanned for emails, phone
+  numbers, keys and this machine's paths; a match refuses the file and names only the kind. The
+  router's choice is also checked against the example's label (`expect`), because routing is a model
+  call and a mislabelled example would mislead visitors.
+- **Decision: one workflow run, two recordings.** The Ask example where the router picks the
+  workflow and the Plan example share one run. A forced re-record of that Ask rebuilds the Plan too,
+  or warns if the Plan wasn't in the run.
+- **Gotchas:** existing files are kept unless `--force` (plan quota and Voyage tokens). Nothing is
+  traced: `gradpath.tracing` turns tracing off at import, the recorder never turns it on, and it exits
+  if it ever finds it on. Run it with the API stopped (local Qdrant lock).
+- **Likely questions:**
+  - *"Isn't a recording just a fake?"* It is the real output of the real code on sample inputs,
+    validated against the same response models as the live routes; a test fails if the API changes
+    and the recordings go stale.
+  - *"Why keep a plan with open issues?"* The app's point is honesty: the demo shows the critic's
+    blocking issue the same way a live run would.
+
+## Sources date (`ingestion/index_info.py`, `components/SourcesDate.tsx`, T-018 step 3)
+- **What it is:** the footer's "Sources as of 19 Nov 2026". Ingest writes a small committed file,
+  `knowledge_base/index_info.json`, after each index rebuild; the API reads it at startup and returns
+  the date from `/api/health`; a client component in the footer shows it.
+- **Decision: the oldest fetch date, not the newest.** "As of" claims the information is current
+  to that day. One page fetched on the 18th is only current to the 18th, so the newest date would
+  overstate it. The newest is returned too, for anyone who wants the range.
+- **Decision: a committed file, not a Qdrant query.** Demo mode never opens Qdrant, so a query
+  would leave the date empty exactly on the public site. The file is written only after a successful
+  rebuild, so it always describes what is really indexed.
+  - Rejected: a date typed by hand in the frontend (drifts the first time the corpus changes).
+- **Decision: manual sources don't date the index.** A source the owner saves by hand gets its
+  chunk date from the file's modified time, which is not a fetch date and changes on a fresh clone.
+  It is counted but skipped for the dates. The review caught this: our one manual source (BLS)
+  had pulled the footer back to 18 Nov while every web page was fetched on 19 Nov.
+- **Gotchas:** fetch stamps are UTC; a stamp with no zone is read as UTC too, and the frontend
+  formats the date in UTC so it never shifts by a day in the visitor's time zone. The footer
+  fetches after first paint and shows nothing on any failure, so a down API never breaks the page.
+  The API reads the file once at startup: restart it after a re-ingest. An approved source with
+  no processed chunks is logged, so a partial index doesn't pass silently.
+- **Likely questions:** *"Why does `--info-only` exist?"* To write the file for the current index
+  without re-fetching pages or spending Voyage tokens.
+
+## Source search without a model (`rag/sources.py`, `api/search.py`, T-018 step 4)
+- **What it is:** what a visitor without an Anthropic key can run live. Type a question, get the
+  passages the knowledge base would use to answer it, with links, plus which path the router's
+  rules would pick. Nothing writes an answer.
+- **Why not "fall back to traditional RAG"?** Traditional RAG also needs a model to write the
+  answer; only the retrieval half is free (one Voyage request). Owner decision 2026-11-20.
+- **Decision: no model anywhere on this route.** Passages are shown as found, never summarised;
+  the route preview uses only the deterministic rules, and says "a model would decide" when they
+  can't. So the route can stay open in demo mode without spending anyone's quota.
+- **Decision: demo opens retrieval only with a Voyage key, and failing is not fatal.** No key or a
+  Qdrant/Voyage failure turns search off (503 with a fixed message); the recordings still work. In
+  local and live mode a failure still stops startup, because their main features need retrieval.
+- **Gotchas:** at most two passages per document, so one long page doesn't fill all five places.
+  Excerpts are retrieved web text: untrusted, plain text only in the browser; line breaks are kept
+  so code stays readable. The query is never logged, and Voyage errors are logged by type only.
+- **Decision: search never waits for Voyage.** The shared throttle normally sleeps until the
+  3-a-minute window has room and retries a 429 up to five times; that is right for ingest and the
+  owner's runs, but on a public route two slow requests could hold both search slots for over a
+  minute. Search uses `embed_query_now`: one attempt, and a full window or a 429 answers 429 at once
+  ("try again in a minute"). The review caught this. Until step 7's per-IP limits, the concurrency
+  cap (2) and this fail-fast path protect the free tokens; in local mode search shares the window
+  with chat, jobs and the workflow.
+- **Likely questions:**
+  - *"Isn't this just a search engine?"* It is the retrieval stage of the RAG pipeline exposed on
+    its own: same embeddings, threshold and citations as the answer path, so a visitor sees exactly
+    the evidence an answer would be grounded in.
+  - *"Why show the route?"* It demonstrates the adaptive half of the app (which path a request would
+    take) without a model call.
+
+## Visitor keys in live mode (`api/deps.py`, `api/main.py`, `workflows/runs.py`, T-018 step 5)
+- **What it is:** how a visitor's own Anthropic key reaches the model, and nothing else. The
+  browser sends it in an `X-Anthropic-Key` header on each request; `visitor_key` checks its shape;
+  the two model dependencies build Claude clients with it. Always-hard area: written by the lead,
+  reviewed and QA'd.
+- **Decision: a header, not a body field.** FastAPI's 422 responses echo the rejected input, so a
+  key in a mistyped body field could come straight back (found in T-017). A header we read
+  ourselves is never part of a validation error.
+- **Decision: shape check only.** `sk-ant-` plus 20-200 safe characters. Checking with Anthropic
+  would cost a call; a bad key fails on the first real call instead and gets "Anthropic refused this
+  key" (401).
+- **Decision: live mode cannot run on the owner's money.** Startup refuses unless the provider is
+  the Anthropic API and no server key is set, and the factory never falls back to a server key. So
+  even a misconfigured deploy can't bill the owner.
+- **Decision: runs belong to their key.** A background run stores an HMAC of the key (with a random
+  per-process secret), not the key; polling with a different key gets exactly the same 404 as a
+  missing run, so ids can't be probed (guide 02: unguessable ids alone aren't access control).
+  Rejected: a separate run token (another secret for the browser to keep).
+- **Decision: live refuses a redirected Anthropic host.** The SDK reads `ANTHROPIC_BASE_URL` /
+  `ANTHROPIC_API_URL` from the environment; set on a server they would send every visitor's key
+  elsewhere, so live mode won't start with either. (Claude Code's own shell sets one, which is how
+  the tests first caught it.)
+- **Gotchas:** the key lives in the worker thread while a run is going, then is gone. Local mode
+  ignores the header. The CAREER slot is still global: one visitor's run blocks others until step 7's
+  per-IP limits. There is no real-key test: the owner has no paid key (zero-cost rule); tests use
+  real `ChatAnthropic` objects with fake keys and simulated Anthropic errors.
+- **Likely questions:**
+  - *"How do you know the key never hits the logs?"* Tests run whole requests at DEBUG level,
+    including refused keys, and assert the key is absent from the logs and responses; the SDK and
+    HTTP-client loggers are capped at WARNING in live mode.
+  - *"Why not store the key in a session?"* No sessions means nothing to steal and nothing to expire;
+    the browser keeps it in memory (step 9) and sends it per request.
+
+## Validation errors that echo nothing (`api/main.py` `safe_validation_errors`, T-018 step 6)
+- **What it is:** our own handler for FastAPI's 422 responses. Each error keeps where it is
+  (`loc`), what is wrong (`msg`) and its kind (`type`); the rejected value (`input`) and its
+  context (`ctx`) are dropped.
+- **Why:** FastAPI's default 422 quotes what the client sent, so a key pasted into the wrong field
+  came straight back in the response (found in T-017), and logs or proxies that store responses
+  would keep it.
+- **Decision: field names are client text too.** An unknown field's name becomes "(unknown field)",
+  and any location part that isn't a plain identifier or an index becomes "?", so a key used as a
+  field name can't come back either. Indexes stay, because the frontend uses `loc` to mark the
+  exact row (for example the second skill).
+- **Gotcha:** FastAPI solves a route's dependencies before it reports body errors, so the mode
+  guard and the key check run first and an invalid body still builds (but never calls) the models.
+- **Likely question:** *"Doesn't this make debugging harder?"* The location and message are enough
+  to fix a request; the value is the one thing the client already has.
+
+## Passcode and per-IP limits (`api/ratelimit.py`, `api/deps.check_passcode`, T-018 step 7)
+- **What it is:** the gate in front of live mode and the meter on everything that costs something.
+  Live routes need a shared passcode (owner decision) before the visitor's key is even looked at;
+  every route that calls Voyage or a model counts requests per IP; source search also has a global
+  daily cap.
+- **Decision: own sliding windows, in memory.** A few dozen lines with a fake clock for tests.
+  Rejected: a rate-limit library (a dependency for something this small) and Redis (infrastructure
+  that can cost money). Trade-off: per process, so one worker, and a restart resets the counts.
+- **Decision: the passcode is checked before the key, and failures lock the IP.** Five wrong
+  guesses in 15 minutes and that IP gets 429 even with the right passcode; the compare is
+  constant-time and the guess is never logged (guide 02: brute force).
+- **Decision: a global cap on search.** Per-IP limits don't stop many IPs; 1,000 searches a day
+  in total protects the owner's non-refreshing Voyage tokens whatever happens.
+- **Decision: which address is the client.** Behind a proxy every request looks the same, but the
+  left end of `X-Forwarded-For` is written by the client and can be forged. With
+  `TRUSTED_PROXY_HOPS=n` we take the n-th entry from the right (the one our own proxy added).
+- **Decision (review): one IPv6 network is one client.** A home or server usually owns a whole /64,
+  so counting each IPv6 address separately would hand an attacker billions of fresh limits; keys
+  are the /64 network (IPv4-mapped addresses become IPv4), and only counting creates an entry.
+- **Decision (review): refuse huge bodies first.** FastAPI reads and parses the body before any
+  dependency runs, so the guard can't stop a 100 MB POST; a small ASGI middleware answers 413 over
+  256 KB, checking `Content-Length` and counting streamed bytes.
+- **Gotchas:** limits are off in local mode, so evals and the owner's runs aren't throttled. Polling
+  has its own generous bucket (the Plan page polls every 2 s). `/api/assist` charges the workflow
+  bucket when it starts a run, so it can't be used to skip that limit, and checks that quota before
+  its routing call. Search allows 2 a minute per client because Voyage allows 3 in total. Known and
+  accepted: concurrent wrong guesses can slightly exceed 5 before the lock (negligible against a
+  16+ character passcode).
+- **Likely questions:**
+  - *"Why not accounts?"* Owner decision: one shared passcode is enough for a portfolio demo, with
+    no passwords to store or reset (multi-user accounts are in "Later").
+  - *"What if the passcode leaks?"* Change `LIVE_PASSCODE` and restart; visitors pay with their own
+    keys, so a leak costs the owner at most the capped Voyage searches.
+
+## Cross-site requests: no CORS, an Origin check (`api/main.py` `OriginCheck`, T-018 step 8)
+- **What it is:** the answer to "can another website make a visitor's browser use our API?" No:
+  it can't read our responses, and it can't make the API act.
+- **Decision: no CORS at all.** The browser only ever calls its own origin; Next's `/api` rewrite
+  forwards to the API server-side (locally and on Vercel), so the API never needs to grant another
+  origin anything. Rejected: a CORS allow-list of the frontend origin, which would add a way to get
+  CORS wrong for no benefit.
+- **Decision: check `Origin` anyway** (guide 01: CORS is not CSRF protection). A cross-site HTML
+  form can send a POST without a preflight; the browser always marks it with the page's `Origin`,
+  and `OriginCheck` refuses any origin not in `ALLOWED_ORIGINS` before the request is even read.
+  Requests with no `Origin` (curl, CLIs, tests) pass: they aren't a browser acting for a visitor.
+- **Measured, not assumed:** FastAPI already refuses the bodies a form can send (`text/plain`,
+  url-encoded, multipart, none: 422 before the route runs), and with no cookies a forged request
+  has nothing to ride on. The Origin check is the third layer.
+- **Gotcha:** the deployed frontend's address must be added to `ALLOWED_ORIGINS` (Milestone 8), or
+  every POST from the real site gets 403. Locally the default covers `localhost:3000`.
+- **Likely question:** *"Why not CSRF tokens?"* They protect cookie sessions; we have none. Our
+  credentials (passcode, key) are custom headers, which a cross-site form can't set.
+
+## Live check and session token (`api/live.py`, `api/deps.check_passcode`, T-018 step 9)
+- **What it is:** the "Use live mode" button's backend. It answers "are this passcode and this key
+  good?" once, up front, and hands back a token so the visitor doesn't retype the passcode after a
+  reload.
+- **Decision: check before the first real request** (owner decision 12). Errors show in the panel
+  at once, and a made-up key no longer spends a Voyage search before failing. The key test is
+  Anthropic's models list, which costs nothing.
+- **Decision: a signed token, not a stored passcode** (owner decision 11). The owner wanted the
+  passcode to survive a reload; keeping the passcode in the browser would put a shared secret at
+  rest. The token is an HMAC over its expiry, the passcode and a hash of the key, with a secret
+  that exists only in the server process. It expires in 12 hours, can't be stretched, and dies on
+  a restart or a passcode change. Rejected: a server-side session table (state to keep and expire;
+  the HMAC needs none).
+- **Decision: the token is bound to the key.** A stolen token is useless without the key, which
+  only lives in the visitor's tab. Side effect: the token also proves the key, so after a reload
+  re-entering the same key needs no new check; a different key fails as "passcode needed" and the
+  passcode field returns.
+- **Gotcha:** a token sent with another key counts as a wrong passcode towards the 5-guess lock,
+  so five mismatched keys after a reload lock that IP for 15 minutes. Accepted: a real visitor
+  enters the passcode again after the first refusal (the panel asks for it).
+- **Likely question:** *"Why not a JWT library?"* One HMAC over three fields with
+  `hmac.compare_digest` is the whole job; a JWT library adds algorithm choices to get wrong.
+
+## Frontend live session and shared server info (`lib/liveSession.ts`, `lib/serverInfo.tsx`, `lib/api.ts`, T-018 step 9)
+- **What it is:** the browser half of live mode, and the one place every screen learns the server's
+  mode. Screens never touch the key or the token; they call `useLiveSession()` (which says only
+  whether each is held) and `useServerInfo()`.
+- **Decision: the key in module memory only.** Not localStorage or sessionStorage, not React state
+  that outlives the panel, not the URL: a reload or a closed tab drops it, which is the promise the
+  panel's copy makes. The token is the only thing at rest, in sessionStorage (one tab, gone when the
+  tab closes), with an in-memory copy so a browser that blocks storage still works until reload.
+- **Decision: credentials on model routes only.** `post`/`get` add the headers only when the call
+  asks for them (`auth = true`); health, recordings and search never carry the key, so it goes
+  nowhere it isn't needed. Tests check every route both ways.
+- **Decision: the api client reacts to 401s itself.** One place maps `passcode_required` to "drop
+  the token" and `key_refused` / `key_required` to "drop the key", and remembers the server's fixed
+  text, so every screen's panel reopens with the right message without each screen parsing errors.
+- **Decision: one health request, shared.** A React context in the layout; an unknown `app_mode`
+  reads as demo (fail closed): no screen offers a model call the server won't make.
+- **Gotcha:** `useSyncExternalStore` needs the same snapshot object while nothing changed, or React
+  re-renders forever; the snapshot is rebuilt only when a value changes (a token can also expire
+  between renders, which the next render notices).
+- **Likely question:** *"Can a script on the page read the key?"* Yes, any script running in the
+  page could, which is why the site loads no third-party scripts and renders all server text as
+  React children (no raw HTML). Memory-only storage protects against the key outliving the tab, not
+  against XSS; the XSS defence is the rendering rules in DESIGN.md "Security rules".
+
+## Demo and live screens (`components/LivePanel.tsx`, `RecordedExamples.tsx`, `SourceSearch.tsx`, `ModeBadge.tsx`, T-018 step 9)
+- **What it is:** what each mode looks like to a visitor. The header badge says which mode the
+  server is in; each model screen has one mode-note line; demo replaces the forms with recorded
+  runs; live adds an inline panel where the visitor brings a passcode and their own key; `/search`
+  works in every mode with no model.
+- **Decision: recordings use the screens' own result components** (owner decision 8). A visitor on
+  "Analyse a job" sees a real job analysis, rendered by the same code as a live one. The only
+  difference is the strip "Recorded example, run on ... Not generated now.", which the result
+  heading points to (`aria-describedby`), so it is read out and can never be hidden. Rejected: one
+  `/examples` page (it would duplicate the renderers' context).
+- **Decision: one result slot per screen.** It holds either a live result or a recording; starting
+  a live request clears the recording, picking a recording replaces the result, and the picker is
+  disabled while a live run is going, so a run is never hidden behind an example.
+- **Decision: the panel is inline, not a dialog** (owner decision 10). The key's copy sits next to
+  the form that uses it, and there is no focus trap to get wrong. It is a `role="group"`, not a
+  `<form>`, so there is no submit event and fewer password-manager prompts.
+- **Decision: screens stay quiet on a 401.** The api client already told the live session what to
+  forget and why; the panel reopens and says it in the right field. A screen showing its own error
+  panel too would say the same thing twice, in the wrong place.
+- **Gotchas:** after a reload only the key is asked (the token remembers the passcode) and nothing
+  is checked until the first real request, because the check endpoint needs the passcode; the token
+  is bound to the key, so a different key comes back as "passcode needed". The live session is
+  shared by every page, so a refusal is forgotten when the panel that explained it unmounts.
+- **Likely questions:**
+  - *"How do you test that the key is never stored?"* The panel tests fill the key, succeed, then
+    assert it is in neither storage nor the page's HTML, and that only the token is stored.
+  - *"Why does demo still call the API?"* For the recordings and the search: no model runs, and
+    demo starts with no keys at all (a release check).
+
+## Answer eval and grounding check (`evaluation/answer_eval.py`, `evaluation/grounding.py`, T-018 step 10)
+- **What it is:** the measurement of the written answers, the part visitors read. Retrieval,
+  routing and the workflow were already measured; this checks that answers contain the facts the
+  sources give, refuse when the sources don't cover a question, and say only what their citations
+  support.
+- **Decision: facts scored in code, not by a model.** Each case lists groups of acceptable
+  phrasings taken from the indexed page; an answer must contain one phrasing from every group
+  (whole words, any case). Cheap, repeatable, re-scorable for free (`--rescore`). Trade-off: an
+  answer can state a fact in words no group lists, so failures are read before labels change.
+- **Decision: grounding judged per claim, by Haiku.** One call per answer splits it into claims and
+  marks each supported by a cited chunk or not; a verdict pointing at a chunk the answer did not
+  cite counts as unsupported, and the rate is computed in code. Rejected: one verdict per answer
+  (hides a single unsupported claim).
+- **Decision: a near-topic refusal case also passes on a fully grounded partial answer** (owner,
+  2026-11-21): what matters is that nothing is invented, not the exact status. A judge that finds
+  no claims in a shown answer counts as "not checked", a fail.
+- **Gotchas:** the judge is a model and can be wrong both ways, so its unsupported verdicts are read
+  one by one; the cited chunk text comes from `knowledge_base/processed/` by chunk id (the same
+  text the answer model saw), so a re-ingest must happen before re-running.
+- **Likely questions:**
+  - *"What did it find?"* 12/14 answers pass, 6/6 gaps refused, 96% of claims supported. Both
+    failures were retrieval (a missing section; the known `q-041` miss), and the unsupported
+    claims were true advice or general knowledge, not invented specifics.
+  - *"Isn't using a model to grade a model circular?"* Partly, which is why the facts and refusals
+    are scored in code and the judge only answers a narrow question (does this passage state this
+    claim?), with its negative verdicts checked by reading.
 

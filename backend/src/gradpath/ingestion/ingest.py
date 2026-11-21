@@ -1,4 +1,6 @@
-"""CLI: `uv run python -m gradpath.ingestion.ingest [--refresh] [--only DOC_ID ...] [--dry-run]`."""
+"""CLI: `uv run python -m gradpath.ingestion.ingest [--refresh] [--only DOC_ID ...] [--dry-run]
+[--info-only]`. `--info-only` rewrites `index_info.json` from the processed chunks (no fetch, no
+Voyage)."""
 
 import argparse
 import logging
@@ -19,6 +21,7 @@ from gradpath.ingestion.fetch import (
     manifest_hosts,
 )
 from gradpath.ingestion.index import get_qdrant_client, rebuild_index
+from gradpath.ingestion.index_info import summarize, write_index_info
 from gradpath.ingestion.manifest import SourceEntry, load_manifest, select_ingestible
 
 log = logging.getLogger(__name__)
@@ -77,9 +80,15 @@ def process_entry(
 
 
 def run(args: argparse.Namespace, settings: Settings, kb: Path) -> None:
-    """Orchestrate fetch -> clean -> chunk (-> embed -> index unless dry run)."""
+    """Orchestrate fetch -> clean -> chunk (-> embed -> index -> index_info unless dry run)."""
     entries = load_manifest(kb / "source_manifest.csv")
     approved = select_ingestible(entries)
+    undated = manual_ids(approved)
+    if args.info_only:
+        info = summarize(indexed_documents(approved, kb), undated=undated)
+        write_index_info(REPO_ROOT / settings.index_info_path, info)
+        print(f"Wrote index info: sources as of {info.sources_as_of}, {info.chunks} chunks.")
+        return
     targets = select_ingestible(entries, args.only)
     unknown = set(args.only or []) - {e.document_id for e in targets}
     if unknown:
@@ -101,11 +110,10 @@ def run(args: argparse.Namespace, settings: Settings, kb: Path) -> None:
     print(f"{'TOTAL':45} {total_pages:5d} {total_chunks:6d} {total_tokens:10d}")
     if args.dry_run:
         return
-    documents: list[Document] = []
-    for entry in approved:
-        path = kb / "processed" / f"{entry.document_id}.jsonl"
-        if path.exists():
-            documents += read_processed(path)
+    documents = indexed_documents(approved, kb)
+    # Summarised before the rebuild, so a bad date fails before any embedding work; written only
+    # after it succeeds, so the file always describes what is really indexed.
+    info = summarize(documents, undated=undated)
     embeddings = build_embeddings(settings, kb / "processed" / "embedding_cache")
     qdrant = get_qdrant_client(settings)
     count = rebuild_index(
@@ -117,6 +125,25 @@ def run(args: argparse.Namespace, settings: Settings, kb: Path) -> None:
     )
     print(f"Embedding cache: {embeddings.hits} hits, {embeddings.misses} misses.")
     print(f"Indexed {count} chunks into '{settings.qdrant_collection}'.")
+    write_index_info(REPO_ROOT / settings.index_info_path, info)
+
+
+def manual_ids(approved: list[SourceEntry]) -> set[str]:
+    """Owner-saved sources: their chunk date is the file's modified time (it changes on a fresh
+    clone), not a fetch date, so they are counted but never date the index (`summarize`)."""
+    return {e.document_id for e in approved if e.manual}
+
+
+def indexed_documents(approved: list[SourceEntry], kb: Path) -> list[Document]:
+    """Every approved document's processed chunks: what the index is built from (`run`)."""
+    documents: list[Document] = []
+    for entry in approved:
+        path = kb / "processed" / f"{entry.document_id}.jsonl"
+        if path.exists():
+            documents += read_processed(path)
+        else:
+            log.warning("%s: approved but has no processed chunks; not indexed", entry.document_id)
+    return documents
 
 
 def main() -> None:
@@ -124,6 +151,11 @@ def main() -> None:
     parser.add_argument("--refresh", action="store_true", help="re-download cached pages")
     parser.add_argument("--only", nargs="+", metavar="DOC_ID", help="process only these documents")
     parser.add_argument("--dry-run", action="store_true", help="skip embedding and Qdrant")
+    parser.add_argument(
+        "--info-only",
+        action="store_true",
+        help="only rewrite index_info.json (no fetch, no Voyage)",
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     run(args, get_settings(), REPO_ROOT / "knowledge_base")

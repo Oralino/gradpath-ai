@@ -1,0 +1,633 @@
+{
+  "id": "job-sample-backend",
+  "title": "Sample new-grad backend posting",
+  "summary": "Each requirement with its coverage in the knowledge base and a cited study note.",
+  "recorded_at": "2026-11-20",
+  "kind": "job",
+  "job_description": "Fictional sample job description for demos, tests and traces. The company does not exist.\n\nJunior Backend Software Engineer (New Grad)\nFernhill Parcel Co. (fictional)\n\nAbout the role\nOur platform team builds the APIs that track parcels from warehouse to doorstep. As a new-grad\nengineer you will join a team of six, ship code to production in your first month, and learn how\nreliable backend services are built and run.\n\nWhat you will do\n- Design, build and maintain REST APIs in Python that serve our web and mobile apps.\n- Write and optimise SQL queries against PostgreSQL, including adding indexes for slow queries.\n- Write unit and integration tests and keep our test suite green.\n- Take part in code reviews and work with Git-based pull requests.\n- Help investigate production issues using logs and metrics.\n- Package and deploy services with Docker.\n\nRequired qualifications\n- Bachelor's degree in Computer Science or a related field, or equivalent practical experience.\n- Programming experience in Python, Java or Go.\n- Understanding of HTTP and how REST APIs use methods and status codes.\n- Working knowledge of SQL and relational databases.\n- Experience writing automated tests.\n- Familiarity with Git and collaborative development.\n- Solid understanding of data structures and algorithms.\n\nPreferred qualifications\n- Experience with a Python web framework such as FastAPI or Flask.\n- Knowledge of database transactions and concurrency.\n- Familiarity with caching and basic system design concepts.\n- Awareness of common API security risks.\n- Experience with Docker or a major cloud provider.\n- Exposure to monitoring and alerting for production services.\n",
+  "analysis": {
+    "title": "Junior Backend Software Engineer (New Grad)",
+    "seniority": "new_grad",
+    "responsibilities": [
+      "Design, build and maintain REST APIs in Python that serve web and mobile apps",
+      "Write and optimise SQL queries against PostgreSQL, including adding indexes for slow queries",
+      "Write unit and integration tests and keep the test suite green",
+      "Take part in code reviews and work with Git-based pull requests",
+      "Help investigate production issues using logs and metrics",
+      "Package and deploy services with Docker",
+      "Ship code to production within the first month"
+    ],
+    "overview": "This backend role centres on Python-based API development: HTTP/REST design, SQL and PostgreSQL (including indexing, optimization, and transactions), and solid engineering practice such as testing, Git, and data structures. Preferred skills extend into caching, system design, API security, Docker, and production monitoring. Evidence for some areas is thin, so notes flag where coverage is partial.",
+    "requirements": [
+      {
+        "skill": "Bachelor's degree in Computer Science or related field",
+        "category": "education_eligibility",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Bachelor's degree in Computer Science or a related field, or equivalent practical experience.",
+        "quote_verified": true,
+        "coverage": "not_applicable",
+        "best_score": null,
+        "sources": [],
+        "study_note": null,
+        "note_citations": []
+      },
+      {
+        "skill": "Python, Java or Go programming",
+        "category": "programming_languages",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Programming experience in Python, Java or Go.",
+        "quote_verified": true,
+        "coverage": "weak_evidence",
+        "best_score": 0.543,
+        "sources": [
+          {
+            "chunk_id": "ip-tech-interview-handbook:1:5",
+            "title": "Tech Interview Handbook",
+            "section": "How to best prepare for a coding interview? > 1. Pick a good programming language to use",
+            "source_url": "https://github.com/yangshun/tech-interview-handbook/blob/main/apps/website/contents/coding-interview-prep.md",
+            "score": 0.543
+          },
+          {
+            "chunk_id": "ip-tech-interview-handbook:1:9",
+            "title": "Tech Interview Handbook",
+            "section": "How to best prepare for a coding interview? > 3. Combine studying and practicing for a single topic",
+            "source_url": "https://github.com/yangshun/tech-interview-handbook/blob/main/apps/website/contents/coding-interview-prep.md",
+            "score": 0.477
+          }
+        ],
+        "study_note": "Interview-style coding favours a language you know well that has a rich standard library; Python, Java, C++ and JavaScript are recommended. Study first: choose one language (Python fits this role) and get fluent with its built-in data structures. The evidence covers language choice for interviews, not Python/Java/Go itself or Go specifically.",
+        "note_citations": [
+          "ip-tech-interview-handbook:1:5",
+          "ip-tech-interview-handbook:1:9"
+        ]
+      },
+      {
+        "skill": "HTTP and REST API methods and status codes",
+        "category": "apis_backend",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Understanding of HTTP and how REST APIs use methods and status codes.",
+        "quote_verified": true,
+        "coverage": "covered",
+        "best_score": 0.663,
+        "sources": [
+          {
+            "chunk_id": "fund-ms-rest-guidelines:0:13",
+            "title": "Azure REST API Guidelines (Microsoft)",
+            "section": "Microsoft Azure REST API Guidelines > Building Blocks: HTTP, REST, & JSON > HTTP",
+            "source_url": "https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md",
+            "score": 0.663
+          },
+          {
+            "chunk_id": "fund-mdn-http-status:0:16",
+            "title": "MDN: HTTP response status codes",
+            "section": "HTTP response status codes > See also",
+            "source_url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status",
+            "score": 0.646
+          },
+          {
+            "chunk_id": "fund-mdn-http-status:0:2",
+            "title": "MDN: HTTP response status codes",
+            "section": "HTTP response status codes > Successful responses",
+            "source_url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status",
+            "score": 0.639
+          }
+        ],
+        "study_note": "Learn which HTTP method maps to which operation and its success status. For example, POST creates a resource and returns 201 with its URL, PUT creates or replaces, DELETE returns 204, and GET returns 200. Also learn 202 Accepted for asynchronous work. Start with the Azure method/status table and MDN's success-response definitions. Error codes (4xx/5xx) are not covered in this evidence.",
+        "note_citations": [
+          "fund-ms-rest-guidelines:0:13",
+          "fund-mdn-http-status:0:2"
+        ]
+      },
+      {
+        "skill": "SQL and relational databases",
+        "category": "databases",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Working knowledge of SQL and relational databases.",
+        "quote_verified": true,
+        "coverage": "weak_evidence",
+        "best_score": 0.601,
+        "sources": [
+          {
+            "chunk_id": "be-system-design-primer:0:83",
+            "title": "The System Design Primer",
+            "section": "Database > Relational database management system (RDBMS)",
+            "source_url": "https://github.com/donnemartin/system-design-primer/blob/master/README.md",
+            "score": 0.601
+          },
+          {
+            "chunk_id": "be-system-design-primer:0:101",
+            "title": "The System Design Primer",
+            "section": "Database > SQL or NoSQL",
+            "source_url": "https://github.com/donnemartin/system-design-primer/blob/master/README.md",
+            "score": 0.578
+          },
+          {
+            "chunk_id": "db-sqlite-query-planner:0:1",
+            "title": "SQLite: Query Planning",
+            "section": "Overview",
+            "source_url": "https://www.sqlite.org/queryplanner.html",
+            "score": 0.542
+          }
+        ],
+        "study_note": "Study the relational model (data organized in tables) and ACID: atomicity, consistency, isolation, durability. Then learn when SQL fits (structured data, joins, transactions) versus NoSQL. Also understand that SQL is declarative, with a query planner choosing how to run it. The evidence is conceptual and has no hands-on query-writing practice, so add that separately.",
+        "note_citations": [
+          "be-system-design-primer:0:83",
+          "be-system-design-primer:0:101",
+          "db-sqlite-query-planner:0:1"
+        ]
+      },
+      {
+        "skill": "Automated testing",
+        "category": "testing_quality",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Experience writing automated tests.",
+        "quote_verified": true,
+        "coverage": "covered",
+        "best_score": 0.501,
+        "sources": [
+          {
+            "chunk_id": "fund-pytest-getting-started:0:2",
+            "title": "pytest: Get Started",
+            "section": "Get Started > Create your first test",
+            "source_url": "https://docs.pytest.org/en/stable/getting-started.html",
+            "score": 0.501
+          },
+          {
+            "chunk_id": "fund-pytest-getting-started:0:6",
+            "title": "pytest: Get Started",
+            "section": "Get Started > Group multiple tests in a class",
+            "source_url": "https://docs.pytest.org/en/stable/getting-started.html",
+            "score": 0.484
+          }
+        ],
+        "study_note": "Start with pytest basics: write test_ functions that use plain assert, run pytest, and read the failure output. Then group tests in Test-prefixed classes, which pytest discovers without subclassing. This is a good entry point for unit testing in Python.",
+        "note_citations": [
+          "fund-pytest-getting-started:0:2",
+          "fund-pytest-getting-started:0:6"
+        ]
+      },
+      {
+        "skill": "Git and collaborative development",
+        "category": "tools_version_control",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Familiarity with Git and collaborative development.",
+        "quote_verified": true,
+        "coverage": "weak_evidence",
+        "best_score": 0.673,
+        "sources": [
+          {
+            "chunk_id": "career-pro-git:3:8",
+            "title": "Pro Git (Chacon and Straub)",
+            "section": "5.2 Distributed Git - Contributing to a Project > Contributing to a Project > Private Small Team",
+            "source_url": "https://git-scm.com/book/en/v2/Distributed-Git-Contributing-to-a-Project",
+            "score": 0.673
+          },
+          {
+            "chunk_id": "career-pro-git:3:40",
+            "title": "Pro Git (Chacon and Straub)",
+            "section": "5.2 Distributed Git - Contributing to a Project > Contributing to a Project > Summary",
+            "source_url": "https://git-scm.com/book/en/v2/Distributed-Git-Contributing-to-a-Project",
+            "score": 0.651
+          }
+        ],
+        "study_note": "Study the small-team shared-repository workflow: clone, commit locally, and merge. Also study the large public-project workflow, which uses patches and mailing lists. Also learn to write good commit messages and check for whitespace errors before committing. The evidence is a workflow overview and summary, so practise the commands yourself.",
+        "note_citations": [
+          "career-pro-git:3:8",
+          "career-pro-git:3:40"
+        ]
+      },
+      {
+        "skill": "Data structures and algorithms",
+        "category": "other",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Solid understanding of data structures and algorithms.",
+        "quote_verified": true,
+        "coverage": "covered",
+        "best_score": 0.625,
+        "sources": [
+          {
+            "chunk_id": "ip-tech-interview-handbook:2:8",
+            "title": "Tech Interview Handbook",
+            "section": "How to find solutions to coding interview problems > 5. Apply common data structures and algorithms at the problem",
+            "source_url": "https://github.com/yangshun/tech-interview-handbook/blob/main/apps/website/contents/coding-interview-techniques.md",
+            "score": 0.625
+          },
+          {
+            "chunk_id": "ip-open-data-structures:0:0",
+            "title": "Open Data Structures (Pat Morin)",
+            "section": "1. Introduction",
+            "source_url": "https://opendatastructures.org/ods-python/1_Introduction.html",
+            "score": 0.623
+          },
+          {
+            "chunk_id": "ip-tech-interview-handbook:2:23",
+            "title": "Tech Interview Handbook",
+            "section": "How to optimize your approach or solution > How to optimize space complexity",
+            "source_url": "https://github.com/yangshun/tech-interview-handbook/blob/main/apps/website/contents/coding-interview-techniques.md",
+            "score": 0.592
+          }
+        ],
+        "study_note": "Learn to match problems to structures: stacks for nested parsing, heaps for priority or top-K, tries for prefix lookups. Then learn routines such as binary search, sliding window, two pointers, BFS/DFS, and topological sort. Choosing the right data structure is stressed as central to interview performance. Open Data Structures is a deeper follow-up text.",
+        "note_citations": [
+          "ip-tech-interview-handbook:2:8",
+          "ip-tech-interview-handbook:2:23",
+          "ip-open-data-structures:0:0"
+        ]
+      },
+      {
+        "skill": "PostgreSQL",
+        "category": "databases",
+        "importance": "required",
+        "explicit": true,
+        "source_quote": "Write and optimise SQL queries against PostgreSQL, including adding indexes for slow queries.",
+        "quote_verified": true,
+        "coverage": "weak_evidence",
+        "best_score": 0.53,
+        "sources": [
+          {
+            "chunk_id": "db-postgres-mvcc:1:19",
+            "title": "PostgreSQL docs: Concurrency Control",
+            "section": "13.2. Transaction Isolation > Note",
+            "source_url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+            "score": 0.53
+          },
+          {
+            "chunk_id": "db-postgres-mvcc:1:4",
+            "title": "PostgreSQL docs: Concurrency Control",
+            "section": "13.2. Transaction Isolation > Important",
+            "source_url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+            "score": 0.513
+          },
+          {
+            "chunk_id": "db-postgres-indexes:0:0",
+            "title": "PostgreSQL docs: Indexes",
+            "section": "",
+            "source_url": "https://www.postgresql.org/docs/current/indexes-intro.html",
+            "score": 0.482
+          }
+        ],
+        "study_note": "The PostgreSQL evidence is limited. It notes that sequence values (serial columns) are not rolled back when a transaction aborts, and that Serializable and Repeatable Read behave differently since version 9.1. The index page is only a header. Study PostgreSQL transaction isolation first, and use the official docs for indexes, which this evidence does not teach.",
+        "note_citations": [
+          "db-postgres-mvcc:1:4",
+          "db-postgres-mvcc:1:19",
+          "db-postgres-indexes:0:0"
+        ]
+      },
+      {
+        "skill": "SQL query optimization and indexing",
+        "category": "databases",
+        "importance": "required",
+        "explicit": false,
+        "source_quote": "Write and optimise SQL queries against PostgreSQL, including adding indexes for slow queries.",
+        "quote_verified": true,
+        "coverage": "covered",
+        "best_score": 0.66,
+        "sources": [
+          {
+            "chunk_id": "be-system-design-primer:0:92",
+            "title": "The System Design Primer",
+            "section": "Database > Relational database management system (RDBMS)",
+            "source_url": "https://github.com/donnemartin/system-design-primer/blob/master/README.md",
+            "score": 0.66
+          },
+          {
+            "chunk_id": "be-system-design-primer:0:93",
+            "title": "The System Design Primer",
+            "section": "Database > Relational database management system (RDBMS)",
+            "source_url": "https://github.com/donnemartin/system-design-primer/blob/master/README.md",
+            "score": 0.616
+          },
+          {
+            "chunk_id": "db-sqlite-query-planner:0:24",
+            "title": "SQLite: Query Planning",
+            "section": "2. Sorting > 2.3. Sorting By Covering Index",
+            "source_url": "https://www.sqlite.org/queryplanner.html",
+            "score": 0.615
+          }
+        ],
+        "study_note": "Index the columns used in SELECT, GROUP BY, ORDER BY and JOIN. Indexes are B-trees giving logarithmic lookups, but they cost space and slow writes. A covering index avoids extra row lookups. Also study denormalization, partitioning, and the slow query log for tuning. The query planner needs indexes that programmers add.",
+        "note_citations": [
+          "be-system-design-primer:0:92",
+          "be-system-design-primer:0:93",
+          "db-sqlite-query-planner:0:24"
+        ]
+      },
+      {
+        "skill": "Python web framework (FastAPI or Flask)",
+        "category": "apis_backend",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Experience with a Python web framework such as FastAPI or Flask.",
+        "quote_verified": true,
+        "coverage": "weak_evidence",
+        "best_score": 0.663,
+        "sources": [
+          {
+            "chunk_id": "fund-fastapi-tutorial:0:13",
+            "title": "FastAPI Tutorial - User Guide",
+            "section": "First Steps > Recap, step by step > Step 1: import FastAPI",
+            "source_url": "https://fastapi.tiangolo.com/tutorial/first-steps/",
+            "score": 0.663
+          },
+          {
+            "chunk_id": "fund-fastapi-tutorial:0:14",
+            "title": "FastAPI Tutorial - User Guide",
+            "section": "First Steps > Recap, step by step > Step 2: create a FastAPI \"instance\"",
+            "source_url": "https://fastapi.tiangolo.com/tutorial/first-steps/",
+            "score": 0.648
+          }
+        ],
+        "study_note": "Start with the FastAPI first steps: import FastAPI, create an app instance, and define a route with a decorator such as @app.get(\"/\"). The evidence covers only a minimal hello-world app. Flask, request validation, and larger structure are not covered.",
+        "note_citations": [
+          "fund-fastapi-tutorial:0:13",
+          "fund-fastapi-tutorial:0:14"
+        ]
+      },
+      {
+        "skill": "Database transactions and concurrency",
+        "category": "databases",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Knowledge of database transactions and concurrency.",
+        "quote_verified": true,
+        "coverage": "covered",
+        "best_score": 0.681,
+        "sources": [
+          {
+            "chunk_id": "db-postgres-mvcc:1:25",
+            "title": "PostgreSQL docs: Concurrency Control",
+            "section": "13.2. Transaction Isolation > 13.2.3. Serializable Isolation Level",
+            "source_url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+            "score": 0.681
+          },
+          {
+            "chunk_id": "db-postgres-mvcc:1:28",
+            "title": "PostgreSQL docs: Concurrency Control",
+            "section": "13.2. Transaction Isolation > 13.2.3. Serializable Isolation Level",
+            "source_url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+            "score": 0.656
+          }
+        ],
+        "study_note": "Study Serializable isolation: concurrent transactions behave as if run one at a time, so applications must handle serialization failures (SQLSTATE 40001) by retrying. For performance, use READ ONLY where possible, keep transactions small, use connection pooling, and avoid idle-in-transaction sessions. Compare this with explicit locks and SELECT FOR UPDATE.",
+        "note_citations": [
+          "db-postgres-mvcc:1:25",
+          "db-postgres-mvcc:1:28"
+        ]
+      },
+      {
+        "skill": "Caching and basic system design",
+        "category": "distributed_systems",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Familiarity with caching and basic system design concepts.",
+        "quote_verified": true,
+        "coverage": "weak_evidence",
+        "best_score": 0.665,
+        "sources": [
+          {
+            "chunk_id": "be-system-design-primer:0:102",
+            "title": "The System Design Primer",
+            "section": "Cache",
+            "source_url": "https://github.com/donnemartin/system-design-primer/blob/master/README.md",
+            "score": 0.665
+          },
+          {
+            "chunk_id": "be-system-design-primer:0:115",
+            "title": "The System Design Primer",
+            "section": "Cache > Source(s) and further reading",
+            "source_url": "https://github.com/donnemartin/system-design-primer/blob/master/README.md",
+            "score": 0.605
+          },
+          {
+            "chunk_id": "be-mdn-http-caching:0:0",
+            "title": "MDN: HTTP caching",
+            "section": "HTTP caching",
+            "source_url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching",
+            "score": 0.563
+          }
+        ],
+        "study_note": "Study why caching helps: it speeds responses, reduces load on servers and databases, and absorbs uneven traffic when placed in front of a database. Also read how HTTP caching reuses stored responses so the origin does no work. The evidence on broader system design is limited, with mostly link lists.",
+        "note_citations": [
+          "be-system-design-primer:0:102",
+          "be-mdn-http-caching:0:0",
+          "be-system-design-primer:0:115"
+        ]
+      },
+      {
+        "skill": "API security risks",
+        "category": "security",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Awareness of common API security risks.",
+        "quote_verified": true,
+        "coverage": "weak_evidence",
+        "best_score": 0.694,
+        "sources": [
+          {
+            "chunk_id": "be-owasp-api-top10:0:0",
+            "title": "OWASP API Security Top 10",
+            "section": "OWASP Top 10 API Security Risks – 2023",
+            "source_url": "https://api-security.owasp.org/editions/2023/en/0x11-t10/",
+            "score": 0.694
+          },
+          {
+            "chunk_id": "be-owasp-api-top10:0:3",
+            "title": "OWASP API Security Top 10",
+            "section": "OWASP Top 10 API Security Risks – 2023",
+            "source_url": "https://api-security.owasp.org/editions/2023/en/0x11-t10/",
+            "score": 0.679
+          },
+          {
+            "chunk_id": "be-system-design-primer:0:139",
+            "title": "The System Design Primer",
+            "section": "Security > Source(s) and further reading",
+            "source_url": "https://github.com/donnemartin/system-design-primer/blob/master/README.md",
+            "score": 0.607
+          }
+        ],
+        "study_note": "Start with the OWASP API Security Top 10 (2023). Begin with broken object-level authorization and broken authentication, then object-property-level authorization and unsafe consumption of third-party APIs. The evidence shows only part of the list, and the system design primer entry is just a links list.",
+        "note_citations": [
+          "be-owasp-api-top10:0:0",
+          "be-owasp-api-top10:0:3",
+          "be-system-design-primer:0:139"
+        ]
+      },
+      {
+        "skill": "Docker",
+        "category": "cloud_devops",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Experience with Docker or a major cloud provider.",
+        "quote_verified": true,
+        "coverage": "weak_evidence",
+        "best_score": 0.58,
+        "sources": [
+          {
+            "chunk_id": "devops-docker-get-started:1:12",
+            "title": "Docker Docs: Get started and Docker concepts",
+            "section": "Next steps",
+            "source_url": "https://github.com/docker/docs/blob/main/content/get-started/docker-concepts/the-basics/what-is-a-container.md",
+            "score": 0.58
+          },
+          {
+            "chunk_id": "devops-docker-get-started:0:6",
+            "title": "Docker Docs: Get started and Docker concepts",
+            "section": "Docker architecture > The Docker daemon",
+            "source_url": "https://github.com/docker/docs/blob/main/content/get-started/docker-overview.md",
+            "score": 0.577
+          }
+        ],
+        "study_note": "The evidence is limited. It describes the Docker daemon (dockerd), which listens for API requests and manages images, containers, networks, and volumes. It also points to images as the next topic. Study the client/daemon architecture first, then images and containers in the official docs.",
+        "note_citations": [
+          "devops-docker-get-started:0:6",
+          "devops-docker-get-started:1:12"
+        ]
+      },
+      {
+        "skill": "Major cloud provider (AWS, GCP or Azure)",
+        "category": "cloud_devops",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Experience with Docker or a major cloud provider.",
+        "quote_verified": true,
+        "coverage": "not_covered",
+        "best_score": 0.413,
+        "sources": [],
+        "study_note": null,
+        "note_citations": []
+      },
+      {
+        "skill": "Production monitoring and alerting",
+        "category": "cloud_devops",
+        "importance": "preferred",
+        "explicit": true,
+        "source_quote": "Exposure to monitoring and alerting for production services.",
+        "quote_verified": true,
+        "coverage": "weak_evidence",
+        "best_score": 0.531,
+        "sources": [
+          {
+            "chunk_id": "be-twelve-factor:10:1",
+            "title": "The Twelve-Factor App",
+            "section": "XI. Logs > Treat logs as event streams",
+            "source_url": "https://12factor.net/logs",
+            "score": 0.531
+          },
+          {
+            "chunk_id": "be-kafka-introduction:1:3",
+            "title": "Apache Kafka: Introduction and use cases",
+            "section": "Metrics",
+            "source_url": "https://github.com/apache/kafka/blob/trunk/docs/getting-started/uses.md",
+            "score": 0.451
+          }
+        ],
+        "study_note": "The evidence is limited here. The Twelve-Factor approach treats logs as event streams routed by the environment to analysis systems. These systems support finding past events, graphing trends such as requests per minute, and alerting on thresholds such as error rates. Kafka is mentioned as a way to aggregate operational metrics. Study this concept first, and use other sources for monitoring tools.",
+        "note_citations": [
+          "be-twelve-factor:10:1",
+          "be-kafka-introduction:1:3"
+        ]
+      },
+      {
+        "skill": "Docker packaging and deployment",
+        "category": "cloud_devops",
+        "importance": "required",
+        "explicit": false,
+        "source_quote": "Package and deploy services with Docker.",
+        "quote_verified": true,
+        "coverage": "weak_evidence",
+        "best_score": 0.623,
+        "sources": [
+          {
+            "chunk_id": "devops-docker-get-started:4:7",
+            "title": "Docker Docs: Get started and Docker concepts",
+            "section": "Next steps",
+            "source_url": "https://github.com/docker/docs/blob/main/content/get-started/docker-concepts/building-images/writing-a-dockerfile.md",
+            "score": 0.623
+          },
+          {
+            "chunk_id": "devops-docker-get-started:0:14",
+            "title": "Docker Docs: Get started and Docker concepts",
+            "section": "Next steps",
+            "source_url": "https://github.com/docker/docs/blob/main/content/get-started/docker-overview.md",
+            "score": 0.596
+          }
+        ],
+        "study_note": "The evidence is only pointers: write a Dockerfile, then build, tag, and push images, and install Docker and run a containerized app. It doesn't teach the steps themselves. Study the linked official tutorials for the Dockerfile and for build, tag, and publish, and for deployment beyond that.",
+        "note_citations": [
+          "devops-docker-get-started:4:7",
+          "devops-docker-get-started:0:14"
+        ]
+      },
+      {
+        "skill": "Production log and metrics investigation",
+        "category": "cloud_devops",
+        "importance": "required",
+        "explicit": false,
+        "source_quote": "Help investigate production issues using logs and metrics.",
+        "quote_verified": true,
+        "coverage": "weak_evidence",
+        "best_score": 0.517,
+        "sources": [
+          {
+            "chunk_id": "be-twelve-factor:10:1",
+            "title": "The Twelve-Factor App",
+            "section": "XI. Logs > Treat logs as event streams",
+            "source_url": "https://12factor.net/logs",
+            "score": 0.517
+          },
+          {
+            "chunk_id": "be-kafka-introduction:1:3",
+            "title": "Apache Kafka: Introduction and use cases",
+            "section": "Metrics",
+            "source_url": "https://github.com/apache/kafka/blob/trunk/docs/getting-started/uses.md",
+            "score": 0.459
+          }
+        ],
+        "study_note": "Learn that apps should write logs as an event stream to be collected and indexed elsewhere. Indexed logs let you find specific past events and graph trends like requests per minute. Kafka can aggregate metrics from distributed apps. The evidence explains the concepts but not the investigation workflow or specific tools.",
+        "note_citations": [
+          "be-twelve-factor:10:1",
+          "be-kafka-introduction:1:3"
+        ]
+      },
+      {
+        "skill": "Unit and integration testing",
+        "category": "testing_quality",
+        "importance": "required",
+        "explicit": false,
+        "source_quote": "Write unit and integration tests and keep our test suite green.",
+        "quote_verified": true,
+        "coverage": "weak_evidence",
+        "best_score": 0.47,
+        "sources": [
+          {
+            "chunk_id": "fund-pytest-getting-started:0:12",
+            "title": "pytest: Get Started",
+            "section": "Get Started > Continue reading",
+            "source_url": "https://docs.pytest.org/en/stable/getting-started.html",
+            "score": 0.47
+          }
+        ],
+        "study_note": "The evidence only points to further pytest resources: fixtures, marks, invoking pytest, working with existing suites, and integration practices. Fixtures and good integration practices are the likely first stops for integration testing. The cited text doesn't teach them, so read those pages directly. The basic pytest tutorial helps with unit tests.",
+        "note_citations": [
+          "fund-pytest-getting-started:0:12"
+        ]
+      }
+    ],
+    "stats": {
+      "requirements": 19,
+      "covered": 5,
+      "weak_evidence": 12,
+      "not_covered": 1,
+      "not_applicable": 1,
+      "with_study_note": 17,
+      "unverified_quotes": 0
+    }
+  }
+}
