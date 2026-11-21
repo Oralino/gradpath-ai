@@ -3,6 +3,7 @@
 import logging
 
 import pytest
+from conftest import plain
 from fastapi import Request
 from fastapi.testclient import TestClient
 from test_visitor_key import KEY_A, LIVE, PASS, PASSCODE, spy_answer
@@ -153,7 +154,7 @@ def test_search_is_limited_per_ip_in_demo_mode(kb_service, monkeypatch, clock):
              for _ in range(3)]  # fmt: skip
     assert codes == [200, 200, 429]
     refused = c.post("/api/search", json={"query": "sql index"}, headers=ip(1))
-    assert refused.json() == {"detail": LIMITED} and int(refused.headers["Retry-After"]) >= 1
+    assert plain(refused.json()) == {"detail": LIMITED} and int(refused.headers["Retry-After"]) >= 1
     assert c.post("/api/search", json={"query": "sql index"}, headers=ip(2)).status_code == 200
     clock.now += 61
     assert c.post("/api/search", json={"query": "sql index"}, headers=ip(1)).status_code == 200
@@ -204,14 +205,14 @@ def test_model_routes_are_limited_per_ip_in_live_mode(kb_service, monkeypatch, c
 def test_live_needs_the_right_passcode_before_the_key(kb_service, monkeypatch, clock, given):
     c = live_client(monkeypatch, kb_service)
     resp = chat(c, passcode=given)
-    assert (resp.status_code, resp.json()) == (401, {"detail": PASSCODE_NEEDED})
+    assert (resp.status_code, plain(resp.json())) == (401, {"detail": PASSCODE_NEEDED})
 
 
 def test_repeated_wrong_passcodes_lock_the_ip(kb_service, monkeypatch, clock):
     c = live_client(monkeypatch, kb_service)
     assert [chat(c, passcode="nope").status_code for _ in range(5)] == [401] * 5
     locked = chat(c)  # even the right passcode, while locked
-    assert (locked.status_code, locked.json()) == (429, {"detail": LOCKED})
+    assert (locked.status_code, plain(locked.json())) == (429, {"detail": LOCKED})
     assert chat(c, n=2).status_code == 200  # other IPs are unaffected
     clock.now += 15 * 60 + 1
     assert chat(c).status_code == 200
@@ -347,7 +348,7 @@ def test_a_huge_body_is_refused_before_anything_reads_it(monkeypatch, clock, chu
     big = b'{"question": "' + b"x" * (MAX_BODY_BYTES + 10) + b'"}'
     content = iter([big[:1000], big[1000:]]) if chunked else big
     resp = c.post("/api/chat", content=content, headers={"Content-Type": "application/json"})
-    assert resp.status_code == 413 and resp.json() == {"detail": "The request is too large."}
+    assert resp.status_code == 413 and plain(resp.json()) == {"detail": "The request is too large."}
 
 
 def test_a_normal_body_still_works(kb_service, monkeypatch, clock):

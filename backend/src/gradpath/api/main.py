@@ -1,5 +1,6 @@
 """FastAPI application. Run from `backend/`: uv run uvicorn gradpath.api.main:app --reload"""
 
+import functools
 import json
 import logging
 import os
@@ -17,12 +18,14 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from langgraph.errors import GraphRecursionError
 from pydantic import BaseModel
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from gradpath.api.assist import router as assist_router
 from gradpath.api.career import router as career_router
 from gradpath.api.chat import router as chat_router
 from gradpath.api.demo import router as demo_router
 from gradpath.api.jobs import router as jobs_router
+from gradpath.api.live import router as live_router
 from gradpath.api.profile import router as profile_router
 from gradpath.api.runs import router as runs_router
 from gradpath.api.search import router as search_router
@@ -83,6 +86,7 @@ class Health(BaseModel):
     app_mode: str
     sources_as_of: date | None = None
     sources_newest: date | None = None
+    search_enabled: bool = False  # source search works on this server (T-018 step 9)
 
 
 # A loc part we echo back as is: a plain field name (or an index). Anything else could be text the
@@ -123,7 +127,48 @@ async def _validation_handler(request: Request, exc: RequestValidationError) -> 
     Logged by count only (the errors themselves can carry the client's text)."""
     errors = exc.errors()
     log.info("validation failed on %s (%d errors)", request.url.path, len(errors))
-    return JSONResponse({"detail": safe_validation_errors(errors)}, status_code=422)
+    return JSONResponse(
+        {"detail": safe_validation_errors(errors), "code": "validation"}, status_code=422
+    )
+
+
+@functools.cache
+def error_codes() -> dict[str, str]:
+    """Every fixed error message the API sends, mapped to a stable machine-readable code, so the
+    frontend can tell wrong-passcode from bad-key from rate-limited without matching text (T-018
+    step 9). Used by the error handlers; a test checks every raised detail has a code."""
+    from gradpath.api import career, demo, deps, limits, live, ratelimit, runs, search
+
+    return {
+        deps.MODEL_ROUTES_OFF: "demo_mode",
+        deps.PASSCODE_NEEDED: "passcode_required",
+        deps.KEY_NEEDED: "key_required",
+        ratelimit.LOCKED: "passcode_locked",
+        ratelimit.LIMITED: "rate_limited",
+        KEY_REFUSED: "key_refused",
+        KEY_LIMITED: "key_rate_limited",
+        search.SEARCH_OFF: "search_off",
+        SEARCH_LIMITED: "search_rate_limited",
+        SEARCH_DOWN: "search_unavailable",
+        LLM_DOWN: "llm_unavailable",
+        LLM_INVALID: "llm_invalid",
+        WORKFLOW_LIMIT: "workflow_limit",
+        limits.BUSY: "busy",
+        career.BUSY: "busy",
+        runs.NOT_FOUND: "run_not_found",
+        demo.NOT_FOUND: "recording_not_found",
+        live.LIVE_OFF: "live_off",
+        "Not Found": "not_found",
+        "Method Not Allowed": "method_not_allowed",
+        "Internal Server Error": "server_error",
+    }
+
+
+async def _http_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """Every HTTPException as {"detail", "code"}; details are fixed text (no client input)."""
+    detail = exc.detail if isinstance(exc.detail, str) else "Error"
+    body = {"detail": detail, "code": error_codes().get(detail, "error")}
+    return JSONResponse(body, status_code=exc.status_code, headers=exc.headers)
 
 
 def _error_handler(status: int, detail: str):
@@ -144,7 +189,9 @@ def _error_handler(status: int, detail: str):
             log.error("%s on %s", type(exc).__name__, request.url.path)
         else:
             log.error("%s on %s", type(exc).__name__, request.url.path, exc_info=exc)
-        return JSONResponse({"detail": detail}, status_code=status)
+        return JSONResponse(
+            {"detail": detail, "code": error_codes().get(detail, "error")}, status_code=status
+        )
 
     return handler
 
@@ -197,7 +244,7 @@ def open_retrieval(settings: Settings) -> RetrievalService | None:
 
 
 MAX_BODY_BYTES = 256 * 1024  # largest real body: ~12k profile + 20k posting, JSON-escaped
-TOO_LARGE = b'{"detail":"The request is too large."}'
+TOO_LARGE = b'{"detail":"The request is too large.","code":"too_large"}'
 
 
 class BodySizeLimit:
@@ -244,7 +291,7 @@ class BodySizeLimit:
         await send({"type": "http.response.body", "body": TOO_LARGE})
 
 
-CROSS_SITE = b'{"detail":"Cross-site requests are not accepted."}'
+CROSS_SITE = b'{"detail":"Cross-site requests are not accepted.","code":"cross_site"}'
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
@@ -291,6 +338,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
     app.add_middleware(OriginCheck)  # added last = runs first
     # Deliberately no CORSMiddleware: cross-origin browser reads stay blocked (T-018 step 8).
     app.add_exception_handler(RequestValidationError, _validation_handler)
+    app.add_exception_handler(StarletteHTTPException, _http_handler)
     # Subclasses are matched first (voyageai.error.RateLimitError before VoyageError).
     for exc_type, status, detail in [
         (ClaudeCodeError, 502, LLM_DOWN),
@@ -318,6 +366,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
     app.include_router(runs_router)
     app.include_router(demo_router)
     app.include_router(search_router)
+    app.include_router(live_router)
 
     @app.get("/api/health", tags=["meta"], response_model=Health)
     def health(request: Request) -> Health:
@@ -330,6 +379,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
             app_mode=s.app_mode,
             sources_as_of=info.sources_as_of if info else None,
             sources_newest=info.sources_newest if info else None,
+            search_enabled=getattr(request.app.state, "retrieval", None) is not None,
         )
 
     return app

@@ -114,3 +114,9 @@ def placeholder_nodes(**real):
         "revise": lambda s: {"roadmap": s.get("roadmap", [])},
     }
     return NodeSet(**{**placeholders, **real})
+
+
+def plain(body: dict) -> dict:
+    """An error body without its machine-readable `code` (T-018 step 9), for tests that compare
+    the fixed `detail` text; `test_error_codes.py` checks the codes themselves."""
+    return {k: v for k, v in body.items() if k != "code"}

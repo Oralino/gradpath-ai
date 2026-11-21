@@ -6,6 +6,7 @@ before anything runs.
 """
 
 import pytest
+from conftest import plain
 from fastapi.testclient import TestClient
 
 from gradpath.api import main as main_module
@@ -57,7 +58,7 @@ def test_a_foreign_origin_is_refused_before_anything_runs(app_and_calls, path, o
     resp = c.post(
         path, content=BODY, headers={"Origin": origin, "Content-Type": "application/json"}
     )
-    assert (resp.status_code, resp.json()) == (
+    assert (resp.status_code, plain(resp.json())) == (
         403,
         {"detail": "Cross-site requests are not accepted."},
     )

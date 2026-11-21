@@ -5,6 +5,7 @@ What the product does is in `../product/REQUIREMENTS.md`; stack, API and data fl
 are in `../engineering/SECURITY.md`; the work itself is ticket `../work/tickets/T-011-frontend.md`.
 Status: **approved by the owner 2026-11-19** after the visual mock-up. Owner decisions 2026-11-19: partial answers option A
 (backend `partial` status), long runs option B (run id + polling), dark mode first with a toggle. Remaining "Owner decision needed" items carry a recommendation.
+"Demo and live modes" (Milestone 7) was approved by the owner on 2026-11-20 (decisions 7-12).
 
 **Identity: an annotated study notebook.** Warm paper, near-black ink, one teal ink for links. Every
 claim sits next to its evidence, the way a margin note sits next to a quote: the posting's own words,
@@ -261,13 +262,13 @@ Progress view replaces the form's submit area; inputs stay visible, read-only.
   (option A), and the final result heading.
 - **Busy (503)**: info panel, not an error: "Another preparation run is in progress. Only one runs at
   a time on this server. Try again in a few minutes." One "Try again" button; no automatic retries.
-- Demo mode (Milestone 7) replays recorded runs: skip the progress view and label the result
-  "Recorded run, {date}".
+- Recordings skip the progress view; see "Demo and live modes".
 
 ### Screens
 Header on every page: wordmark "GradPath" (`text-label`, ink, no logo), nav "Ask", "Analyse a job",
-"Plan", "Profile" (current page `aria-current="page"`, underlined), right-side slot reserved for the
-Milestone 7 mode indicator. At 375px the nav wraps to a second row; no hamburger menu (four links).
+"Plan", "Profile" (+ "Search sources" from Milestone 7) (current page `aria-current="page"`,
+underlined), the mode indicator in the right-side slot (see "Demo and live modes"). At 375px the nav
+wraps to a second row; no hamburger menu.
 Footer: "Sources as of {date} · Preparation support only, not a hiring prediction · Answers can be
 wrong: check the sources."
 
@@ -404,6 +405,189 @@ Weekly study hours [  ]   Timeline in weeks [  ]   (both optional)
 | 503 busy | Info panel with fixed copy and "Try again" |
 | Other error / network | Stopped panel: "Something went wrong on the server. Nothing was saved. Try again." No exception text |
 | needs_input / unsupported | Assistant only; see screen 1 |
+| 401 / 403 / 429 from mode rules | See "Demo and live modes", States |
+
+### Demo and live modes (Milestone 7, T-018): approved 2026-11-20
+The server runs in one mode, read once per page load from `GET /api/health` `app_mode` and shared by
+the header, footer and screens (one health request, not one per component: main session decides
+how). The visitor never picks the server's mode; live mode only adds the option to bring a key.
+Until health answers, each screen's input area shows the meta line "Checking the server..." (no
+spinner, no form flash); if it fails, the network stopped panel. An unknown `app_mode` is treated as
+`demo` (fail closed).
+
+| | local | demo | live, no key yet | live, key set |
+|---|---|---|---|---|
+| Header indicator | "Local mode" (`text-meta text-ink-muted`, no badge) | neutral badge, clock, "Demo: recorded examples" | neutral badge, info circle, "Live: no key yet" | info badge, key glyph, "Live: your key" |
+| Ask / Job / Plan | forms as today | mode note + recordings, no form | mode note + form, submit area replaced by the live panel + recordings | form as today + recordings |
+| Profile resume import | as today | replaced by a note | live panel inside the disclosure | as today |
+| Search sources | on (no limit) | on, 2/min | on, 2/min | on, 2/min |
+
+New glyphs (one meaning each): **clock** = recorded, never live; **key** = a visitor key is held in
+this tab. Both 14px in badges, 16px in strips, `aria-hidden`.
+
+**Header (decision 7).** The indicator sits in the reserved slot left of the theme toggle,
+non-interactive (a badge, not a button). Below `sm` it moves to its own row after the nav
+(`order-4 w-full sm:order-none sm:w-auto`) so row 1 stays wordmark + toggle at 375px.
+
+**Mode note** (demo and live, every model screen): one `text-small text-ink-muted` paragraph under
+the page intro, no banner (it is a fact about the site, not a result status). Copy:
+- Demo, Ask: "This site runs in demo mode: no model runs here, so it can't answer a new question.
+  Below are recorded runs of the real app on a sample posting and a fictional profile. To try your
+  own question, [search the sources]: you get the matching passages, not a written answer."
+- Demo, Job / Plan: "This site runs in demo mode, so it can't analyse a new posting. Below is a
+  recorded run on the sample posting{, with the fictional sample profile}."
+- Live: "Live mode: use the full app with your own Anthropic API key and the passcode from the site
+  owner. Without them you can still browse the recorded examples and [search the sources]."
+
+#### Recorded examples (decision 8)
+Per screen: Ask lists the `ask` recordings, Job the `job` one, Plan the `plan` one, filtered from one
+`GET /api/demo`. In demo they replace the form; in live and local they sit below the form and result
+as an `h2` section "Recorded examples" (local shows them too: the owner can check what visitors see).
+```
+Recorded examples                                              <- h2
+ +--------------------------------------------------------------+
+ | How do multicolumn indexes work in PostgreSQL?   (title)     |
+ | A cited answer from the PostgreSQL docs.          (summary)  |
+ | Recorded 20 Nov 2026                              (meta)     |
+ +--------------------------------------------------------------+
+ | ... one row per recording, stacked, never a grid             |
+------------------------------------------------------------------
+[clock] Recorded example, run on 20 Nov 2026. Not generated now.
+Asked: "How do multicolumn indexes work in PostgreSQL?"
+> Job posting: sample (2,340 chars)    Profile: Sample new grad (fictional)
+Knowledge-base answer · chosen by rules   > How this was answered
+[ the same answer card / panel / PlanResult / AnalysisResult as a live run ]
+```
+- Picker: `<ul>` of `<button type="button" aria-pressed>` rows, `w-full text-left rounded-md border
+  border-rule bg-surface p-3`, hover `border-line`; selected `border-ink` plus a visible "Showing"
+  meta word (not colour alone). Title `text-label`, summary `text-small text-ink-muted`, date
+  `text-meta`. Ask: nothing preselected. Job and Plan (one recording each): no picker, the recording
+  shows at once, without moving focus.
+- **Recording strip** above the result: `flex items-start gap-2 rounded-md border border-rule
+  bg-sunken px-3 py-2 text-small`, clock 16px, "Recorded example, run on {d MMM yyyy}. Not generated
+  now." (ink on sunken about 15:1 both themes). The result `h2` keeps its status wording and gets
+  `aria-describedby` = the strip, so focus reads "Answer, Recorded example, run on ...". Live region:
+  "Recorded example: {heading}". Never a "Live" word or a timer near a recording.
+- **Inputs block** (read-only text, never a disabled form): "Asked:" as a posting-quote block; the
+  posting in a `<details>` "Job posting: sample ({n} chars)" (plain text, `whitespace-pre-line`);
+  "Profile: Sample new grad (fictional)" with a link to /profile's "Load sample profile"; Plan adds
+  "Corrections: none" or the list.
+- Results reuse the live components unchanged, except: `needs_input` hides its action buttons and
+  says "In the full app these buttons add the missing input."; Job's "Build a preparation plan"
+  becomes the link "See the recorded plan for this posting" -> /plan; Plan has no Corrections
+  section in demo ("Re-running with corrections needs live mode."). A workflow recording renders
+  PlanResult directly (no progress view).
+- Selecting a row in live/local replaces whatever is in the result slot; the strip is the only
+  difference between a recording and a live result, so it must never be hidden.
+
+#### Source search (decision 9)
+Own page `/search`, nav item "Search sources" (fifth link; still wraps, no menu), in every mode.
+h1 "Search the sources". Intro: "Finds passages in GradPath's curated sources that match your
+question. No model runs: you get the passages, not a written answer."
+```
+[ Your question (input, 1 line, 16px)                    ] [ Search ]
+  3-500 characters · 2 searches a minute          42 / 500
+------------------------------------------------------------------
+Passages for "What is a multicolumn index?"           <- h2, focused
+4 passages · sources only, no written answer
+If you asked this in the full app: Knowledge-base answer · chosen by rules
+ 1. Multicolumn Indexes  ->     Indexes · postgresql.org      <- citation link
+    | An index can be defined on more than one column ...      <- excerpt
+ 2. ...
+> How these were ranked            (match 0.64, 0.61, ... in order)
+```
+- Field: `<input type="search">` in a `<form role="search">`, `max-w-3xl`; local length check like
+  the other forms. "Search" is the primary button.
+- Hits: `<ol space-y-6>`; each item a citation (existing Citation list rules: http/https only, new
+  tab, hostname) then the excerpt as **plain text**: `mt-2 border-l-2 border-line bg-sunken py-2 pl-3
+  text-small whitespace-pre-wrap break-words` (pre-wrap keeps code indentation; not ModelText:
+  retrieved text gets no markdown). Scores only in the closing disclosure.
+- Route preview: one `text-meta text-ink-muted` line, prefixed "If you asked this in the full app:"
+  then the RouteLine wording from `route_preview` (`needs_input` adds "· needs {a job posting / a
+  profile}"; `unsupported`: "Not supported yet"). `route_preview` null: the server's `route_note` as
+  is. Neither: no line.
+- `insufficient: true`: the gap panel "Not covered by the knowledge base", body "None of GradPath's
+  sources match this well enough.", then hits (if any) under "Closest passages (they do not answer
+  the question)". Zero hits and not insufficient cannot be trusted as "covered": show the same panel.
+- Rate limited (429): info panel "Two searches a minute", body = server text, then "You can search
+  again in 0:38" (`tabular-nums`, from `Retry-After`, ticking, not announced); Search disabled
+  until 0, then the live region says "You can search again." `Retry-After` over 120 s: "Try again
+  after 14:30" (local clock time), no ticker. Previous results stay on screen.
+- Off (503): neutral panel, server text ("Source search is off on this server..."), input and button
+  disabled. Loading: "Searching the sources..." meta line, button disabled, no timer (it is fast).
+  Empty: intro plus the three example questions from Ask as text buttons that fill the field.
+
+#### Live mode panel (decisions 10, 11)
+Inline where it is needed: on Ask, Job and Plan it replaces the submit row; on Profile it sits
+inside "Fill from a resume". One shared in-memory state, so entering it once unlocks every screen
+until reload. Not a `<form>` (no submit event, fewer password-manager prompts): a `<div
+role="group" aria-labelledby="live-title">`; Enter in either field runs "Use live mode".
+```
++-- bg-surface border border-rule rounded-md p-4 sm:p-6 ----------+
+| Use live mode                                       <- h2/h3      |
+| Runs the real app with your own Anthropic API key. Requests use   |
+| your Anthropic credit; a plan makes many more calls than an answer.|
+| Passcode                                                           |
+| [ ••••••••••••••••••              ] [ Show ]                       |
+| From the site owner.                                               |
+| Anthropic API key                                                  |
+| [ sk-ant-•••••••••••••••          ] [ Show ]                       |
+| Sent to the GradPath server with each request, which passes it to  |
+| Anthropic for that request only. Never stored, logged or shown     |
+| back. Kept in this tab's memory: reloading or closing the page     |
+| clears it.                                                         |
+| [ Use live mode ]                       No key? Browse the examples|
++--------------------------------------------------------------------+
+```
+- Inputs: `type="password"`, `autoComplete="off"`, `spellCheck={false}` (stops browser cloud spell
+  check when shown as text), `autoCapitalize="none"`, `autoCorrect="off"`, no paste blocking, no
+  `maxLength` surprise; values trimmed. Input `flex-1`, Show button secondary `h-11 sm:h-10`
+  beside it; its text and accessible name switch "Show passcode" / "Hide passcode"; both fields
+  hide again on "Use live mode". Help text linked by `aria-describedby`.
+- Local check only: key must start with `sk-ant-` ("This doesn't look like an Anthropic API key:
+  they start with sk-ant-."); passcode non-empty ("Enter the passcode."). No length hints.
+- "Use live mode" calls `POST /api/live/check` (decision 12): the server checks the passcode and
+  tests the key with Anthropic (a free call), then returns a session token. Errors show in the panel
+  at once (States below). The button shows "Checking..." while it waits.
+- **Key set**: the panel collapses to an info strip at the top of the form (`rounded-md border-l-4
+  border-info bg-info-bg p-3 text-small`, key glyph): "Live mode on. Your key is in this tab's memory
+  only and clears on reload; the passcode is remembered for this tab for up to 12 hours." + text
+  button "Clear key and passcode". Focus moves to the strip
+  (`tabindex="-1"`); live region "Live mode on". Clear: one click, no dialog (re-entry is cheap),
+  wipes both values from state, panel returns, focus to its heading, live region "Key cleared".
+- **Passcode after a reload (decision 11)**: the tab keeps only the session token (sessionStorage,
+  never the passcode). While it is valid, the panel shows only the key field with "Passcode
+  remembered for this tab." and a "Use a different passcode" text button; an expired or refused
+  token clears itself and the passcode field returns. Clear removes the token too.
+- **After a reload**: if Plan has a stored run id (`usePlanRun` persist) and no key, the panel's
+  first line reads "A plan run from before the reload may still be on the server. Enter the same key
+  again to see it." A different key gets the run's 404: "That run belongs to another key or has
+  expired."
+
+#### States (new elements)
+| Trigger | Where | Treatment |
+|---|---|---|
+| 401 passcode (missing or wrong) | panel reopens | passcode field error "That passcode didn't work. Check it with the person who gave it to you."; focus the field; key kept |
+| 429 passcode lockout | panel | stopped line inside the panel, server text ("Too many wrong passcodes. Try again in 15 minutes."); fields stay editable |
+| 401 key missing / malformed | panel reopens | key field error, server text; focus the field |
+| 401 key refused by Anthropic | panel reopens | key field error "Anthropic refused this API key. Check that it is active and has credit." (server text); key field emptied, passcode kept |
+| 429 visitor's Anthropic limit or our per-IP model limits | result slot | info panel "Rate limit reached", server text, `Retry-After` as in Search; key stays set |
+| 403 demo (mode changed under the page) | result slot | neutral panel with server text and a link to the recordings |
+| `/api/demo` list fails | recordings section | stopped panel, network or server copy, "Try again" |
+| list empty | recordings section | "No recorded examples on this server." (`text-small text-ink-muted`) |
+| one recording fails / 404 | result slot | stopped panel "This recording could not be loaded." + "Try again"; picker stays |
+| recording loading | result slot | "Loading the recording..." meta line, no timer |
+
+In every panel-reopening case the visitor's typed question, posting and profile stay; nothing
+re-sends by itself. The api client must tell the 401 and 429 cases apart (Known gaps).
+
+#### Accessibility and mobile (additions)
+- Mode indicator text is real text, read in order after the nav; no `aria-live` on it.
+- Picker rows are buttons in an `<ul>` with `aria-pressed`; Tab moves between rows (8 at most, no
+  roving tabindex needed). On pick, focus moves to the result `h2`, as for live results.
+- Error fields use the existing Field error pattern (`aria-invalid`, octagon, `aria-describedby`).
+- At 375px: panel buttons full width (`w-full sm:w-auto`), Show buttons stay beside the input;
+  excerpts wrap (`break-words`), never scroll sideways; picker rows full width.
 
 ### Accessibility (WCAG 2.2 AA)
 - Landmarks: `header` with `nav aria-label="Main"`, `main`, `footer`; plan nav `aria-label="Plan
@@ -429,7 +613,9 @@ Weekly study hours [  ]   Timeline in weeks [  ]   (both optional)
   `target="_blank" rel="noopener noreferrer"`, with the hostname visible.
 - No third-party trackers, analytics, embeds or runtime font CDNs (`next/font` self-hosts).
 - Browser storage holds only the profile and the theme choice (localStorage) and the current posting
-  and last result (sessionStorage). Never a key.
+  and last result (sessionStorage). Never a key: the visitor's Anthropic key lives in React state
+  only (no localStorage, sessionStorage, URL, cookie or log) and the copy says it clears on reload.
+  The passcode follows decision 11. Neither value is ever rendered back except in its own field.
 
 ### Motion
 - Hover and colour changes `transition-colors duration-150`. Disclosure chevron 150ms.
@@ -467,6 +653,34 @@ revisit only if a later screen needs a combobox or menu.** Icons: about ten smal
 5. **Font**: Atkinson Hyperlegible Next (recommended) vs the system stack only.
 6. **Dark mode. Decided 2026-11-19:** dark by default, with a light/dark toggle in the header.
 
+Milestone 7 (T-018), decided by the owner on 2026-11-20:
+7. **Mode signal. Decided: A.** (A) header badge + one mode-note line per screen; (B) a full-width strip under
+   the header on every page; (C) header badge only. **Recommend A**: always visible, explained where
+   it matters, no banner competing with the result honesty banners. B repeats itself on every page;
+   C leaves "why is there no form?" unanswered.
+8. **Recordings. Decided: A.** (A) per screen, shown with that screen's own components; (B) one `/examples`
+   page listing all 8; (C) both. **Recommend A**: each screen demonstrates itself, and a visitor
+   on "Analyse a job" sees a job analysis. B is one more page that duplicates the renderers' context.
+9. **Source search. Decided: A.** (A) its own `/search` page and nav link, every mode; (B) on the Ask screen in
+   place of the composer in demo mode only; (C) both. **Recommend A**: one purpose per page, and its
+   "passages, not an answer" framing can't be mistaken for the Ask answer card. B is closer to where
+   a demo visitor types, so A adds the link in Ask's mode note.
+10. **Where the key goes in. Decided: A.** (A) inline panel on each model screen, shared state; (B) a header
+   button opening a native `<dialog>`; (C) a `/live` page. **Recommend A**: the copy about the key
+   sits next to the form that uses it, and nothing hides behind a header control. B is tidier but
+   adds a second dialog pattern and a focus trap; C needs a round trip before the first question.
+11. **Passcode lifetime. Decided: B, as a token.** The owner wants the passcode to survive a
+   reload without storing it: after a correct passcode the server returns a signed token that expires
+   in 12 hours; the tab keeps only the token (sessionStorage), never the passcode. The key stays in
+   memory only (it can't be hashed: the server needs the real key to call Anthropic). Options were: (A) memory only, like the key; (B) sessionStorage for the tab. **Recommend
+   A**: one rule ("both clear on reload"), one Clear button, nothing at rest in the browser. B saves
+   retyping a 16+ character passcode after a reload, at the cost of a second storage story.
+12. **Pre-check. Decided: B** (with the free models-list call). (A) no check: the first real request verifies passcode and key; (B) a small
+   backend `POST /api/live/check` (passcode, key shape, optionally a free Anthropic call such as
+   listing models) before the panel collapses. **Recommend B** if cheap to build: errors show in the
+   panel at once, and a made-up key no longer spends a Voyage search. A works with this design as
+   written.
+
 ## Do's and Don'ts
 Do:
 - Show the posting quote and the sources before the model's interpretation.
@@ -495,7 +709,19 @@ Don't:
   story; needs a backend field.
 - `errors[]` in a `partial` result: checked 2026-11-19, all fixed texts (`workflows/nodes.py`,
   `workflows/fallback.py`; `stopped early: {reason}` uses the `FallbackReason` literal). Keep it so.
-- Milestone 7: mode indicator in the header, demo "Recorded run" label, the visitor key field (its
-  design follows the always-hard key-handling rules). Milestone 8: Content-Security-Policy.
+- Milestone 7 (designed above, awaiting approval). Backend contract gaps that make it harder:
+  - 401 (passcode / missing key / refused key) and 429 (passcode lockout / per-IP limits / the
+    visitor's Anthropic limit / Voyage) are told apart only by `detail` text; `lib/api.ts` trusts
+    `detail` only for 429/502/503. Needs a machine-readable `code` in error bodies (for example
+    `passcode_invalid`, `passcode_locked`, `key_missing`, `key_refused`, `rate_limited`) so the UI
+    routes each to the right field without matching strings.
+  - `/api/health` has no `search_enabled`, so search shows "off" only after a query fails.
+  - No credentials check (decision 12): errors surface on the first real request.
+  - The key passes through the GradPath server, so the copy says "sent to the GradPath server,
+    which passes it to Anthropic", not "straight to Anthropic".
+  - A browser password manager may still offer to save the key; the copy promises only that
+    GradPath never stores it.
+  - Recording list items carry no outcome or status, so the picker relies on `summary` text.
+- Milestone 8: Content-Security-Policy.
 - Font: Atkinson Hyperlegible Next is on Google Fonts (checked 2026-11-19); confirm the `next/font/google`
   import at build. Icons: about ten hand-drawn inline SVGs (no icon package).

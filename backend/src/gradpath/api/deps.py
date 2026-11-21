@@ -57,19 +57,32 @@ def visitor_key(request: Request) -> SecretStr | None:
     return SecretStr(raw)
 
 
-def check_passcode(request: Request, settings: Settings) -> None:
-    """Constant-time compare of the passcode header with LIVE_PASSCODE (`check_live_settings`
-    guarantees one is set). A locked-out IP gets 429 before its guess is even compared; a wrong
-    guess counts towards the lock. Neither the guess nor the passcode is ever logged."""
+def check_passcode(request: Request, settings: Settings, *, allow_token: bool = True) -> None:
+    """Accept the passcode header (constant-time compare with LIVE_PASSCODE) or, when
+    `allow_token`, a session token from `POST /api/live/check` that stands in for it (T-018 step 9;
+    bound to the key sent with the request, so it only works together with that key).
+    A locked-out IP gets 429 before anything is compared; a wrong passcode or a bad token counts
+    towards the lock. Nothing here is ever logged. `check_live_settings` guarantees a passcode."""
+    from gradpath.api.live import TOKEN_HEADER, token_status  # live imports deps
+
     ratelimit.check_passcode_lock(request, settings)
-    expected = settings.live_passcode
+    expected = "" if settings.live_passcode is None else settings.live_passcode.get_secret_value()
+    expected = expected.strip()
     given = request.headers.get(PASSCODE_HEADER, "").strip()
-    # Both sides trimmed (`check_live_settings` requires printable ASCII), compared as bytes.
-    if expected is None or not hmac.compare_digest(
-        given.encode("utf-8", "replace"), expected.get_secret_value().strip().encode()
-    ):
-        ratelimit.record_passcode_failure(request, settings)
-        raise HTTPException(status_code=401, detail=PASSCODE_NEEDED)
+    token = request.headers.get(TOKEN_HEADER, "").strip() if allow_token else ""
+    if expected and given:
+        # Both sides trimmed (`check_live_settings` requires printable ASCII), compared as bytes.
+        if hmac.compare_digest(given.encode("utf-8", "replace"), expected.encode()):
+            return
+    elif expected and token:
+        key = request.headers.get(KEY_HEADER, "").strip()
+        status = token_status(token, expected, key)
+        if status == "valid":
+            return
+        if status == "expired":  # genuine but old: ask again without counting it as a guess
+            raise HTTPException(status_code=401, detail=PASSCODE_NEEDED)
+    ratelimit.record_passcode_failure(request, settings)
+    raise HTTPException(status_code=401, detail=PASSCODE_NEEDED)
 
 
 VisitorKey = Annotated[SecretStr | None, Depends(visitor_key)]

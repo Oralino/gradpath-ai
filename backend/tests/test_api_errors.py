@@ -6,6 +6,7 @@ import anthropic
 import httpx
 import pydantic
 import pytest
+from conftest import plain
 from fastapi.testclient import TestClient
 from voyageai.error import AuthenticationError, RateLimitError
 
@@ -71,7 +72,7 @@ def test_errors_map_to_clean_responses(kb_service, exc, status, detail):
     client = make_client(kb_service, Boom(exc))
     resp = client.post("/api/chat", json={"question": "what is a sql index"})
     assert resp.status_code == status
-    assert resp.json() == {"detail": detail}
+    assert plain(resp.json()) == {"detail": detail}
     assert "secret" not in resp.text
 
 

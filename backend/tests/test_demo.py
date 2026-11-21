@@ -5,6 +5,7 @@ import logging
 from datetime import date
 
 import pytest
+from conftest import plain
 from fastapi import HTTPException, Request
 from fastapi.testclient import TestClient
 
@@ -228,6 +229,7 @@ OPEN_ROUTES = {
     ("get", "/api/demo"),
     ("get", "/api/demo/{recording_id}"),
     ("post", "/api/search"),  # no model call (T-018 step 4)
+    ("post", "/api/live/check"),  # checks the passcode and key itself (T-018 step 9)
 }
 
 
@@ -254,7 +256,7 @@ def test_model_routes_are_refused_outside_local_mode(monkeypatch, mode, method, 
     resp = getattr(TestClient(app), method)(path, **({"json": {}} if method == "post" else {}))
     # Demo is closed; live without the passcode asks for it first (T-018 step 7).
     expected = (403, deps.MODEL_ROUTES_OFF) if mode == "demo" else (401, deps.PASSCODE_NEEDED)
-    assert (resp.status_code, resp.json()) == (expected[0], {"detail": expected[1]})
+    assert (resp.status_code, plain(resp.json())) == (expected[0], {"detail": expected[1]})
 
 
 def test_the_default_mode_is_demo(monkeypatch):

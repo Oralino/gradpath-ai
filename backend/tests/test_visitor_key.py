@@ -11,7 +11,7 @@ import time
 import anthropic
 import httpx
 import pytest
-from conftest import placeholder_nodes
+from conftest import placeholder_nodes, plain
 from fastapi.testclient import TestClient
 from langchain_anthropic import ChatAnthropic
 from pydantic import SecretStr
@@ -110,7 +110,7 @@ def test_a_missing_or_malformed_key_is_refused_before_any_model(live, monkeypatc
     resp = TestClient(live, headers=PASS).post(
         "/api/chat", json={"question": "What?"}, headers=headers
     )
-    assert (resp.status_code, resp.json()) == (401, {"detail": KEY_NEEDED})
+    assert (resp.status_code, plain(resp.json())) == (401, {"detail": KEY_NEEDED})
     assert seen == []
 
 
@@ -175,7 +175,7 @@ def test_a_refused_key_gets_a_fixed_message(live, monkeypatch, caplog, exc, stat
         resp = TestClient(live, headers=PASS).post(
             "/api/chat", json={"question": "What is an index?"}, headers={KEY_HEADER: KEY_A}
         )
-    assert (resp.status_code, resp.json()) == (status, {"detail": detail})
+    assert (resp.status_code, plain(resp.json())) == (status, {"detail": detail})
     assert type(exc).__name__ in caplog.text
     assert KEY_A not in caplog.text and KEY_A not in resp.text
 

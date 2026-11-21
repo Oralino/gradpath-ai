@@ -4,6 +4,7 @@ import logging
 
 import pytest
 import voyageai.error
+from conftest import plain
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from test_demo import use_mode
@@ -96,7 +97,7 @@ def test_bad_bodies_are_refused_before_any_voyage_call(body):
 
 def test_without_retrieval_search_is_off():
     resp = client(None).post("/api/search", json={"query": "sql index"})
-    assert resp.status_code == 503 and resp.json() == {"detail": SEARCH_OFF}
+    assert resp.status_code == 503 and plain(resp.json()) == {"detail": SEARCH_OFF}
 
 
 def test_it_is_capped_like_the_model_routes(kb_service):
@@ -135,7 +136,7 @@ def test_voyage_failures_give_fixed_messages_and_never_log_the_query(
     monkeypatch.setattr(kb_service, "embeddings", FailingEmbeddings(exc))
     with caplog.at_level(logging.DEBUG):
         resp = client(kb_service).post("/api/search", json={"query": f"sql {QUERY_SECRET}"})
-    assert (resp.status_code, resp.json()) == (status, {"detail": detail})
+    assert (resp.status_code, plain(resp.json())) == (status, {"detail": detail})
     assert QUERY_SECRET not in caplog.text
 
 
