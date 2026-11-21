@@ -2,7 +2,7 @@
   "id": "ask-not-covered",
   "title": "Kubernetes liveness probes (a known gap)",
   "summary": "Near a gap in the knowledge base: the answer gives what the sources cover and says what they don't.",
-  "recorded_at": "2026-11-20",
+  "recorded_at": "2026-11-21",
   "kind": "ask",
   "message": "How do I configure liveness probes for a Kubernetes deployment?",
   "job_description": null,
@@ -13,7 +13,7 @@
       "action": "run",
       "kind": "knowledge_question",
       "missing": [],
-      "reason": "The user asks how to configure Kubernetes liveness probes, a technical topic answerable from reference material.",
+      "reason": "The user asks how to configure Kubernetes liveness probes, a general technical topic answerable from reference docs with no personal job context.",
       "requires_user_profile": false,
       "requires_multi_step_workflow": false,
       "decided_by": "model"
@@ -23,7 +23,7 @@
     "answer": {
       "question": "How do I configure liveness probes for a Kubernetes deployment?",
       "status": "partial",
-      "answer": "A probe is a diagnostic the kubelet runs periodically on a container. It can run the check in three ways:\n- `ExecAction`, performed with the help of the container runtime.\n- `TCPSocketAction`, checked directly by the kubelet.\n- `HTTPGetAction`, checked directly by the kubelet.\n\nThe Pod Lifecycle documentation has more detail on probes.",
+      "answer": "The evidence doesn't give configuration steps for liveness probes, but it does describe what probes are. A probe is a diagnostic the kubelet performs periodically on a container. The kubelet can run it using one of three actions:\n- `ExecAction`, performed with the help of the container runtime.\n- `TCPSocketAction`, checked directly by the kubelet.\n- `HTTPGetAction`, checked directly by the kubelet.\n\nThe evidence also lists readiness probe failures as one cause of a Deployment getting stuck on its newest ReplicaSet. You can detect a stalled rollout by setting `.spec.progressDeadlineSeconds` in the Deployment spec.",
       "citations": [
         {
           "chunk_id": "devops-kubernetes-concepts:2:29",
@@ -31,11 +31,18 @@
           "section": "Container probes",
           "source_url": "https://github.com/kubernetes/website/blob/main/content/en/docs/concepts/workloads/pods/_index.md",
           "score": 0.521
+        },
+        {
+          "chunk_id": "devops-kubernetes-concepts:4:41",
+          "title": "Kubernetes Documentation: Concepts",
+          "section": "Deployment status > Failed Deployment",
+          "source_url": "https://github.com/kubernetes/website/blob/main/content/en/docs/concepts/workloads/controllers/deployment.md",
+          "score": 0.457
         }
       ],
       "route": "traditional_rag",
       "note": null,
-      "not_covered": "The evidence does not show how to write a liveness probe in a Deployment spec (YAML fields, thresholds, or examples), and it does not specifically describe liveness probes."
+      "not_covered": "The evidence does not show how to configure a liveness probe in a Deployment, such as the YAML fields or an example."
     },
     "result": null,
     "run_id": null

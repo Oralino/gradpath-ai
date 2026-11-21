@@ -483,3 +483,26 @@ What it shows:
 - Limits: 20 cases, one run (Sonnet varies between runs), a model judge that can be wrong both
   ways (spot-checked here only on the unsupported verdicts), fact groups matched as phrases (an
   answer can state a fact in words no group lists).
+
+### Answer eval after "no added advice" (2026-11-21, cases v1, T-019)
+Same 20 cases, after the answer prompt gained an explicit rule: every sentence must be stated by a
+cited block; no own advice, recommendations, "use X when" guidance or well-known facts; missing
+guidance goes to `not_covered` (owner decision 2026-11-21). One run from the owner's terminal.
+Output: `evaluation/results/answer-eval-20261121-0621.json`.
+
+| Measure | Before (0557) | After (0621) |
+|---|---|---|
+| Answer cases passed | 12/14 | 12/14 (same two retrieval failures) |
+| Refuse cases passed | 6/6 refused | 6/6 refused |
+| Claims supported by their cited chunk | 159/166 (96%) | 150/151 (99%) |
+| Answers marked `partial` | 3 | 6 |
+| Mean latency | 24.0 s | 24.1 s |
+
+- **The rule works:** the added advice is gone. The one remaining "unsupported" claim is the
+  answer's own statement that the evidence gives no 429-specific guidance: a remark about the
+  gap, not an invented fact (a judge artefact).
+- **The cost is more partial answers, each honest:** the three new partials name a real gap
+  ("no explicit guidance on when to choose cache-aside versus write-through, only their
+  characteristics", "doesn't show how to read EXPLAIN output", "doesn't cover checking the
+  exception's message"). Facts still pass: the answers lost advice, not content.
+- Limits as before: one run each, a model judge (its one negative verdict read by hand).

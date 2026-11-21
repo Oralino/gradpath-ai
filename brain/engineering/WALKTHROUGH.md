@@ -664,6 +664,21 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   appear in identifiers and arithmetic (`snake_case`, `2 * 3`), so italics would mangle code more
   often than they help.
 
+## No added advice (`rag/answer.py` prompt, T-019)
+- **What it is:** a rule in the answer prompt: every sentence must be stated by a cited evidence
+  block, so the model may rephrase the sources but not add its own advice, "use X when" guidance or
+  well-known facts. Guidance the sources don't give is named in `not_covered`.
+- **Why:** the first answer eval found 7 of 166 claims true but unsupported, all advice or general
+  knowledge. "Use only the evidence" stopped invented facts but not added advice. The owner's
+  rule: answers follow the sources.
+- **Measured:** unsupported claims 7/166 -> 1/151, facts and refusals unchanged; answers marked
+  partial 3 -> 6, each naming a real gap.
+- **Rejected for now:** a grounding check on every live answer that drops unsupported sentences
+  (one more Haiku call, 7-11 s, on the visitor's key).
+- **Likely question:** *"Doesn't that make answers less helpful?"* Less chatty, more honest: the
+  answer says what the docs say and names what they don't, so the reader knows where the sources
+  end instead of trusting advice that sounds like it came from them.
+
 ## Partial answers (`rag/answer.py`, T-012)
 - **What it is:** a third RAG answer status. `answered` means the sources cover the question,
   `partial` means they cover part of it, `insufficient_evidence` means not enough to answer. A partial

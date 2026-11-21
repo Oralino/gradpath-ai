@@ -1,0 +1,1382 @@
+{
+  "run_at": "2026-11-21T06:21:44+00:00",
+  "provider": "claude_code",
+  "model_smart": "claude-sonnet-5-5",
+  "model_fast": "claude-haiku-5-5",
+  "grounding": true,
+  "cases_file": "answer_cases.jsonl",
+  "cases": [
+    {
+      "id": "a-001",
+      "seconds": 10.3,
+      "grounding_seconds": 10.43,
+      "answer": {
+        "question": "When does a multicolumn index help a query, and does the column order matter?",
+        "status": "answered",
+        "answer": "A multicolumn index helps most when a query has several AND-connected conditions. SQLite's docs say you want a multi-column index with a column for each AND term to get maximum performance. It can also serve a search and a sort together: with an index on (fruit, state), the query `WHERE fruit='Orange' ORDER BY state` does both at once.\n\nColumn order matters, though how much depends on the index type:\n- **B-tree:** The index can be used with conditions on any subset of its columns, but it is most efficient when there are constraints on the leading (leftmost) columns. Equality constraints on leading columns, plus any inequality constraint on the first column without an equality constraint, limit the portion of the index that is scanned. Constraints on columns further right are checked in the index and save table visits, but don't necessarily reduce the portion scanned. A skip scan optimization, where it applies effectively, can reduce how much of the index is read even when an earlier column lacks an equality constraint. This matches SQLite's structure: the left-most column is the primary ordering key and the second column breaks ties in the first, so rows matching the first column are adjacent and can be found by binary search.\n- **GiST:** The condition on the first column is the most important for determining how much of the index is scanned. The index is relatively ineffective if the first column has only a few distinct values.\n- **GIN and BRIN:** Search effectiveness is the same regardless of which columns the query conditions use, so order doesn't matter.\n\nEach column must also be used with operators appropriate to the index type, or those clauses won't be considered. PostgreSQL also advises using multicolumn indexes sparingly. An index on a single column is usually sufficient and saves space and time. Indexes with more than three columns are unlikely to help unless table usage is extremely stylized.",
+        "citations": [
+          {
+            "chunk_id": "db-sqlite-query-planner:0:13",
+            "title": "SQLite: Query Planning",
+            "section": "1. Searching > 1.6. Multi-Column Indices",
+            "source_url": "https://www.sqlite.org/queryplanner.html",
+            "score": 0.577
+          },
+          {
+            "chunk_id": "db-sqlite-query-planner:0:26",
+            "title": "SQLite: Query Planning",
+            "section": "3. Searching And Sorting At The Same Time > 3.1. Searching And Sorting With A Multi-Column Index",
+            "source_url": "https://www.sqlite.org/queryplanner.html",
+            "score": 0.595
+          },
+          {
+            "chunk_id": "db-postgres-indexes:2:2",
+            "title": "PostgreSQL docs: Indexes",
+            "section": "11.3. Multicolumn Indexes",
+            "source_url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html",
+            "score": 0.6
+          },
+          {
+            "chunk_id": "db-postgres-indexes:2:6",
+            "title": "PostgreSQL docs: Indexes",
+            "section": "11.3. Multicolumn Indexes",
+            "source_url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html",
+            "score": 0.565
+          },
+          {
+            "chunk_id": "db-postgres-indexes:2:7",
+            "title": "PostgreSQL docs: Indexes",
+            "section": "11.3. Multicolumn Indexes",
+            "source_url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html",
+            "score": 0.612
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": null
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "A multicolumn index helps most when a query has several AND-connected conditions.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:13"
+          },
+          {
+            "claim": "SQLite's docs say you want a multi-column index with a column for each AND term to get maximum performance.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:13"
+          },
+          {
+            "claim": "An index on (fruit, state) can serve a search and a sort together for the query WHERE fruit='Orange' ORDER BY state.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:26"
+          },
+          {
+            "claim": "Column order matters in a multicolumn index.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:2"
+          },
+          {
+            "claim": "A multicolumn B-tree index can be used with query conditions that involve any subset of the index's columns.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:2"
+          },
+          {
+            "claim": "A B-tree index is most efficient when there are constraints on the leading (leftmost) columns.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:2"
+          },
+          {
+            "claim": "Equality constraints on leading columns, plus any inequality constraint on the first column without an equality constraint, limit the portion of the index that is scanned.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:2"
+          },
+          {
+            "claim": "Constraints on columns further right are checked in the index and save table visits, but do not necessarily reduce the portion of the index scanned.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:2"
+          },
+          {
+            "claim": "A B-tree skip scan can reduce how much of the index is read even when an earlier column lacks an equality constraint.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:2"
+          },
+          {
+            "claim": "In SQLite's multi-column index, the left-most column is the primary ordering key and the second column breaks ties in the first.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:13"
+          },
+          {
+            "claim": "In SQLite's index, rows matching the first column are adjacent and can be found by binary search.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:26"
+          },
+          {
+            "claim": "For a GiST index, the condition on the first column is the most important one for determining how much of the index needs to be scanned.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:6"
+          },
+          {
+            "claim": "A GiST index is relatively ineffective if its first column has only a few distinct values.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:6"
+          },
+          {
+            "claim": "For GIN and BRIN multicolumn indexes, search effectiveness is the same regardless of which index columns the query conditions use.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:6"
+          },
+          {
+            "claim": "Each column in a multicolumn index must be used with operators appropriate to the index type, and clauses with other operators will not be considered.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:7"
+          },
+          {
+            "claim": "PostgreSQL advises using multicolumn indexes sparingly.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:7"
+          },
+          {
+            "claim": "An index on a single column is usually sufficient and saves space and time.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:7"
+          },
+          {
+            "claim": "Indexes with more than three columns are unlikely to be helpful unless the table usage is extremely stylized.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:7"
+          }
+        ],
+        "supported_rate": 1.0
+      }
+    },
+    {
+      "id": "a-002",
+      "seconds": 4.34,
+      "grounding_seconds": 6.04,
+      "answer": {
+        "question": "What is a covering index?",
+        "status": "answered",
+        "answer": "A covering index is an index that contains all the columns of the table that a query uses, both the search terms and the output columns. In SQLite's example, the index `CREATE INDEX Idx4 ON FruitsForSale(fruit, state, price);` covers the query `SELECT price FROM fruitsforsale WHERE fruit='Orange' AND state='CA';`. Because all the needed information is in the index, SQLite never has to consult the original table to find the price.\n\nEffects described in the evidence:\n- Adding extra \"output\" columns onto the end of an index avoids referencing the original table. This cuts the number of binary searches for a query in half, which is roughly a doubling of speed. The evidence calls this a constant-factor refinement, much smaller than the gain from first indexing the table.\n- For sorting, a covering index lets SQLite avoid multiple rowid lookups. It can walk the index from one end to the other and deliver output in time proportional to N, without allocating a large buffer for the result set.",
+        "citations": [
+          {
+            "chunk_id": "db-sqlite-query-planner:0:15",
+            "title": "SQLite: Query Planning",
+            "section": "1. Searching > 1.7. Covering Indexes",
+            "source_url": "https://www.sqlite.org/queryplanner.html",
+            "score": 0.605
+          },
+          {
+            "chunk_id": "db-sqlite-query-planner:0:16",
+            "title": "SQLite: Query Planning",
+            "section": "1. Searching > 1.7. Covering Indexes",
+            "source_url": "https://www.sqlite.org/queryplanner.html",
+            "score": 0.592
+          },
+          {
+            "chunk_id": "db-sqlite-query-planner:0:24",
+            "title": "SQLite: Query Planning",
+            "section": "2. Sorting > 2.3. Sorting By Covering Index",
+            "source_url": "https://www.sqlite.org/queryplanner.html",
+            "score": 0.588
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": null
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "A covering index is an index that contains all the columns of the table that a query uses, both the search terms and the output columns.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:15"
+          },
+          {
+            "claim": "In SQLite's example, the index CREATE INDEX Idx4 ON FruitsForSale(fruit, state, price); covers the query SELECT price FROM fruitsforsale WHERE fruit='Orange' AND state='CA';",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:15"
+          },
+          {
+            "claim": "Because all the needed information is in the index, SQLite never has to consult the original table to find the price.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:15"
+          },
+          {
+            "claim": "Adding extra output columns onto the end of an index avoids referencing the original table.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:16"
+          },
+          {
+            "claim": "Avoiding the original table cuts the number of binary searches for a query in half.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:16"
+          },
+          {
+            "claim": "This is roughly a doubling of query speed.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:16"
+          },
+          {
+            "claim": "The evidence calls this a constant-factor refinement, much smaller than the gain from first indexing the table.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:16"
+          },
+          {
+            "claim": "For sorting, a covering index lets SQLite avoid multiple rowid lookups.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:24"
+          },
+          {
+            "claim": "With a covering index for sorting, SQLite can walk the index from one end to the other and deliver output in time proportional to N.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:24"
+          },
+          {
+            "claim": "With a covering index for sorting, SQLite does not need to allocate a large buffer to hold the result set.",
+            "supported": true,
+            "chunk_id": "db-sqlite-query-planner:0:24"
+          }
+        ],
+        "supported_rate": 1.0
+      }
+    },
+    {
+      "id": "a-003",
+      "seconds": 37.74,
+      "grounding_seconds": 6.16,
+      "answer": {
+        "question": "How can I check whether PostgreSQL is actually using my index?",
+        "status": "partial",
+        "answer": "- Run ANALYZE first. It collects statistics about value distribution that the planner needs to estimate row counts and assign realistic costs. Without it, default values are assumed that are almost certain to be inaccurate, so examining index usage without ANALYZE is \"a lost cause\".\n- For an individual query, use the EXPLAIN command to see whether the index is used.\n- To see overall index usage in a running server, you can gather statistics as described in Section 27.2 of the docs.\n- If the index isn't used, you can force the issue for testing by turning off plan types with run-time parameters, such as enable_seqscan and enable_nestloop. If the system still picks a sequential scan or nested-loop join, there is probably a more fundamental reason, for example the query condition does not match the index.\n- If forcing does make it use the index, either the system is right that the index isn't appropriate, or its cost estimates don't reflect reality. Time the query with and without indexes; EXPLAIN ANALYZE can help.\n- The docs note that a good deal of experimentation is often necessary.",
+        "citations": [
+          {
+            "chunk_id": "db-postgres-indexes:3:1",
+            "title": "PostgreSQL docs: Indexes",
+            "section": "11.12. Examining Index Usage",
+            "source_url": "https://www.postgresql.org/docs/current/indexes-examine.html",
+            "score": 0.683
+          },
+          {
+            "chunk_id": "db-postgres-indexes:3:2",
+            "title": "PostgreSQL docs: Indexes",
+            "section": "11.12. Examining Index Usage",
+            "source_url": "https://www.postgresql.org/docs/current/indexes-examine.html",
+            "score": 0.61
+          },
+          {
+            "chunk_id": "db-postgres-indexes:3:4",
+            "title": "PostgreSQL docs: Indexes",
+            "section": "11.12. Examining Index Usage",
+            "source_url": "https://www.postgresql.org/docs/current/indexes-examine.html",
+            "score": 0.678
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": "The evidence doesn't show how to read EXPLAIN output to tell whether an index scan was chosen."
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "Run ANALYZE first.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:3:2"
+          },
+          {
+            "claim": "ANALYZE collects statistics about value distribution that the planner needs to estimate row counts and assign realistic costs.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:3:2"
+          },
+          {
+            "claim": "Without ANALYZE, default values are assumed that are almost certain to be inaccurate.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:3:2"
+          },
+          {
+            "claim": "Examining index usage without ANALYZE is \"a lost cause\".",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:3:2"
+          },
+          {
+            "claim": "For an individual query, the EXPLAIN command is used to examine index usage.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:3:1"
+          },
+          {
+            "claim": "Overall index usage statistics in a running server can be gathered as described in Section 27.2.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:3:1"
+          },
+          {
+            "claim": "If the index isn't used, run-time parameters such as enable_seqscan and enable_nestloop can turn off plan types to force index use for testing.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:3:4"
+          },
+          {
+            "claim": "If the system still picks a sequential scan or nested-loop join when forced, there is probably a more fundamental reason, such as the query condition not matching the index.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:3:4"
+          },
+          {
+            "claim": "If forcing index usage does use the index, either the system is right that the index is inappropriate, or the cost estimates do not reflect reality.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:3:4"
+          },
+          {
+            "claim": "The query should be timed with and without indexes, and EXPLAIN ANALYZE can help.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:3:4"
+          },
+          {
+            "claim": "A good deal of experimentation is often necessary.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:3:1"
+          }
+        ],
+        "supported_rate": 1.0
+      }
+    },
+    {
+      "id": "a-004",
+      "seconds": 10.27,
+      "grounding_seconds": 7.49,
+      "answer": {
+        "question": "What is MVCC?",
+        "status": "answered",
+        "answer": "MVCC (Multiversion Concurrency Control) is the multiversion model PostgreSQL uses internally to maintain data consistency. Each SQL statement sees a snapshot of the data (a database version) as it was some time ago, regardless of the current state of the underlying data. This keeps statements from seeing inconsistent data produced by concurrent transactions updating the same rows, which gives each database session transaction isolation.\n\nKey points:\n- MVCC avoids the locking methods of traditional database systems, which minimizes lock contention and allows reasonable performance in multiuser environments.\n- Its main advantage over locking is that locks acquired for reading data do not conflict with locks acquired for writing data. Reading never blocks writing, and writing never blocks reading.\n- PostgreSQL keeps this guarantee even at the strictest isolation level, using Serializable Snapshot Isolation (SSI).\n- Table- and row-level locks are also available for applications that don't generally need full transaction isolation and prefer to manage particular points of conflict explicitly. Proper use of MVCC will generally give better performance than locks.",
+        "citations": [
+          {
+            "chunk_id": "db-postgres-mvcc:0:1",
+            "title": "PostgreSQL docs: Concurrency Control",
+            "section": "13.1. Introduction",
+            "source_url": "https://www.postgresql.org/docs/current/mvcc-intro.html",
+            "score": 0.569
+          },
+          {
+            "chunk_id": "db-postgres-mvcc:0:2",
+            "title": "PostgreSQL docs: Concurrency Control",
+            "section": "13.1. Introduction",
+            "source_url": "https://www.postgresql.org/docs/current/mvcc-intro.html",
+            "score": 0.526
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": null
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "MVCC stands for Multiversion Concurrency Control.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:1"
+          },
+          {
+            "claim": "PostgreSQL uses MVCC internally to maintain data consistency.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:1"
+          },
+          {
+            "claim": "Each SQL statement sees a snapshot of the data (a database version) as it was some time ago, regardless of the current state of the underlying data.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:1"
+          },
+          {
+            "claim": "MVCC keeps statements from seeing inconsistent data produced by concurrent transactions updating the same rows.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:1"
+          },
+          {
+            "claim": "MVCC gives each database session transaction isolation.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:1"
+          },
+          {
+            "claim": "MVCC avoids the locking methods of traditional database systems.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:1"
+          },
+          {
+            "claim": "MVCC minimizes lock contention and allows reasonable performance in multiuser environments.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:1"
+          },
+          {
+            "claim": "The main advantage of MVCC over locking is that locks acquired for reading data do not conflict with locks acquired for writing data.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:2"
+          },
+          {
+            "claim": "Reading never blocks writing, and writing never blocks reading.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:2"
+          },
+          {
+            "claim": "PostgreSQL keeps this non-blocking guarantee even at the strictest isolation level, using Serializable Snapshot Isolation (SSI).",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:2"
+          },
+          {
+            "claim": "SSI stands for Serializable Snapshot Isolation.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:2"
+          },
+          {
+            "claim": "Table- and row-level locks are available for applications that don't generally need full transaction isolation and prefer to explicitly manage particular points of conflict.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:2"
+          },
+          {
+            "claim": "Proper use of MVCC will generally give better performance than locks.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:0:2"
+          }
+        ],
+        "supported_rate": 1.0
+      }
+    },
+    {
+      "id": "a-005",
+      "seconds": 31.75,
+      "grounding_seconds": 7.65,
+      "answer": {
+        "question": "What is the difference between Read Committed and Repeatable Read isolation?",
+        "status": "partial",
+        "answer": "The evidence describes the difference mainly in terms of snapshot timing:\n\n- **Repeatable Read:** A transaction only sees data committed before it began. It never sees uncommitted data or changes committed by concurrent transactions during its execution, though each query does see the effects of earlier updates within its own transaction. Its snapshot is taken as of the start of the first non-transaction-control statement in the transaction. As a result, successive SELECT commands in the same transaction see the same data.\n- **Read Committed (by contrast):** The evidence says Repeatable Read differs from Read Committed in that Read Committed does not use a transaction-wide snapshot. Repeatable Read's snapshot is taken at the start of the transaction's first statement, \"not as of the start of the current statement within the transaction\", which is the contrast being drawn.\n\nOther Repeatable Read points from the evidence:\n- It is stronger than the SQL standard requires. It prevents all the phenomena in Table 13.1 except serialization anomalies.\n- Only updating transactions might need to be retried, because read-only transactions never have serialization conflicts.\n- Its view is stable but not necessarily consistent with some serial execution of concurrent transactions. Enforcing business rules at this level is unlikely to work correctly without careful use of explicit locks.\n- It is implemented using Snapshot Isolation.",
+        "citations": [
+          {
+            "chunk_id": "db-postgres-mvcc:1:14",
+            "title": "PostgreSQL docs: Concurrency Control",
+            "section": "13.2. Transaction Isolation > 13.2.2. Repeatable Read Isolation Level",
+            "source_url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+            "score": 0.71
+          },
+          {
+            "chunk_id": "db-postgres-mvcc:1:17",
+            "title": "PostgreSQL docs: Concurrency Control",
+            "section": "13.2. Transaction Isolation > 13.2.2. Repeatable Read Isolation Level",
+            "source_url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+            "score": 0.631
+          },
+          {
+            "chunk_id": "db-postgres-mvcc:1:18",
+            "title": "PostgreSQL docs: Concurrency Control",
+            "section": "13.2. Transaction Isolation > 13.2.2. Repeatable Read Isolation Level",
+            "source_url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+            "score": 0.652
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": "The evidence does not describe how Read Committed itself behaves, only that Repeatable Read differs from it in snapshot timing."
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "Repeatable Read sees only data committed before the transaction began.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:14"
+          },
+          {
+            "claim": "Repeatable Read never sees uncommitted data.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:14"
+          },
+          {
+            "claim": "Repeatable Read never sees changes committed by concurrent transactions during its execution.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:14"
+          },
+          {
+            "claim": "Each query in a Repeatable Read transaction sees the effects of previous updates executed within its own transaction, even if not yet committed.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:14"
+          },
+          {
+            "claim": "The Repeatable Read snapshot is taken as of the start of the first non-transaction-control statement in the transaction.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:14"
+          },
+          {
+            "claim": "Successive SELECT commands in a single Repeatable Read transaction see the same data.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:14"
+          },
+          {
+            "claim": "Repeatable Read is a stronger guarantee than the SQL standard requires for this isolation level.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:14"
+          },
+          {
+            "claim": "Repeatable Read prevents all phenomena in Table 13.1 except serialization anomalies.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:14"
+          },
+          {
+            "claim": "Repeatable Read differs from Read Committed in that its snapshot is taken as of the start of the transaction's first statement rather than the start of the current statement.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:14"
+          },
+          {
+            "claim": "Read Committed takes its view as of the start of the current statement within the transaction.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:14"
+          },
+          {
+            "claim": "Only updating transactions might need to be retried at the Repeatable Read level.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:17"
+          },
+          {
+            "claim": "Read-only transactions never have serialization conflicts.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:17"
+          },
+          {
+            "claim": "The Repeatable Read view is stable but not necessarily consistent with some serial execution of concurrent transactions.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:17"
+          },
+          {
+            "claim": "Enforcing business rules at Repeatable Read is not likely to work correctly without careful use of explicit locks.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:17"
+          },
+          {
+            "claim": "The Repeatable Read isolation level is implemented using Snapshot Isolation.",
+            "supported": true,
+            "chunk_id": "db-postgres-mvcc:1:18"
+          }
+        ],
+        "supported_rate": 1.0
+      }
+    },
+    {
+      "id": "a-006",
+      "seconds": 3.85,
+      "grounding_seconds": 2.77,
+      "answer": {
+        "question": "What does HTTP status 429 mean and how should a client react?",
+        "status": "partial",
+        "answer": "HTTP 429 Too Many Requests means the user has sent too many requests in a given amount of time (rate limiting).\n\nThe evidence doesn't give guidance for reacting to a 429 specifically. For the similar overload case where a server returns 503 because its queue is full, it says clients can retry the request at a later time, perhaps with exponential backoff.",
+        "citations": [
+          {
+            "chunk_id": "fund-mdn-http-status:0:12",
+            "title": "MDN: HTTP response status codes",
+            "section": "HTTP response status codes > Client error responses",
+            "source_url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status",
+            "score": 0.62
+          },
+          {
+            "chunk_id": "be-system-design-primer:0:119",
+            "title": "The System Design Primer",
+            "section": "Asynchronism > Back pressure",
+            "source_url": "https://github.com/donnemartin/system-design-primer/blob/master/README.md",
+            "score": 0.465
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": "The evidence gives no guidance on how a client should react to 429 itself; the retry advice applies to 503."
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "HTTP 429 Too Many Requests means the user has sent too many requests in a given amount of time (rate limiting).",
+            "supported": true,
+            "chunk_id": "fund-mdn-http-status:0:12"
+          },
+          {
+            "claim": "For the similar overload case where a server returns 503 because its queue is full, clients can retry the request at a later time, perhaps with exponential backoff.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:119"
+          },
+          {
+            "claim": "The evidence doesn't give guidance for reacting to a 429 specifically.",
+            "supported": false,
+            "chunk_id": null
+          }
+        ],
+        "supported_rate": 0.667
+      }
+    },
+    {
+      "id": "a-007",
+      "seconds": 6.5,
+      "grounding_seconds": 7.11,
+      "answer": {
+        "question": "How do I make it safe for a client to retry a POST request after a timeout?",
+        "status": "partial",
+        "answer": "Make the POST idempotent so the client can retry without unintended consequences.\n\n- The guidelines say clients must retry requests they never got a response to, and services must handle those retries idempotently. The goal is \"exactly once\" behavior, which comes from client retries plus service idempotency.\n- In Azure, all HTTP operations are naturally idempotent except POST that creates a resource and POST that invokes an action.\n- For those POSTs, you should support repeatable requests as defined in OASIS Repeatable Requests Version 1.0, which makes them retriable.\n- The tracked time window (the difference between the `Repeatability-First-Sent` value and the current time) must be at least 5 minutes.\n- Document the POST operation's support for the `Repeatability-First-Sent`, `Repeatability-Request-ID`, and `Repeatability-Result` headers in the API contract and documentation.",
+        "citations": [
+          {
+            "chunk_id": "fund-ms-rest-guidelines:0:70",
+            "title": "Azure REST API Guidelines (Microsoft)",
+            "section": "Microsoft Azure REST API Guidelines > Common API Patterns > Repeatability of requests",
+            "source_url": "https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md",
+            "score": 0.526
+          },
+          {
+            "chunk_id": "fund-ms-rest-guidelines:0:11",
+            "title": "Azure REST API Guidelines (Microsoft)",
+            "section": "Microsoft Azure REST API Guidelines > Building Blocks: HTTP, REST, & JSON > HTTP",
+            "source_url": "https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md",
+            "score": 0.458
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": "The evidence doesn't explain how the headers work in detail or how a client should implement the retry logic."
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "Make the POST idempotent so the client can retry without unintended consequences.",
+            "supported": true,
+            "chunk_id": "fund-ms-rest-guidelines:0:11"
+          },
+          {
+            "claim": "The guidelines say clients must retry requests they never got a response to, and services must handle those retries idempotently.",
+            "supported": true,
+            "chunk_id": "fund-ms-rest-guidelines:0:70"
+          },
+          {
+            "claim": "The goal is \"exactly once\" behavior, which comes from client retries plus service idempotency.",
+            "supported": true,
+            "chunk_id": "fund-ms-rest-guidelines:0:11"
+          },
+          {
+            "claim": "In Azure, all HTTP operations are naturally idempotent except POST that creates a resource and POST that invokes an action.",
+            "supported": true,
+            "chunk_id": "fund-ms-rest-guidelines:0:70"
+          },
+          {
+            "claim": "For those POSTs, you should support repeatable requests as defined in OASIS Repeatable Requests Version 1.0, which makes them retriable.",
+            "supported": true,
+            "chunk_id": "fund-ms-rest-guidelines:0:70"
+          },
+          {
+            "claim": "The tracked time window (the difference between the Repeatability-First-Sent value and the current time) must be at least 5 minutes.",
+            "supported": true,
+            "chunk_id": "fund-ms-rest-guidelines:0:70"
+          },
+          {
+            "claim": "Document the POST operation's support for the Repeatability-First-Sent, Repeatability-Request-ID, and Repeatability-Result headers in the API contract and documentation.",
+            "supported": true,
+            "chunk_id": "fund-ms-rest-guidelines:0:70"
+          }
+        ],
+        "supported_rate": 1.0
+      }
+    },
+    {
+      "id": "a-008",
+      "seconds": 31.82,
+      "grounding_seconds": 5.97,
+      "answer": {
+        "question": "How do I return a 404 error from a FastAPI endpoint?",
+        "status": "answered",
+        "answer": "Import `HTTPException` from `fastapi` and raise it (don't return it) with `status_code=404` and a `detail` message:\n\n```python\nfrom fastapi import FastAPI, HTTPException\n\napp = FastAPI()\n\nitems = {\"foo\": \"The Foo Wrestlers\"}\n\n@app.get(\"/items/{item_id}\")\nasync def read_item(item_id: str):\n    if item_id not in items:\n        raise HTTPException(status_code=404, detail=\"Item not found\")\n    return {\"item\": items[item_id]}\n```\n\n- `HTTPException` is a normal Python exception with extra data relevant for APIs, so you raise it rather than return it.\n- If you raise it from a utility function called inside your path operation function, the rest of the path operation code doesn't run. The request ends right away and the HTTP error goes to the client.\n- With this code, a request for an existing item (\"foo\") gets status 200 and `{\"item\": \"The Foo Wrestlers\"}`. A request for a non-existent item (\"bar\") gets status 404 and `{\"detail\": \"Item not found\"}`.\n- `detail` can be any value that converts to JSON, such as a dict or a list, not only a string. FastAPI converts it automatically.\n- In an API, 404 Not Found can mean the endpoint is valid but the resource itself doesn't exist.",
+        "citations": [
+          {
+            "chunk_id": "fund-fastapi-tutorial:3:2",
+            "title": "FastAPI Tutorial - User Guide",
+            "section": "Handling Errors > Use HTTPException > Import HTTPException",
+            "source_url": "https://fastapi.tiangolo.com/tutorial/handling-errors/",
+            "score": 0.703
+          },
+          {
+            "chunk_id": "fund-fastapi-tutorial:3:3",
+            "title": "FastAPI Tutorial - User Guide",
+            "section": "Handling Errors > Use HTTPException > Raise an HTTPException in your code",
+            "source_url": "https://fastapi.tiangolo.com/tutorial/handling-errors/",
+            "score": 0.672
+          },
+          {
+            "chunk_id": "fund-fastapi-tutorial:3:4",
+            "title": "FastAPI Tutorial - User Guide",
+            "section": "Handling Errors > Use HTTPException > The resulting response",
+            "source_url": "https://fastapi.tiangolo.com/tutorial/handling-errors/",
+            "score": 0.647
+          },
+          {
+            "chunk_id": "fund-mdn-http-status:0:8",
+            "title": "MDN: HTTP response status codes",
+            "section": "HTTP response status codes > Client error responses",
+            "source_url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status",
+            "score": 0.532
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": null
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "Import HTTPException from fastapi and raise it with status_code=404 and a detail message, as in the example code",
+            "supported": true,
+            "chunk_id": "fund-fastapi-tutorial:3:2"
+          },
+          {
+            "claim": "HTTPException is a normal Python exception with additional data relevant for APIs",
+            "supported": true,
+            "chunk_id": "fund-fastapi-tutorial:3:3"
+          },
+          {
+            "claim": "HTTPException should be raised, not returned",
+            "supported": true,
+            "chunk_id": "fund-fastapi-tutorial:3:3"
+          },
+          {
+            "claim": "If HTTPException is raised inside a utility function called from a path operation function, the rest of the path operation code does not run",
+            "supported": true,
+            "chunk_id": "fund-fastapi-tutorial:3:3"
+          },
+          {
+            "claim": "Raising HTTPException terminates the request right away and sends the HTTP error to the client",
+            "supported": true,
+            "chunk_id": "fund-fastapi-tutorial:3:3"
+          },
+          {
+            "claim": "A request for the existing item 'foo' receives status 200 and the JSON response {\"item\": \"The Foo Wrestlers\"}",
+            "supported": true,
+            "chunk_id": "fund-fastapi-tutorial:3:4"
+          },
+          {
+            "claim": "A request for the non-existent item 'bar' receives status 404 and the JSON response {\"detail\": \"Item not found\"}",
+            "supported": true,
+            "chunk_id": "fund-fastapi-tutorial:3:4"
+          },
+          {
+            "claim": "The detail parameter can be any value that can be converted to JSON, such as a dict or list, not only a str",
+            "supported": true,
+            "chunk_id": "fund-fastapi-tutorial:3:4"
+          },
+          {
+            "claim": "FastAPI handles detail values automatically and converts them to JSON",
+            "supported": true,
+            "chunk_id": "fund-fastapi-tutorial:3:4"
+          },
+          {
+            "claim": "In an API, 404 Not Found can mean the endpoint is valid but the resource itself does not exist",
+            "supported": true,
+            "chunk_id": "fund-mdn-http-status:0:8"
+          }
+        ],
+        "supported_rate": 1.0
+      }
+    },
+    {
+      "id": "a-009",
+      "seconds": 7.17,
+      "grounding_seconds": 7.29,
+      "answer": {
+        "question": "Where should an application keep configuration like database URLs and API keys?",
+        "status": "answered",
+        "answer": "Keep them in environment variables, not in the code. The twelve-factor approach says config is everything likely to vary between deploys, including database resource handles and credentials to external services, and it requires strict separation of config from code.\n\nWhy env vars:\n- They are easy to change between deploys without changing any code.\n- There is little chance of checking them into the repo by accident.\n- They are a language- and OS-agnostic standard, unlike custom config files or Java System Properties.\n- Each env var is managed independently for each deploy and is never grouped into named \"environments\" like staging or production. This scales as the app gets more deploys.\n\nAlternatives and their problems:\n- Constants in the code violate twelve-factor.\n- Config files kept out of version control, such as config/database.yml, are a big improvement over constants. But they are easy to check in by mistake, tend to get scattered across places and formats, and are often language- or framework-specific.\n\nA litmus test: could the codebase be made open source at any moment without exposing any credentials?",
+        "citations": [
+          {
+            "chunk_id": "be-twelve-factor:2:0",
+            "title": "The Twelve-Factor App",
+            "section": "III. Config > Store config in the environment",
+            "source_url": "https://12factor.net/config",
+            "score": 0.604
+          },
+          {
+            "chunk_id": "be-twelve-factor:2:1",
+            "title": "The Twelve-Factor App",
+            "section": "III. Config > Store config in the environment",
+            "source_url": "https://12factor.net/config",
+            "score": 0.568
+          },
+          {
+            "chunk_id": "be-twelve-factor:2:2",
+            "title": "The Twelve-Factor App",
+            "section": "III. Config > Store config in the environment",
+            "source_url": "https://12factor.net/config",
+            "score": 0.454
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": null
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "Config should be kept in environment variables, not in the code.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:1"
+          },
+          {
+            "claim": "The twelve-factor approach says config is everything likely to vary between deploys.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:0"
+          },
+          {
+            "claim": "Config includes resource handles to backing services such as the database.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:0"
+          },
+          {
+            "claim": "Config includes credentials to external services.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:0"
+          },
+          {
+            "claim": "Twelve-factor requires strict separation of config from code.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:0"
+          },
+          {
+            "claim": "Env vars are easy to change between deploys without changing any code.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:1"
+          },
+          {
+            "claim": "There is little chance of env vars being checked into the repo accidentally.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:1"
+          },
+          {
+            "claim": "Env vars are a language- and OS-agnostic standard.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:1"
+          },
+          {
+            "claim": "Env vars are managed independently for each deploy and are never grouped into named environments.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:2"
+          },
+          {
+            "claim": "The env var model scales as the app gets more deploys.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:2"
+          },
+          {
+            "claim": "Constants in the code violate twelve-factor.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:0"
+          },
+          {
+            "claim": "Config files kept out of version control, such as config/database.yml, are a big improvement over constants.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:1"
+          },
+          {
+            "claim": "Config files are easy to check into the repo by mistake.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:1"
+          },
+          {
+            "claim": "Config files tend to get scattered about in different places and formats.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:1"
+          },
+          {
+            "claim": "Config file formats tend to be language- or framework-specific.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:1"
+          },
+          {
+            "claim": "A litmus test is whether the codebase could be made open source at any moment without compromising credentials.",
+            "supported": true,
+            "chunk_id": "be-twelve-factor:2:0"
+          }
+        ],
+        "supported_rate": 1.0
+      }
+    },
+    {
+      "id": "a-010",
+      "seconds": 4.84,
+      "grounding_seconds": 7.6,
+      "answer": {
+        "question": "What are cache-aside and write-through caching, and when do I use each?",
+        "status": "partial",
+        "answer": "**Cache-aside (lazy loading)**\n- Memcached is generally used this way. Only requested data is cached, so the cache doesn't fill up with data nobody asks for. Subsequent reads of data already in the cache are fast.\n- Disadvantages:\n  - Each cache miss takes three trips, which can cause a noticeable delay.\n  - Data can go stale if it is updated in the database. A time-to-live (TTL) or write-through mitigates this.\n  - When a node fails, it is replaced by a new, empty node, which increases latency.\n\n**Write-through**\n- The application uses the cache as the main data store, reading and writing to it. The cache synchronously writes each entry to the data store.\n- Overall it is a slow operation because of the write, but subsequent reads of just-written data are fast. Users are generally more tolerant of latency when updating data than when reading it. Data in the cache is not stale.\n- Disadvantages:\n  - A new node (from failure or scaling) won't cache entries until they are updated in the database. Using cache-aside together with write-through can mitigate this.\n  - Most data written might never be read, which a TTL can minimize.",
+        "citations": [
+          {
+            "chunk_id": "be-system-design-primer:0:111",
+            "title": "The System Design Primer",
+            "section": "Cache > When to update the cache",
+            "source_url": "https://github.com/donnemartin/system-design-primer/blob/master/README.md",
+            "score": 0.651
+          },
+          {
+            "chunk_id": "be-system-design-primer:0:112",
+            "title": "The System Design Primer",
+            "section": "Cache > When to update the cache",
+            "source_url": "https://github.com/donnemartin/system-design-primer/blob/master/README.md",
+            "score": 0.618
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": "The evidence gives no explicit guidance on when to choose cache-aside versus write-through, only their characteristics and trade-offs."
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "Memcached is generally used in the cache-aside manner.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:111"
+          },
+          {
+            "claim": "In cache-aside, only requested data is cached, so the cache doesn't fill up with data nobody asks for.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:111"
+          },
+          {
+            "claim": "In cache-aside, subsequent reads of data already in the cache are fast.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:111"
+          },
+          {
+            "claim": "In cache-aside, each cache miss takes three trips, which can cause a noticeable delay.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:111"
+          },
+          {
+            "claim": "In cache-aside, data can go stale if it is updated in the database.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:111"
+          },
+          {
+            "claim": "Staleness in cache-aside can be mitigated by a time-to-live (TTL) or by write-through.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:111"
+          },
+          {
+            "claim": "In cache-aside, when a node fails it is replaced by a new, empty node, which increases latency.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:111"
+          },
+          {
+            "claim": "In write-through, the application uses the cache as the main data store, reading and writing data to it.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:111"
+          },
+          {
+            "claim": "In write-through, the cache synchronously writes each entry to the data store.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:111"
+          },
+          {
+            "claim": "Write-through is a slow overall operation due to the write, but subsequent reads of just-written data are fast.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:112"
+          },
+          {
+            "claim": "Users are generally more tolerant of latency when updating data than when reading data.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:112"
+          },
+          {
+            "claim": "Data in a write-through cache is not stale.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:112"
+          },
+          {
+            "claim": "In write-through, a new node created due to failure or scaling will not cache entries until they are updated in the database.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:112"
+          },
+          {
+            "claim": "Using cache-aside in conjunction with write-through can mitigate the new-node caching issue.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:112"
+          },
+          {
+            "claim": "Most data written in write-through might never be read, which a TTL can minimize.",
+            "supported": true,
+            "chunk_id": "be-system-design-primer:0:112"
+          }
+        ],
+        "supported_rate": 1.0
+      }
+    },
+    {
+      "id": "a-011",
+      "seconds": 26.63,
+      "grounding_seconds": 7.26,
+      "answer": {
+        "question": "What makes a good Git commit message?",
+        "status": "answered",
+        "answer": "According to Pro Git, a good commit message follows this model:\n\n- **Summary line:** Start with a single line of about 50 characters or less that concisely describes the changeset. The template shows it capitalized.\n- **Blank line:** Put a blank line between the summary and the body. It is critical (unless you omit the body entirely), because tools like rebase will confuse you if you run the two together.\n- **Body (if necessary):** Add a more detailed explanation, wrapped at about 72 characters. The Git project requires that it include your motivation for the change and contrast its implementation with previous behavior.\n- **Imperative mood:** Write \"Fix bug\", not \"Fixed bug\" or \"Fixes bug\". This matches messages generated by commands like git merge and git revert.\n- **Further paragraphs and bullets:** Further paragraphs come after blank lines. Bullet points are okay, typically with a hyphen or asterisk followed by a single space and blank lines in between, though conventions vary. Use a hanging indent.\n\nFollowing this model makes things easier for you and for the developers you collaborate with. Running `git log --no-merges` in the Git project shows what a well-formatted history looks like.",
+        "citations": [
+          {
+            "chunk_id": "career-pro-git:3:5",
+            "title": "Pro Git (Chacon and Straub)",
+            "section": "5.2 Distributed Git - Contributing to a Project > Contributing to a Project > Commit Guidelines",
+            "source_url": "https://git-scm.com/book/en/v2/Distributed-Git-Contributing-to-a-Project",
+            "score": 0.675
+          },
+          {
+            "chunk_id": "career-pro-git:3:6",
+            "title": "Pro Git (Chacon and Straub)",
+            "section": "5.2 Distributed Git - Contributing to a Project > Contributing to a Project > Commit Guidelines",
+            "source_url": "https://git-scm.com/book/en/v2/Distributed-Git-Contributing-to-a-Project",
+            "score": 0.651
+          },
+          {
+            "chunk_id": "career-pro-git:3:7",
+            "title": "Pro Git (Chacon and Straub)",
+            "section": "5.2 Distributed Git - Contributing to a Project > Contributing to a Project > Commit Guidelines",
+            "source_url": "https://git-scm.com/book/en/v2/Distributed-Git-Contributing-to-a-Project",
+            "score": 0.641
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": null
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "A good commit message starts with a single summary line of about 50 characters or less that concisely describes the changeset.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:5"
+          },
+          {
+            "claim": "The commit message template shows the summary line capitalized.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:5"
+          },
+          {
+            "claim": "A blank line should separate the summary from the body.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:6"
+          },
+          {
+            "claim": "The blank line between summary and body is critical unless the body is omitted entirely.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:6"
+          },
+          {
+            "claim": "Tools like rebase will get confused if the summary and body are run together.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:6"
+          },
+          {
+            "claim": "The body should be wrapped at about 72 characters.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:6"
+          },
+          {
+            "claim": "The Git project requires the detailed explanation to include the motivation for the change.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:5"
+          },
+          {
+            "claim": "The Git project requires the detailed explanation to contrast the implementation with previous behavior.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:5"
+          },
+          {
+            "claim": "Commit messages should be written in the imperative mood, e.g., \"Fix bug\" rather than \"Fixed bug\" or \"Fixes bug\".",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:5"
+          },
+          {
+            "claim": "The imperative convention matches commit messages generated by commands like git merge and git revert.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:6"
+          },
+          {
+            "claim": "Further paragraphs come after blank lines.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:6"
+          },
+          {
+            "claim": "Bullet points are acceptable in commit messages.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:6"
+          },
+          {
+            "claim": "A hyphen or asterisk is typically used for bullets, followed by a single space, with blank lines in between, though conventions vary.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:7"
+          },
+          {
+            "claim": "Bullet items should use a hanging indent.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:7"
+          },
+          {
+            "claim": "Following this model makes things easier for the author and the developers they collaborate with.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:7"
+          },
+          {
+            "claim": "Running `git log --no-merges` in the Git project shows what a well-formatted project commit history looks like.",
+            "supported": true,
+            "chunk_id": "career-pro-git:3:7"
+          }
+        ],
+        "supported_rate": 1.0
+      }
+    },
+    {
+      "id": "a-012",
+      "seconds": 17.37,
+      "grounding_seconds": 4.58,
+      "answer": {
+        "question": "How do I write a pytest test that checks a function raises an exception?",
+        "status": "partial",
+        "answer": "Use pytest's `raises` helper as a context manager to assert that some code raises an exception:\n\n```\n# content of test_sysexit.py\nimport pytest\n\ndef f():\n    raise SystemExit(1)\n\ndef test_mytest():\n    with pytest.raises(SystemExit):\n        f()\n```\n\nPut the code that should raise inside the `with pytest.raises(...)` block, passing the expected exception type. Running `pytest -q test_sysexit.py` reports `1 passed`. The `-q`/`--quiet` flag just keeps the output brief.",
+        "citations": [
+          {
+            "chunk_id": "fund-pytest-getting-started:0:5",
+            "title": "pytest: Get Started",
+            "section": "Get Started > Assert that a certain exception is raised",
+            "source_url": "https://docs.pytest.org/en/stable/getting-started.html",
+            "score": 0.618
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": "The evidence doesn't cover how to check details of the expected exception, such as its message; it only points to the \"Assertions about expected exceptions\" page."
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "Use pytest's raises helper to assert that some code raises an exception.",
+            "supported": true,
+            "chunk_id": "fund-pytest-getting-started:0:5"
+          },
+          {
+            "claim": "The raises helper is used as a context manager, in a with pytest.raises(...) block wrapping the code that should raise.",
+            "supported": true,
+            "chunk_id": "fund-pytest-getting-started:0:5"
+          },
+          {
+            "claim": "The expected exception type is passed to pytest.raises, as in pytest.raises(SystemExit).",
+            "supported": true,
+            "chunk_id": "fund-pytest-getting-started:0:5"
+          },
+          {
+            "claim": "Running pytest -q test_sysexit.py reports 1 passed.",
+            "supported": true,
+            "chunk_id": "fund-pytest-getting-started:0:5"
+          },
+          {
+            "claim": "The -q/--quiet flag keeps the output brief.",
+            "supported": true,
+            "chunk_id": "fund-pytest-getting-started:0:5"
+          }
+        ],
+        "supported_rate": 1.0
+      }
+    },
+    {
+      "id": "a-013",
+      "seconds": 26.34,
+      "grounding_seconds": null,
+      "answer": {
+        "question": "What does SQLSTATE 40001 mean in PostgreSQL and what should the application do?",
+        "status": "insufficient_evidence",
+        "answer": "The GradPath knowledge base doesn't cover this question well enough to answer it with sources. Try rephrasing it, or ask about backend engineering, databases, APIs, testing, Git, data structures or interview preparation.",
+        "citations": [],
+        "route": "traditional_rag",
+        "note": "No source cleared the relevance threshold (best score 0.392).",
+        "not_covered": null
+      },
+      "grounding": null
+    },
+    {
+      "id": "a-014",
+      "seconds": 17.73,
+      "grounding_seconds": 6.56,
+      "answer": {
+        "question": "What is a BRIN index?",
+        "status": "answered",
+        "answer": "BRIN (Block Range INdex) is one of the index types PostgreSQL provides. A BRIN index stores summaries about the values in consecutive physical block ranges of a table, so it is most effective for columns whose values are well-correlated with the physical order of the table rows.\n\n- Like GiST, SP-GiST and GIN, BRIN can support many different indexing strategies, and the operators it can be used with depend on the strategy.\n- For data types with a linear sort order, the index stores the minimum and maximum values of the column for each block range. This supports queries using the operators <, <=, =, >= and >.\n- A multicolumn BRIN index can be used with query conditions on any subset of the index's columns. Its search effectiveness is the same regardless of which column(s) the conditions use.\n- The only reason to have multiple BRIN indexes instead of one multicolumn BRIN index on a table is to have a different pages_per_range storage parameter.\n- Like other non-default index types, it is chosen by writing USING followed by the index type name in CREATE INDEX (the docs show this with Hash). By default, CREATE INDEX creates B-tree indexes.",
+        "citations": [
+          {
+            "chunk_id": "db-postgres-indexes:1:9",
+            "title": "PostgreSQL docs: Indexes",
+            "section": "11.2. Index Types > 11.2.6. BRIN",
+            "source_url": "https://www.postgresql.org/docs/current/indexes-types.html",
+            "score": 0.605
+          },
+          {
+            "chunk_id": "db-postgres-indexes:2:6",
+            "title": "PostgreSQL docs: Indexes",
+            "section": "11.3. Multicolumn Indexes",
+            "source_url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html",
+            "score": 0.541
+          },
+          {
+            "chunk_id": "db-postgres-indexes:1:1",
+            "title": "PostgreSQL docs: Indexes",
+            "section": "11.2. Index Types",
+            "source_url": "https://www.postgresql.org/docs/current/indexes-types.html",
+            "score": 0.476
+          }
+        ],
+        "route": "traditional_rag",
+        "note": null,
+        "not_covered": null
+      },
+      "grounding": {
+        "claims": [
+          {
+            "claim": "BRIN (Block Range INdex) is one of the index types PostgreSQL provides.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:1:1"
+          },
+          {
+            "claim": "A BRIN index stores summaries about the values in consecutive physical block ranges of a table.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:1:9"
+          },
+          {
+            "claim": "BRIN is most effective for columns whose values are well-correlated with the physical order of the table rows.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:1:9"
+          },
+          {
+            "claim": "Like GiST, SP-GiST and GIN, BRIN can support many different indexing strategies.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:1:9"
+          },
+          {
+            "claim": "The operators a BRIN index can be used with vary depending on the indexing strategy.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:1:9"
+          },
+          {
+            "claim": "For data types with a linear sort order, the BRIN index stores the minimum and maximum values of the column for each block range.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:1:9"
+          },
+          {
+            "claim": "A BRIN index supports indexed queries using the operators <, <=, =, >= and >.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:1:9"
+          },
+          {
+            "claim": "A multicolumn BRIN index can be used with query conditions that involve any subset of the index's columns.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:6"
+          },
+          {
+            "claim": "A multicolumn BRIN index's search effectiveness is the same regardless of which column(s) the query conditions use.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:6"
+          },
+          {
+            "claim": "The only reason to have multiple BRIN indexes instead of one multicolumn BRIN index on a table is to have a different pages_per_range storage parameter.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:2:6"
+          },
+          {
+            "claim": "Non-default index types are selected by writing the keyword USING followed by the index type name in CREATE INDEX, as shown with a Hash index example.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:1:1"
+          },
+          {
+            "claim": "By default, CREATE INDEX creates B-tree indexes.",
+            "supported": true,
+            "chunk_id": "db-postgres-indexes:1:1"
+          }
+        ],
+        "supported_rate": 1.0
+      }
+    },
+    {
+      "id": "a-015",
+      "seconds": 1.2,
+      "grounding_seconds": null,
+      "answer": {
+        "question": "How does the OAuth 2.0 authorization code flow with PKCE work?",
+        "status": "insufficient_evidence",
+        "answer": "The GradPath knowledge base doesn't cover this question well enough to answer it with sources. Try rephrasing it, or ask about backend engineering, databases, APIs, testing, Git, data structures or interview preparation.",
+        "citations": [],
+        "route": "traditional_rag",
+        "note": "No source cleared the relevance threshold (best score 0.361).",
+        "not_covered": null
+      },
+      "grounding": null
+    },
+    {
+      "id": "a-016",
+      "seconds": 34.54,
+      "grounding_seconds": null,
+      "answer": {
+        "question": "How do I verify a JWT signature in my backend?",
+        "status": "insufficient_evidence",
+        "answer": "The GradPath knowledge base doesn't cover this question well enough to answer it with sources. Try rephrasing it, or ask about backend engineering, databases, APIs, testing, Git, data structures or interview preparation.",
+        "citations": [],
+        "route": "traditional_rag",
+        "note": "No source cleared the relevance threshold (best score 0.369).",
+        "not_covered": null
+      },
+      "grounding": null
+    },
+    {
+      "id": "a-017",
+      "seconds": 25.93,
+      "grounding_seconds": null,
+      "answer": {
+        "question": "When does the React useEffect hook run?",
+        "status": "insufficient_evidence",
+        "answer": "The GradPath knowledge base doesn't cover this question well enough to answer it with sources. Try rephrasing it, or ask about backend engineering, databases, APIs, testing, Git, data structures or interview preparation.",
+        "citations": [],
+        "route": "traditional_rag",
+        "note": "No source cleared the relevance threshold (best score 0.313).",
+        "not_covered": null
+      },
+      "grounding": null
+    },
+    {
+      "id": "a-018",
+      "seconds": 36.17,
+      "grounding_seconds": null,
+      "answer": {
+        "question": "What does SKIP LOCKED do in a PostgreSQL SELECT FOR UPDATE query?",
+        "status": "insufficient_evidence",
+        "answer": "The GradPath knowledge base doesn't cover this question well enough to answer it with sources. Try rephrasing it, or ask about backend engineering, databases, APIs, testing, Git, data structures or interview preparation.",
+        "citations": [],
+        "route": "traditional_rag",
+        "note": "The model judged the retrieved evidence insufficient.",
+        "not_covered": null
+      },
+      "grounding": null
+    },
+    {
+      "id": "a-019",
+      "seconds": 11.06,
+      "grounding_seconds": null,
+      "answer": {
+        "question": "How do I add a HEALTHCHECK instruction to a Dockerfile?",
+        "status": "insufficient_evidence",
+        "answer": "The GradPath knowledge base doesn't cover this question well enough to answer it with sources. Try rephrasing it, or ask about backend engineering, databases, APIs, testing, Git, data structures or interview preparation.",
+        "citations": [],
+        "route": "traditional_rag",
+        "note": "No source cleared the relevance threshold (best score 0.415).",
+        "not_covered": null
+      },
+      "grounding": null
+    },
+    {
+      "id": "a-020",
+      "seconds": 48.59,
+      "grounding_seconds": null,
+      "answer": {
+        "question": "How do Kafka consumer groups rebalance partitions between consumers?",
+        "status": "insufficient_evidence",
+        "answer": "The GradPath knowledge base doesn't cover this question well enough to answer it with sources. Try rephrasing it, or ask about backend engineering, databases, APIs, testing, Git, data structures or interview preparation.",
+        "citations": [],
+        "route": "traditional_rag",
+        "note": "The model judged the retrieved evidence insufficient.",
+        "not_covered": null
+      },
+      "grounding": null
+    }
+  ]
+}

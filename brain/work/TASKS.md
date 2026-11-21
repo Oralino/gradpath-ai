@@ -14,8 +14,8 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 
 Answer quality (owner decision 2026-11-19: before Milestone 7's public demo):
 - [x] Answer eval set: 20 cases (14 must-contain, 6 must-refuse), scored in code (T-018 step 10).
-- [ ] Answers add unsupported advice and general knowledge (7 of 166 claims, 2026-11-21): decide
-      whether the answer prompt should forbid advice not in the evidence (EVALUATION.md).
+- [x] Answers add unsupported advice: fixed by the no-advice prompt rule, 7/166 -> 1/151
+      unsupported claims ([T-019](tickets/T-019-answers-follow-sources.md)).
 - [x] Grounding check: Haiku checks each claim against its cited chunk; 96% supported (T-018 step 10).
 - [ ] Re-run the retrieval and answer evals as a release check when sources, prompts or models change.
 

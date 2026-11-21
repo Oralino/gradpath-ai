@@ -142,6 +142,14 @@ def test_injected_delimiters_are_neutralised():
     assert user.content.count("<question>") == 1 and user.content.count("</question>") == 1
 
 
+def test_prompt_forbids_advice_the_evidence_does_not_state():
+    # T-019 (owner decision 2026-11-21): no added advice; missing guidance goes to not_covered.
+    system, _ = build_messages("When should I use a cache?", [])
+    rules = " ".join(system.content.split())
+    assert "Do not add your own advice" in rules
+    assert "name the missing guidance in `not_covered`" in rules
+
+
 @pytest.fixture
 def client(kb_service):
     app = create_app(use_lifespan=False)
