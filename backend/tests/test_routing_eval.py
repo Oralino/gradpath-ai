@@ -27,7 +27,7 @@ def perfect_kind(case) -> str:
 
 
 def test_label_file_is_valid_and_complete():
-    assert len(CASES) == 30
+    assert len(CASES) == 36
     assert all(c.id.startswith("rt-") for c in CASES.values())
     for i in COMPARE_IDS:
         assert CASES[i].expected_action == "run"
@@ -36,7 +36,7 @@ def test_label_file_is_valid_and_complete():
 def test_rules_only_run_decides_ten_cases_all_correctly():
     records = [run_case(c, None) for c in CASES.values()]
     m = metrics(records, CASES)
-    assert (m["decided"], m["undecided"]) == (10, 20)
+    assert (m["decided"], m["undecided"]) == (9, 27)
     assert m["accuracy"] == 1.0 and m["wrong"] == []
 
 
@@ -46,10 +46,10 @@ def test_a_perfect_classifier_scores_one_everywhere():
         for c in CASES.values()
     ]
     m = metrics(records, CASES)
-    assert m["decided"] == 30 and m["accuracy"] == 1.0
+    assert m["decided"] == 36 and m["accuracy"] == 1.0
     assert m["workflow_precision"] == 1.0 and m["workflow_recall"] == 1.0
     assert m["over_routed"] == 0.0 and m["under_routed"] == 0.0
-    assert m["by_decider"]["rules"]["cases"] == 10 and m["by_decider"]["model"]["cases"] == 20
+    assert m["by_decider"]["rules"]["cases"] == 9 and m["by_decider"]["model"]["cases"] == 27
 
 
 def test_errors_are_counted_in_the_right_direction():
