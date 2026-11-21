@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     qdrant_url: str | None = None
     qdrant_api_key: SecretStr | None = None
     qdrant_local_path: str = "backend/data/qdrant"  # relative to the repo root
+    # Target of `ingestion.copy_index` only (T-020): the deployed index. Separate from qdrant_url
+    # so setting it never points local runs at the cloud. The deployed server uses qdrant_url.
+    qdrant_cloud_url: str | None = None
+    qdrant_cloud_api_key: SecretStr | None = None
     qdrant_collection: str = "gradpath_kb"
 
     # Chunking (characters); tuned later by the chunk-size experiment in EVALUATION.md.

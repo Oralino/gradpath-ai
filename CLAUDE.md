@@ -40,6 +40,7 @@ uv run ruff check . && uv run ruff format --check .
 uv run python -m gradpath.providers.smoke   # manual: one real call through LLM_PROVIDER (Haiku)
 uv run python -m gradpath.ingestion.ingest [--dry-run]   # build the knowledge base index (+ index_info.json)
 uv run python -m gradpath.ingestion.ingest --info-only   # rewrite index_info.json only (no fetch, no Voyage)
+uv run python -m gradpath.ingestion.copy_index [--dry-run]   # copy the local index to QDRANT_CLOUD_URL (no Voyage)
 uv run python -m gradpath.retrieval.probe                # real retrieval scores (threshold check)
 uv run python -m gradpath.rag.ask "question"             # one RAG answer from the terminal
 uv run python -m gradpath.jobs.cli <job_description_file> [--json]   # analyse a posting

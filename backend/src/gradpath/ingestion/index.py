@@ -59,27 +59,42 @@ def rebuild_index(
     if not documents:
         raise ValueError("no documents to index")
     vectors = embeddings.embed_documents([d.page_content for d in documents])
+    points = [
+        PointStruct(
+            id=point_id(d.metadata["chunk_id"]),
+            vector=v,
+            payload={"page_content": d.page_content, "metadata": d.metadata},
+        )
+        for d, v in zip(documents, vectors, strict=True)
+    ]
+    return publish_points(client, collection, points, progress)
+
+
+def publish_points(
+    client: QdrantClient,
+    collection: str,
+    points: list[PointStruct],
+    progress: Callable[[int, int], None] | None = None,
+) -> int:
+    """Write ready-made points into a new physical collection, then switch the alias to it.
+
+    Shared by `rebuild_index` (freshly embedded points) and `copy_index` (points read from another
+    Qdrant, T-020), so both publish the same safe way; the guarantees are rebuild_index's above.
+    """
+    if not points:
+        raise ValueError("no points to publish")
+    size = len(points[0].vector)  # type: ignore[arg-type]
     stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
     new = f"{collection}_{stamp}{uuid4().hex[:8]}"
-    client.create_collection(
-        new, vectors_config=VectorParams(size=len(vectors[0]), distance=Distance.COSINE)
-    )
+    client.create_collection(new, vectors_config=VectorParams(size=size, distance=Distance.COSINE))
     switched = migrated = False
     old: list[str] = []
     try:
-        for start in range(0, len(documents), ADD_BATCH):
-            end = start + ADD_BATCH
-            points = [
-                PointStruct(
-                    id=point_id(d.metadata["chunk_id"]),
-                    vector=v,
-                    payload={"page_content": d.page_content, "metadata": d.metadata},
-                )
-                for d, v in zip(documents[start:end], vectors[start:end], strict=True)
-            ]
-            client.upsert(new, points=points)
+        for start in range(0, len(points), ADD_BATCH):
+            batch = points[start : start + ADD_BATCH]
+            client.upsert(new, points=batch)
             if progress:
-                progress(start + len(points), len(documents))
+                progress(start + len(batch), len(points))
         aliases = client.get_aliases().aliases
         old = [a.collection_name for a in aliases if a.alias_name == collection]
         operations: list = []
@@ -113,7 +128,7 @@ def rebuild_index(
     for name in old:
         _drop(client, name)
     _sweep_orphans(client, collection, new)
-    return len(documents)
+    return len(points)
 
 
 def _drop(client: QdrantClient, name: str) -> None:

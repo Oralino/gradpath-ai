@@ -1124,3 +1124,20 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
     are scored in code and the judge only answers a narrow question (does this passage state this
     claim?), with its negative verdicts checked by reading.
 
+
+## Copying the index to Qdrant Cloud (`ingestion/copy_index.py`, `index.publish_points`, T-020 step 1)
+- **What it is:** how the deployed site gets its knowledge base. The script reads every point
+  (vector and payload) from the local index and publishes them to Qdrant Cloud.
+- **Decision: copy, don't re-embed.** Re-running ingest against the cloud would embed 1,592 chunks
+  again with Voyage, spending free tokens that never refresh, and could fetch pages that have
+  changed since the evaluated index. Copying moves exactly the index the evals measured, at no cost.
+- **Decision: one publish path for ingest and copy.** `publish_points` (taken out of
+  `rebuild_index`) builds a new physical collection, then switches the alias to it, so the
+  deployed index is never half-built and a failed copy leaves the old one serving.
+- **Decision: a separate setting for the target** (`QDRANT_CLOUD_URL`, https only). Reusing
+  `QDRANT_URL` in `.env` would quietly point every local run at the cloud.
+- **Gotcha:** Qdrant Cloud suspends a free cluster unused for a week and deletes it about three
+  weeks later; this script is also the free way to rebuild it.
+- **Likely question:** *"How do you know the copy is right?"* It checks the point ids match
+  exactly and compares payloads and vectors on about 20 spread-out samples before saying done;
+  then the retrieval eval runs against the cloud and must match the local numbers.
