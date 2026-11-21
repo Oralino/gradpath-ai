@@ -36,7 +36,7 @@ Owner, 2026-11-21: option (a), add both openly licensed sources (rejected for no
 
 ## Changes
 - Branch: `feat/t-023-monitoring-sources`
-- PR:
+- PR: [#15](https://github.com/Oralino/gradpath-ai/pull/15)
 - Files touched: `knowledge_base/source_manifest.csv` (2 rows), `knowledge_base/index_info.json`
   (29 documents, 1,700 chunks), `evaluation/results/retrieval-20261121-104638.json`, ARCHITECTURE
   (corpus v3), EVALUATION (retrieval re-check), TASKS, DONE.
