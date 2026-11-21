@@ -506,3 +506,10 @@ Output: `evaluation/results/answer-eval-20261121-0621.json`.
   characteristics", "doesn't show how to read EXPLAIN output", "doesn't cover checking the
   exception's message"). Facts still pass: the answers lost advice, not content.
 - Limits as before: one run each, a model judge (its one negative verdict read by hand).
+
+### Retrieval re-check (2026-11-21, release check for Milestone 7)
+Unchanged from the labels v1.3 semantic baseline (same index: corpus v2, 1,592 chunks): Recall@5
+0.961, Precision@5 0.605, MRR 0.987; at 0.45, 97% of covered questions kept (`q-041` 0.393) and 67%
+of uncovered rejected (`q-031`, `q-047`, `q-049`, `q-050` clear it); the same three partial misses
+(`q-001`, `q-027`, `q-034`). Milestone 7 changed modes, limits and the answer prompt, not
+retrieval. One Voyage call. Output: `evaluation/results/retrieval-20261121-063353.json`.

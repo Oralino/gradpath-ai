@@ -203,5 +203,49 @@ panel (Claude Code on the Pro plan, 20 Voyage queries): 12/14 answer cases, 6/6 
 claims supported, 24 s per case; details and the two retrieval-caused failures in EVALUATION.md.
 Follow-up in TASKS.md: answers add advice not in the evidence.
 
-Remaining release checks are filled in at step 11. Release checks from `CLAUDE.md` apply (demo mode with no keys, visitor key never in logs,
-traces or responses, retrieval eval, the SECURITY.md checklist including its "From Milestone 7" line).
+Step 11 (2026-11-21), release checks:
+- Leftover tests (owner, 2026-11-20): recorder `--only` with an unknown id exits before opening
+  any service; Qdrant is closed when recording fails; a failed write leaves no temp file and keeps
+  the old recording (`save` now removes its temp file on failure); a leftover `.json.tmp` is
+  ignored by the library and overwritten; the shared health request is aborted when the page
+  unmounts (it moved from the footer to `ServerInfoProvider` in step 9). `dd37ad4`.
+- Secret scan of the branch diff (21 commits), commit messages, logs and `demo_runs/`: no keys,
+  personal data or local paths (one hit: the made-up `C:\Users\someone` in a scan test); no AI
+  attribution; single author; no `.env`, `private/` or log tracked. The live check's test key and
+  passcode appear in no log or file.
+- Demo mode with no keys at all: a launcher with no `.env` and every key removed: health answers
+  (`search_enabled: false`), 8 recordings served, chat/jobs/runs and the live check 403
+  `demo_mode`, search 503 `search_off`.
+- Visitor key never in logs, traces or responses; tracing off for visitor requests: covered by
+  `test_visitor_key.py` (a full request at DEBUG logs nothing with the key; refused keys get fixed
+  text) and `test_tracing.py` (deployed modes never trace; a visitor key is refused while tracing
+  is on); the step 9 browser check saw the same from outside.
+- SECURITY.md checklist: request bodies Pydantic with `extra="forbid"` (incl. `SearchRequest`);
+  no exception text in responses or logs; model and retrieved text only through the delimiting
+  helpers (also the new grounding judge); no model tools (`tools=[]`), structured outputs
+  validated; limits in place; `uvx pip-audit`: no known vulnerabilities (104 pinned packages);
+  `npm audit`: 0. From Milestone 6: model text as text, links http(s) only (step 9 review). From
+  Milestone 7: auth on model routes (passcode + token), per-IP limits, Origin check instead of
+  CORS (step 8), visitor key never logged or traced, demo with no keys: all checked above. The
+  Milestone 8 and live-deploy lines (HTTPS, headers, proxy chain, one worker) belong to the deploy.
+- Retrieval eval: unchanged (EVALUATION.md, 2026-11-21). Answer eval: see step 10 and T-019.
+- 808 backend + 287 frontend tests; lint, typecheck, build clean.
+
+Release review (code-reviewer, whole branch, focus on steps 10-11 and T-019) and QA:
+- Fixed: `test_real_chunk_ids_load` failed on CI (`knowledge_base/processed/` is gitignored, so
+  a fresh clone has no chunks); it now skips there. CI had been red on `225e8f6` and `dd37ad4`
+  without the lead noticing; checked after every push from here.
+- Fixed: generic must-contain phrasings narrowed ("the original", "versions", "check in",
+  "duplicate", "miss", "slow"); both saved runs re-score identically (12/14). Curly apostrophes
+  now match straight ones. `--only` with an unknown id is a clean error; result files carry
+  seconds in their names.
+- Fixed (passcode area, re-reviewed: no probe, no lock bypass, lock still checked first): a
+  session token sent without a key got `passcode_required` and counted toward the IP lock; it now
+  gets 401 `key_required` and does not count.
+- Kept: a refuse case answered in full with every claim supported passes as "grounded partial"
+  (the documented intent). QA: no failing checks, 287 frontend tests stable over 3 runs, no
+  secrets, attribution, debug leftovers or control characters. For the owner: commit metadata
+  carries the owner's personal email (as on `main` before).
+- 809 backend + 287 frontend tests.
+
+Then the PR to `main`.
