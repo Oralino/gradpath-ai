@@ -53,6 +53,25 @@ test("the provider makes one health request and shares the answer", async () => 
   expect(fn).toHaveBeenCalledWith("/api/health", expect.objectContaining({ method: "GET" }));
 });
 
+test("leaving the page aborts the pending health request (T-018 step 11)", () => {
+  let signal: AbortSignal | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((_url: string, init: RequestInit) => {
+      signal = init.signal ?? undefined;
+      return new Promise<Response>(() => {}); // never answers
+    }),
+  );
+  const view = render(
+    <ServerInfoProvider>
+      <Probe />
+    </ServerInfoProvider>,
+  );
+  expect(signal?.aborted).toBe(false);
+  view.unmount();
+  expect(signal?.aborted).toBe(true);
+});
+
 test("a failed health request reads as error, still in demo", async () => {
   vi.stubGlobal(
     "fetch",

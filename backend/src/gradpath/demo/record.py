@@ -194,7 +194,9 @@ def _outcome(decision) -> str:
 
 
 def save(recording: Recording, folder: Path) -> Path:
-    """Scan, re-validate and write one recording atomically (temp file, then rename)."""
+    """Scan, re-validate and write one recording atomically (temp file, then rename). A failed
+    write removes its temp file, so no half-written `.json.tmp` is left behind (the library only
+    reads `*.json`, so a leftover from a killed process is ignored and overwritten next time)."""
     text = recording.model_dump_json(indent=2) + "\n"
     hit = find_secret(text)
     if hit is not None:
@@ -203,8 +205,12 @@ def save(recording: Recording, folder: Path) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{recording.id}.json"
     tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(text, encoding="utf-8", newline="\n")
-    tmp.replace(path)
+    try:
+        tmp.write_text(text, encoding="utf-8", newline="\n")
+        tmp.replace(path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
     return path
 
 

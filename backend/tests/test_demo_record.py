@@ -193,3 +193,71 @@ def test_saved_file_is_plain_utf8_json(tmp_path):
     path = save(RECORDING.validate_python(ask()), tmp_path)
     assert json.loads(path.read_text(encoding="utf-8"))["id"] == "ask-sql-index"
     assert not list(tmp_path.glob("*.tmp"))
+
+
+# --- T-018 step 11: failed writes and the command-line entry point ---
+
+
+def test_a_failed_write_leaves_no_temp_file_and_keeps_the_old_one(tmp_path, monkeypatch):
+    first = save(RECORDING.validate_python(ask()), tmp_path)
+    before = first.read_text(encoding="utf-8")
+
+    def broken_replace(self, target):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(type(first), "replace", broken_replace)
+    with pytest.raises(OSError):
+        save(RECORDING.validate_python(ask()), tmp_path)
+    assert not list(tmp_path.glob("*.tmp"))
+    assert first.read_text(encoding="utf-8") == before
+
+
+def test_a_leftover_temp_file_is_ignored_and_overwritten(tmp_path):
+    (tmp_path / "ask-sql-index.json.tmp").write_text("{half a fi", encoding="utf-8")
+    assert len(load_library(tmp_path)) == 0  # the library reads *.json only
+    save(RECORDING.validate_python(ask()), tmp_path)
+    assert not list(tmp_path.glob("*.tmp"))
+    assert load_library(tmp_path).get("ask-sql-index") is not None
+
+
+def test_main_refuses_an_unknown_id_before_opening_anything(monkeypatch):
+    import gradpath.retrieval
+
+    def no_services():
+        raise AssertionError("services opened for a refused command")
+
+    monkeypatch.setattr(gradpath.retrieval, "get_retrieval_service", no_services)
+    monkeypatch.setattr("sys.argv", ["record", "--only", "no-such-id"])
+    with pytest.raises(SystemExit) as exc:
+        record.main()
+    assert exc.value.code == 2
+
+
+def test_main_closes_qdrant_when_recording_fails(monkeypatch):
+    import gradpath.providers
+    import gradpath.retrieval
+
+    closed = []
+
+    class Client:
+        def close(self):
+            closed.append(True)
+
+    class Store:
+        client = Client()
+
+    class Retrieval:
+        store = Store()
+
+    monkeypatch.setattr(gradpath.retrieval, "get_retrieval_service", lambda: Retrieval())
+    monkeypatch.setattr(gradpath.providers, "get_chat_model", lambda tier: None)
+
+    def failing_record_all(specs, open_services, folder, force):
+        open_services()
+        raise RuntimeError("model down")
+
+    monkeypatch.setattr(record, "record_all", failing_record_all)
+    monkeypatch.setattr("sys.argv", ["record", "--only", SPECS[0].id])
+    with pytest.raises(RuntimeError):
+        record.main()
+    assert closed == [True]
