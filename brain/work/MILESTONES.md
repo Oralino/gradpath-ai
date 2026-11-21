@@ -264,6 +264,7 @@ limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are
 | 6. 422 handler | ✅ | Validation errors keep `loc`/`msg`/`type` only; unknown field names and odd locations masked | A key pasted in the wrong place must never come back (T-017 finding) | Tests: a key as an unknown field, inside a field, as a field name, in broken JSON: never echoed; 680 backend tests |
 | 7. Passcode and per-IP limits | ✅ | Live passcode with a brute-force lock; per-client sliding windows (search, model, workflow, polling) and a global daily search cap; trusted-proxy client address; 256 KB body cap | The public site's gate and meter: nobody can run up the owner's Voyage tokens or hold the run slot | Security review: no bypass, 7 fixes applied (IPv6 grouping, body cap, a passcode whitespace bug); QA clean; 716 backend tests |
 | 8. CORS and CSRF | ✅ | No CORS middleware (deny cross-origin by default); `OriginCheck` refuses POSTs from origins not in `ALLOWED_ORIGINS`; measured FastAPI refusing form content types | Another site can't read our API or make it act for a visitor (SECURITY.md 01) | Real servers: page POST via `next dev` passed, evil/null origins 403, `text/plain` 422, preflight 405 with no CORS headers; review: no bypass (two Origin headers now refused); 761 backend tests |
+| 9. Frontend demo and live | ✅ | Backend: `POST /api/live/check` (passcode, key shape, a free Anthropic call) returns a 12 h token bound to the key; every error has a `code`; health reports `search_enabled`. Frontend: one shared health request; key in memory only, token in sessionStorage; credentials on model routes only; header mode badge and a mode note per screen; recorded examples per screen with a "Not generated now" strip; `/search` page; inline live panel with every 401/403/429 state | Visitors see what is real and what is recorded, and can bring their own key without it ever being stored (DESIGN.md decisions 7-12) | 787 backend + 286 frontend tests; review: no key-handling issue, 6 fixes applied (silent 401 with an unknown code, picker during a run, stale refusal on the next page, non-ASCII headers, lockout countdown, a lighter Search bundle); QA clean; browser check in demo (recordings, search) and live (wrong passcode, refused key, nothing stored) |
 
 ### Problems we hit and how we solved them
 - **The old default mode was "demo" but meant "local".** Tests, CLIs and the owner's runs used the
@@ -275,10 +276,18 @@ limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are
   partial answer (probe types from the Pod Lifecycle page, plus what isn't covered), not a refusal.
   We relabelled it "a known gap" instead of spending another call; the recorder now also refuses an
   example whose route differs from the one it is meant to show.
-- **A broken test file reached GitHub (step 6).** An edit script turned an escaped `
-` into a real
+- **A broken test file reached GitHub (step 6).** An edit script turned an escaped newline in a string into a real
   line break, and the commit was chained after the failing lint with `;`, so it ran anyway. Fixed in
   the next commit; from then on, commits are chained with `&&` after lint and tests.
+- **Live mode wouldn't start for the browser check (step 9).** The owner's `.env` holds a server
+  Anthropic key, and live mode refuses to start with one (by design: no key the owner pays for).
+  An empty environment variable can't hide a `.env` value, so the check used a throwaway launcher
+  that loads `.env` without that key; `.env` itself was not changed.
+- **A refusal followed the visitor to the next page (step 9 review).** The live session is shared
+  by every page, so "Anthropic refused this key" from one screen reappeared on the next and pulled
+  focus there. The panel now forgets the refusal when it unmounts, and its focus effect reads the
+  store's current state instead of the render's (the new page renders once before the old panel's
+  cleanup runs).
 
 ## Milestones 4–8: what's next
 

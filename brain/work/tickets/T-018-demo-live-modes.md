@@ -62,6 +62,13 @@ Owner decisions, 2026-11-20 (plan approved):
 - Files touched: step 1: `config.py`, `tracing.py`, `api/deps.py`, `api/main.py`, `api/demo.py`,
   `api/{chat,jobs,career,runs,assist,profile}.py`, `demo/`, `tests/test_demo.py`, `tests/conftest.py`,
   `tests/test_tracing.py`, `.env.example`, README, ARCHITECTURE, SECURITY, WALKTHROUGH, MILESTONES.
+- Files touched, step 9: backend `api/live.py`, `api/deps.py`, `api/main.py` (error codes, health),
+  frontend `lib/liveSession.ts`, `lib/serverInfo.tsx`, `lib/api.ts`, `lib/types.ts`,
+  `lib/examples.ts`, `lib/useRecordings.ts`, `lib/useCountdown.ts`, `app/layout.tsx`,
+  `app/search/page.tsx`, `components/{LivePanel,RecordedExamples,SourceSearch,ModeBadge,ModeNote,
+  ServerGate,ModeErrorPanel,RetryAfter}.tsx`, changes to `Assistant`, `JobAnalysisView`,
+  `PlanView`, `ResumeImport`, `SiteHeader`, `SourcesDate`, `CitationList`, `RouteLine`,
+  `StatusPanel`, `PlanResult`, `icons`, and their tests; ARCHITECTURE, WALKTHROUGH, MILESTONES.
 - Commits (hash, message):
 
 ## Verification
@@ -155,6 +162,37 @@ For step 11 (owner decision 2026-11-20: left for the release checks): tests for 
 command-line entry point (`--only` with an unknown id, Qdrant closed in `main`) and for a leftover
 temp file after a failed write; a frontend test that leaving the page aborts the footer's health
 request.
+
+Step 9 (2026-11-21): backend (commit 89845b1): `POST /api/live/check` checks the passcode, the key's
+shape and the key itself (a free models-list call) and returns a 12 h token, an HMAC over expiry,
+passcode and a hash of the key; every error body carries a `code`; `/api/health` has
+`search_enabled`. Frontend: the core (key in module memory only, token in sessionStorage plus an
+in-memory copy, credentials on model routes only, 401s mapped by code) was reviewed and given its
+own tests, then two gaps fixed before the screens: a blocked sessionStorage lost the token entirely,
+and the panel could not tell why it reopened (now `refusal`). Screens by engineer from DESIGN.md
+decisions 7-12. Choices the design left open: Job and Plan show their single recording at once in
+demo only (a one-row picker in local and live, so a live result is not replaced); resume import in
+demo shows "Importing a resume needs a model, and this site runs in demo mode..."; a plan run is
+resumed after a reload only in local mode or in live mode with a key. After the review, also beyond
+the design: a passcode or key with characters a header can't carry is refused locally ("A passcode
+uses only letters, digits and keyboard symbols, with no spaces."); a passcode lockout shows the
+Retry-After countdown and disables "Use live mode" until it ends; the recordings picker is disabled
+while a live run is going. The bound-token copy: "The remembered passcode no longer works with this
+key (it works only with the key first used with it, until the server restarts). Enter the passcode
+again."
+code-reviewer: no key-handling issue; fixed: a 401 with an unknown code passed silently (now drops
+both values and the panel explains it), picking a recording during a run hid the run, a refusal
+followed the visitor to the next page (and pulled focus), non-ASCII header values became a
+misleading "can't reach the server", the lockout ignored Retry-After, Search imported the whole Ask
+screen for its examples. qa-checker: secrets, attribution, debug leftovers, storage and header
+greps, control characters: all clean. 787 backend + 286 frontend tests; lint, typecheck, build pass.
+Browser check through `next dev`: demo (badge, mode notes, recordings on Ask/Job/Plan with the strip
+and read-only inputs, `/search` with plain-text excerpts and the route preview, no console errors);
+live with a throwaway passcode and a made-up key (wrong passcode -> field error and focus; right
+passcode -> "Anthropic refused this API key", key field emptied and focused, nothing in
+sessionStorage, the key nowhere in the page; server log names the error type only; the refusal does
+not follow to /plan). Not checkable: the key-set strip and a real model run (no paid key, zero-cost
+rule).
 
 Remaining release checks are filled in at step 11. Release checks from `CLAUDE.md` apply (demo mode with no keys, visitor key never in logs,
 traces or responses, retrieval eval, the SECURITY.md checklist including its "From Milestone 7" line).

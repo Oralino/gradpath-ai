@@ -1005,3 +1005,80 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   every POST from the real site gets 403. Locally the default covers `localhost:3000`.
 - **Likely question:** *"Why not CSRF tokens?"* They protect cookie sessions; we have none. Our
   credentials (passcode, key) are custom headers, which a cross-site form can't set.
+
+## Live check and session token (`api/live.py`, `api/deps.check_passcode`, T-018 step 9)
+- **What it is:** the "Use live mode" button's backend. It answers "are this passcode and this key
+  good?" once, up front, and hands back a token so the visitor doesn't retype the passcode after a
+  reload.
+- **Decision: check before the first real request** (owner decision 12). Errors show in the panel
+  at once, and a made-up key no longer spends a Voyage search before failing. The key test is
+  Anthropic's models list, which costs nothing.
+- **Decision: a signed token, not a stored passcode** (owner decision 11). The owner wanted the
+  passcode to survive a reload; keeping the passcode in the browser would put a shared secret at
+  rest. The token is an HMAC over its expiry, the passcode and a hash of the key, with a secret
+  that exists only in the server process. It expires in 12 hours, can't be stretched, and dies on
+  a restart or a passcode change. Rejected: a server-side session table (state to keep and expire;
+  the HMAC needs none).
+- **Decision: the token is bound to the key.** A stolen token is useless without the key, which
+  only lives in the visitor's tab. Side effect: the token also proves the key, so after a reload
+  re-entering the same key needs no new check; a different key fails as "passcode needed" and the
+  passcode field returns.
+- **Gotcha:** a token sent with another key counts as a wrong passcode towards the 5-guess lock,
+  so five mismatched keys after a reload lock that IP for 15 minutes. Accepted: a real visitor
+  enters the passcode again after the first refusal (the panel asks for it).
+- **Likely question:** *"Why not a JWT library?"* One HMAC over three fields with
+  `hmac.compare_digest` is the whole job; a JWT library adds algorithm choices to get wrong.
+
+## Frontend live session and shared server info (`lib/liveSession.ts`, `lib/serverInfo.tsx`, `lib/api.ts`, T-018 step 9)
+- **What it is:** the browser half of live mode, and the one place every screen learns the server's
+  mode. Screens never touch the key or the token; they call `useLiveSession()` (which says only
+  whether each is held) and `useServerInfo()`.
+- **Decision: the key in module memory only.** Not localStorage or sessionStorage, not React state
+  that outlives the panel, not the URL: a reload or a closed tab drops it, which is the promise the
+  panel's copy makes. The token is the only thing at rest, in sessionStorage (one tab, gone when the
+  tab closes), with an in-memory copy so a browser that blocks storage still works until reload.
+- **Decision: credentials on model routes only.** `post`/`get` add the headers only when the call
+  asks for them (`auth = true`); health, recordings and search never carry the key, so it goes
+  nowhere it isn't needed. Tests check every route both ways.
+- **Decision: the api client reacts to 401s itself.** One place maps `passcode_required` to "drop
+  the token" and `key_refused` / `key_required` to "drop the key", and remembers the server's fixed
+  text, so every screen's panel reopens with the right message without each screen parsing errors.
+- **Decision: one health request, shared.** A React context in the layout; an unknown `app_mode`
+  reads as demo (fail closed): no screen offers a model call the server won't make.
+- **Gotcha:** `useSyncExternalStore` needs the same snapshot object while nothing changed, or React
+  re-renders forever; the snapshot is rebuilt only when a value changes (a token can also expire
+  between renders, which the next render notices).
+- **Likely question:** *"Can a script on the page read the key?"* Yes, any script running in the
+  page could, which is why the site loads no third-party scripts and renders all server text as
+  React children (no raw HTML). Memory-only storage protects against the key outliving the tab, not
+  against XSS; the XSS defence is the rendering rules in DESIGN.md "Security rules".
+
+## Demo and live screens (`components/LivePanel.tsx`, `RecordedExamples.tsx`, `SourceSearch.tsx`, `ModeBadge.tsx`, T-018 step 9)
+- **What it is:** what each mode looks like to a visitor. The header badge says which mode the
+  server is in; each model screen has one mode-note line; demo replaces the forms with recorded
+  runs; live adds an inline panel where the visitor brings a passcode and their own key; `/search`
+  works in every mode with no model.
+- **Decision: recordings use the screens' own result components** (owner decision 8). A visitor on
+  "Analyse a job" sees a real job analysis, rendered by the same code as a live one. The only
+  difference is the strip "Recorded example, run on ... Not generated now.", which the result
+  heading points to (`aria-describedby`), so it is read out and can never be hidden. Rejected: one
+  `/examples` page (it would duplicate the renderers' context).
+- **Decision: one result slot per screen.** It holds either a live result or a recording; starting
+  a live request clears the recording, picking a recording replaces the result, and the picker is
+  disabled while a live run is going, so a run is never hidden behind an example.
+- **Decision: the panel is inline, not a dialog** (owner decision 10). The key's copy sits next to
+  the form that uses it, and there is no focus trap to get wrong. It is a `role="group"`, not a
+  `<form>`, so there is no submit event and fewer password-manager prompts.
+- **Decision: screens stay quiet on a 401.** The api client already told the live session what to
+  forget and why; the panel reopens and says it in the right field. A screen showing its own error
+  panel too would say the same thing twice, in the wrong place.
+- **Gotchas:** after a reload only the key is asked (the token remembers the passcode) and nothing
+  is checked until the first real request, because the check endpoint needs the passcode; the token
+  is bound to the key, so a different key comes back as "passcode needed". The live session is
+  shared by every page, so a refusal is forgotten when the panel that explained it unmounts.
+- **Likely questions:**
+  - *"How do you test that the key is never stored?"* The panel tests fill the key, succeed, then
+    assert it is in neither storage nor the page's HTML, and that only the token is stored.
+  - *"Why does demo still call the API?"* For the recordings and the search: no model runs, and
+    demo starts with no keys at all (a release check).
+

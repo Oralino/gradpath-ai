@@ -137,6 +137,26 @@ and Next's `/api` rewrite proxies to the API server-side, so cross-origin reads 
 `OriginCheck` (outermost ASGI middleware) answers 403 to a POST whose `Origin` header is present
 and not in `ALLOWED_ORIGINS`; requests with no `Origin` (curl, CLIs) pass.
 
+**Live check and session token (T-018 step 9):** `POST /api/live/check` (`api/live.py`, live mode
+only; demo 403, local 404) takes the passcode and key as headers, checks the passcode (counted
+towards the lock), the key's shape, then the key itself with one free Anthropic call (listing
+models), and returns `{token, expires_at}`. The token is `<expiry>.<HMAC>` over the expiry, the
+passcode and a SHA-256 of the key, with a per-process secret: it replaces the passcode header on
+later requests (`X-GradPath-Token`) for 12 hours, only together with the same key, and a restart or
+a new `LIVE_PASSCODE` voids every token. A token sent with a different key counts as a wrong
+passcode. Every error body is `{detail, code}`; the codes (`api/main.py` `error_codes`) let the
+frontend tell a wrong passcode from a refused key from a rate limit without matching text, and
+`/api/health` reports `search_enabled`.
+
+**Frontend modes (T-018 step 9):** `lib/serverInfo.tsx` makes one `/api/health` request per page
+load and shares `mode` (an unknown value reads as demo), `searchEnabled` and `sourcesAsOf` with the
+header, footer and screens. `lib/liveSession.ts` holds the visitor's key in module memory only and
+the session token in sessionStorage (with an in-memory copy, so live mode still works when storage
+is blocked). `lib/api.ts` adds the token and key headers to the model routes only (never to health,
+recordings or search), parses `code` and `Retry-After`, and on a 401 tells the live session what to
+forget (`passcode_required` drops the token, `key_refused` / `key_required` the key) and why, so
+the live panel reopens with the right message.
+
 **Source search (T-018 step 4):** `POST /api/search {query}` (`rag/sources.py`, `api/search.py`) is
 the retrieval half of RAG for visitors without a key: one Voyage request, the top passages (at most
 2 per document) as citations with a 600-character excerpt, an `insufficient` flag, and a rules-only
