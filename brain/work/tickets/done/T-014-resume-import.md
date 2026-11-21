@@ -1,5 +1,5 @@
 # T-014: import a profile from pasted resume text
-The visitor pastes a resume and gets a draft profile to review before saving. Index: `../TASKS.md`.
+The visitor pastes a resume and gets a draft profile to review before saving. Index: `../../TASKS.md`.
 
 - **Type:** feature
 - **Status:** done

@@ -1,5 +1,5 @@
 # T-004: spaced closing tags slipped past tag neutralising
-Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
+Index entries go in `../../TASKS.md` (open) and `../../DONE.md` (closed).
 
 - **Type:** bug
 - **Status:** done

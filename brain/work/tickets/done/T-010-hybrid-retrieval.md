@@ -1,5 +1,5 @@
 # T-010: Milestone 5, hybrid retrieval + reranking
-Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
+Index entries go in `../../TASKS.md` (open) and `../../DONE.md` (closed).
 
 - **Type:** feature
 - **Status:** done (merged, d8d97b9)

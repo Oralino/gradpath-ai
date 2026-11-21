@@ -1,5 +1,5 @@
 # T-003: Milestone 3, agentic workflow (LangGraph)
-Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
+Index entries go in `../../TASKS.md` (open) and `../../DONE.md` (closed).
 
 - **Type:** feature
 - **Status:** done (merged, e100ccb)
@@ -8,7 +8,7 @@ Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 
 ## Summary
 Turn a job description and a (sample) profile into the MVP outputs in
-`../../product/REQUIREMENTS.md`: JD analysis, requirements tied to the JD text, per-requirement
+`../../../product/REQUIREMENTS.md`: JD analysis, requirements tied to the JD text, per-requirement
 gaps (demonstrated / partially evidenced / not yet evidenced, with evidence, reasoning and
 confidence), a prioritised roadmap with cited resources, and interview questions tied to the gaps.
 Built as a LangGraph workflow with typed `CareerPrepState`, Pydantic-validated node outputs and a

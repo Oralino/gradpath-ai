@@ -1,7 +1,7 @@
 # T-021: a question about one topic of a job gets an answer, not the full plan
 Routing fix found by the owner's local test (2026-11-21). Router design in
-`../../engineering/ARCHITECTURE.md` and `../../engineering/WALKTHROUGH.md` (Query router, T-006);
-routing results in `../../engineering/EVALUATION.md`.
+`../../../engineering/ARCHITECTURE.md` and `../../../engineering/WALKTHROUGH.md` (Query router, T-006);
+routing results in `../../../engineering/EVALUATION.md`.
 
 - **Type:** bug
 - **Status:** done

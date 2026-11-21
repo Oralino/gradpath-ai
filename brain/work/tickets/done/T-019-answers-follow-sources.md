@@ -1,6 +1,6 @@
 # T-019: answers follow the sources, no added advice
 The RAG answer prompt and how it was measured. Related: [T-018](T-018-demo-live-modes.md) step 10
-(the eval that found it), `../../engineering/EVALUATION.md`.
+(the eval that found it), `../../../engineering/EVALUATION.md`.
 
 - **Type:** change
 - **Status:** done

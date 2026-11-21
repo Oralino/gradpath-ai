@@ -1,5 +1,5 @@
 # T-013: /api proxy cuts requests at 30 s
-The frontend's `/api` proxy gave up on slow backend requests. Index: `../TASKS.md`, `../DONE.md`.
+The frontend's `/api` proxy gave up on slow backend requests. Index: `../../TASKS.md`, `../../DONE.md`.
 
 - **Type:** bug
 - **Status:** done

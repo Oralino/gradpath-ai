@@ -2,7 +2,7 @@
 How the Milestone 6 Next.js UI looks and behaves: tokens, components, screens, honesty states.
 What the product does is in `../product/REQUIREMENTS.md`; stack, API and data flow in
 `../engineering/ARCHITECTURE.md`; the XSS and output-handling rules this file turns into design rules
-are in `../engineering/SECURITY.md`; the work itself is ticket `../work/tickets/T-011-frontend.md`.
+are in `../engineering/SECURITY.md`; the work itself is ticket `../work/tickets/done/T-011-frontend.md`.
 Status: **approved by the owner 2026-11-19** after the visual mock-up. Owner decisions 2026-11-19: partial answers option A
 (backend `partial` status), long runs option B (run id + polling), dark mode first with a toggle. Remaining "Owner decision needed" items carry a recommendation.
 "Demo and live modes" (Milestone 7) was approved by the owner on 2026-11-20 (decisions 7-12).
