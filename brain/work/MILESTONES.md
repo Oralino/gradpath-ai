@@ -296,6 +296,17 @@ limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are
   starts it had run; it now waits for it (6 clean runs in a row). Never pipe a check inside the
   commit chain.
 
+## Milestone 8: Deploy ⏳
+*Ticket: `tickets/T-020-deploy.md`*
+
+**Goal:** a public link employers can open, on free tiers with no payment method: Next.js on
+Vercel, FastAPI on Render, the index on Qdrant Cloud. The site runs in live mode: without the
+passcode it shows what demo shows; with it and their own key, visitors use the full app.
+
+| Step | Status | What we built | Why | Result |
+|---|---|---|---|---|
+| 0. Ticket + free-tier check | ✅ | T-020, branch `feat/t-020-deploy`; each provider's free terms checked on its own pages | Zero-cost rule: no assumptions about free tiers | All free with no card; Qdrant suspends idle clusters after a week, Render sleeps after 15 min, Vercel proxies for at most 120 s |
+
 ## Milestones 4–8: what's next
 
 | # | Milestone | What it will do | Why it matters |
