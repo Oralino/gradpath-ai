@@ -3,8 +3,8 @@ Found in the owner's local test of the preparation plan (2026-11-21), twice. Pla
 `../../design/DESIGN.md` (screen 3) and `../../engineering/WALKTHROUGH.md` (Plan screen).
 
 - **Type:** bug
-- **Status:** open
-- **Opened:** 2026-11-21 · **Closed:**
+- **Status:** done
+- **Opened:** 2026-11-21 · **Closed:** 2026-11-21
 - **GitHub Issue:** none
 
 ## Summary
@@ -19,14 +19,26 @@ right, but a chip's label is the document title plus the section heading. Severa
 source share a section heading ("Next steps"), so two different pages get the same label.
 
 ## Decision
-Proposed (owner to confirm when the work starts): when two chips in one step have the same label,
-add what tells them apart (the page's own name from its URL, e.g. "docker overview" vs "writing a
-dockerfile"). Labels that are already unique stay as they are.
+Owner approved the proposal (2026-11-21). `pageNames(chips)` in `CitationChip.tsx` counts the
+"title: section" labels in one list (after `dedupeByUrl`); for a label that repeats, each chip gets
+its page name: the URL path's last segment without its extension, dashes and underscores as spaces
+("docker-overview.md" -> "docker overview"). The chip shows it in brackets after the label and cuts
+the title first, so the page name stays visible within the 60-character chip. Unique labels are
+unchanged. Rejected: merging the chips (different pages) and always showing the page name.
+Used by the roadmap step (`PlanResult.tsx`) and the requirement row (`JobAnalysisView.tsx`).
 
 ## Changes
-- Branch:
+- Branch: `fix/t-022-chip-labels`
 - PR:
-- Files touched:
+- Files touched: `frontend/components/CitationChip.tsx` (`pageName`, `pageNames`, `page` prop),
+  `PlanResult.tsx`, `JobAnalysisView.tsx`, new `CitationChip.test.tsx` (7 tests), WALKTHROUGH (Job
+  screen).
 - Commits (hash, message):
 
 ## Verification
+- `npm run lint && npm run typecheck && npm test && npm run build`: clean, 294 tests pass.
+- Browser, local mode: the current recorded Plan example no longer has two Docker "Next steps"
+  chips in one step (the demo runs were re-recorded in T-024), but the recorded Job example does:
+  the "Docker packaging and deployment" row now shows "Docker Docs: Get started and Docker…
+  (writing a dockerfile)" and "... (docker overview)"; a single "Next steps" chip in another row is
+  unchanged. The Plan path is covered by a `PlanResult` test with the two Docker pages.

@@ -767,6 +767,12 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Gotchas:** chips are one per page and labelled "Title: Section". Two chunks from the same source
   looked identical in the first real run. Raw GitHub fetch URLs are cited as their github.com page
   (T-015). The plan button hands the posting to the Ask screen until the Plan screen exists.
+- **Decision: same-label chips get the page name (T-022).** Different pages of one source can share
+  a heading ("Docker Docs ...: Next steps"), so after `dedupeByUrl` two chips could read the same.
+  `pageNames` (in `CitationChip.tsx`, used here and by the Plan screen's roadmap) adds the page's
+  file name from its URL, e.g. "(docker overview)", only when a label repeats in that one list;
+  the chip cuts the title, never the page name. Rejected: merging them (they are different
+  pages), and always showing the page name (longer chips for no gain).
 - **Likely questions:** *"Why are most requirements 'weak evidence'?"* A requirement is
   "covered" only when retrieval found relevant evidence and the notes model wrote a cited study note
   it rates as a direct answer (`jobs/analyze.py`). Evidence that is only related, or a note rated

@@ -4,8 +4,6 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] [T-022](tickets/T-022-same-label-resources.md): roadmap resources from different pages can
-      share a label and look like duplicates.
 - [ ] [T-023](tickets/T-023-monitoring-coverage.md): nothing indexed on metrics, monitoring and
       alerting (the SRE source is link-only by licence); options for the owner in the ticket.
 - [ ] DESIGN.md: record the visible input rows and "Build plan again" on the Plan screen
