@@ -33,7 +33,7 @@ Owner, 2026-11-21 (approved the proposed fix):
 
 ## Changes
 - Branch: `fix/t-021-topic-routing`
-- PR:
+- PR: [#13](https://github.com/Oralino/gradpath-ai/pull/13)
 - Files touched: `backend/src/gradpath/router/rules.py`, `router/route.py` (classifier prompt),
   `backend/tests/test_router.py`, `backend/tests/test_routing_eval.py` (counts),
   `evaluation/routing_cases.jsonl` (6 cases), EVALUATION, WALKTHROUGH.
