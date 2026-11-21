@@ -4,8 +4,8 @@ Milestone 7 ticket. Plan and story in `../MILESTONES.md`; modes in
 `../../engineering/SECURITY.md` (01, 07, release checklist).
 
 - **Type:** feature
-- **Status:** in progress
-- **Opened:** 2026-11-20 · **Closed:**
+- **Status:** done
+- **Opened:** 2026-11-20 · **Closed:** 2026-11-21
 - **GitHub Issue:** none
 
 ## Summary
@@ -69,7 +69,8 @@ Owner decisions, 2026-11-20 (plan approved):
   ServerGate,ModeErrorPanel,RetryAfter}.tsx`, changes to `Assistant`, `JobAnalysisView`,
   `PlanView`, `ResumeImport`, `SiteHeader`, `SourcesDate`, `CitationList`, `RouteLine`,
   `StatusPanel`, `PlanResult`, `icons`, and their tests; ARCHITECTURE, WALKTHROUGH, MILESTONES.
-- Commits (hash, message):
+- Commits (hash, message): 26 commits, listed by `git log --grep=T-018`; merged to `main` as
+  `926fd6c` ([#11](https://github.com/Oralino/gradpath-ai/pull/11)).
 
 ## Verification
 Step 1 (2026-11-20): 568 backend tests pass, 1 skipped on Windows (the symlink test needs rights;

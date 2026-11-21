@@ -2,6 +2,10 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-21
+- **Milestone 7 (demo and live modes) finished:** [T-018](tickets/T-018-demo-live-modes.md).
+  Demo mode with recorded runs and no keys, live mode on a visitor's own key, source search,
+  passcode and per-IP limits, Origin check, the answer eval and grounding check; release checks
+  recorded in the ticket. Merged to `main` in [#11](https://github.com/Oralino/gradpath-ai/pull/11) (`926fd6c`).
 - [T-019 Answers follow the sources](tickets/T-019-answers-follow-sources.md): the answer prompt
   forbids advice the evidence doesn't state; unsupported claims 7/166 -> 1/151; the 4 RAG
   recordings re-recorded.

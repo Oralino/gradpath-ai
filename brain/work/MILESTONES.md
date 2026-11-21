@@ -16,7 +16,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 4 | Router + fallback | ✅ | Pick the cheapest path that works | 30/30 routing labels; adaptive served 4/4 (3/4 strict) vs 2/4 for always-RAG or always-workflow; labelled fallback; `POST /api/assist` |
 | 5 | Hybrid retrieval + reranking | ✅ | Improve search for exact terms | Measured and rejected: semantic 0.961 Recall@5 beat hybrid (0.921) and both rerankers; stays semantic-only |
 | 6 | Frontend | ✅ | Make it usable | Next.js app designed from `DESIGN.md` |
-| 7 | Demo and live modes | ⏳ | A public site that costs nothing | Recorded demo runs; live mode with a visitor's key |
+| 7 | Demo and live modes | ✅ | A public site that costs nothing | Demo mode with 8 recorded runs and no keys; live mode on a visitor's key (never stored); source search; answer eval 12/14, 6/6 refusals, 99% of claims grounded |
 | 8 | Deploy | ⏳ | A live link | Vercel + Render + Qdrant Cloud (free tiers) |
 
 ## Tech stack at a glance
@@ -246,7 +246,7 @@ partial) and clear errors. `DESIGN.md` comes first; the owner approves it before
 
 ---
 
-## Milestone 7: Demo and live modes ⏳
+## Milestone 7: Demo and live modes ✅
 *Ticket: `tickets/T-018-demo-live-modes.md`*
 
 **Goal:** a public site that costs nothing. Demo mode (the default) replays recorded runs with no
@@ -266,6 +266,7 @@ limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are
 | 8. CORS and CSRF | ✅ | No CORS middleware (deny cross-origin by default); `OriginCheck` refuses POSTs from origins not in `ALLOWED_ORIGINS`; measured FastAPI refusing form content types | Another site can't read our API or make it act for a visitor (SECURITY.md 01) | Real servers: page POST via `next dev` passed, evil/null origins 403, `text/plain` 422, preflight 405 with no CORS headers; review: no bypass (two Origin headers now refused); 761 backend tests |
 | 9. Frontend demo and live | ✅ | Backend: `POST /api/live/check` (passcode, key shape, a free Anthropic call) returns a 12 h token bound to the key; every error has a `code`; health reports `search_enabled`. Frontend: one shared health request; key in memory only, token in sessionStorage; credentials on model routes only; header mode badge and a mode note per screen; recorded examples per screen with a "Not generated now" strip; `/search` page; inline live panel with every 401/403/429 state | Visitors see what is real and what is recorded, and can bring their own key without it ever being stored (DESIGN.md decisions 7-12) | 787 backend + 286 frontend tests; review: no key-handling issue, 6 fixes applied (silent 401 with an unknown code, picker during a run, stale refusal on the next page, non-ASCII headers, lockout countdown, a lighter Search bundle); QA clean; browser check in demo (recordings, search) and live (wrong passcode, refused key, nothing stored) |
 | 10. Answer eval + grounding check | ✅ | 20 owner-approved cases (14 with must-contain facts from the indexed pages, 6 near-topic gaps that must be refused), scored in code; a Haiku judge splits each answer into claims and checks each against its cited chunk | Retrieval and routing were measured; the written answers weren't, and the public demo shows them | 12/14 answers pass (both failures are retrieval: a missing section, the known `q-041` miss), 6/6 refused, 159/166 claims supported (the rest: true advice or general knowledge, not invented); 803 backend tests |
+| 11. Release checks + PR | ✅ | Leftover tests (recorder entry point, failed writes, health abort); T-019 (answers state only what the sources say); secret, attribution and audit scans; demo with no keys; retrieval re-check; whole-branch review and QA | The project's release gate before the public demo | Review fixes: a CI-only test failure, a token without a key counting toward the lock, generic eval phrasings; 809 backend + 287 frontend tests; merged as `926fd6c` ([#11](https://github.com/Oralino/gradpath-ai/pull/11), CI green) |
 
 ### Problems we hit and how we solved them
 - **The old default mode was "demo" but meant "local".** Tests, CLIs and the owner's runs used the
