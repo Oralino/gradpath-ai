@@ -29,7 +29,7 @@ Used by the roadmap step (`PlanResult.tsx`) and the requirement row (`JobAnalysi
 
 ## Changes
 - Branch: `fix/t-022-chip-labels`
-- PR:
+- PR: [#16](https://github.com/Oralino/gradpath-ai/pull/16)
 - Files touched: `frontend/components/CitationChip.tsx` (`pageName`, `pageNames`, `page` prop),
   `PlanResult.tsx`, `JobAnalysisView.tsx`, new `CitationChip.test.tsx` (7 tests), WALKTHROUGH (Job
   screen).
