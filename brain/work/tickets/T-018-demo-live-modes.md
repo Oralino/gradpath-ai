@@ -122,5 +122,10 @@ limits, optional key pre-check), and a "no credit" message. qa-checker: ruff, 66
 frontend tests, secret and attribution scan, no key in any log call, `.env` untracked: all clean.
 Not tested with a real key: the owner has none (zero-cost rule).
 
+For step 11 (owner decision 2026-11-20: left for the release checks): tests for the recorder's
+command-line entry point (`--only` with an unknown id, Qdrant closed in `main`) and for a leftover
+temp file after a failed write; a frontend test that leaving the page aborts the footer's health
+request.
+
 Remaining release checks are filled in at step 11. Release checks from `CLAUDE.md` apply (demo mode with no keys, visitor key never in logs,
 traces or responses, retrieval eval, the SECURITY.md checklist including its "From Milestone 7" line).
