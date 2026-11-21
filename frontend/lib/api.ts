@@ -10,39 +10,68 @@ import type {
   ChatAnswer,
   ChatRequest,
   Health,
+  LiveCheck,
+  Recording,
+  RecordingSummary,
+  SourceSearch,
   JobAnalysis,
   ResumeImport,
   RunStarted,
   RunStatus,
   WorkflowInput,
 } from "@/lib/types";
+import { authHeaders, onAuthError } from "@/lib/liveSession";
 
-export type ApiErrorKind = "validation" | "busy" | "rate_limited" | "server" | "network";
+export type ApiErrorKind =
+  | "validation"
+  | "busy"
+  | "rate_limited"
+  | "auth" // 401: passcode or key missing, wrong or refused (see `code`)
+  | "forbidden" // 403: demo mode, or a cross-site request
+  | "server"
+  | "network";
 
 export const MESSAGES: Record<ApiErrorKind, string> = {
   validation: "Some fields need fixing before this can be sent.",
   busy: "The server is busy with another request. Try again in a few minutes.",
   rate_limited: "The search service is at its free-tier limit. Try again in a minute.",
+  auth: "Live mode needs the passcode and your Anthropic API key.",
+  forbidden: "This site runs in demo mode: browse the recorded examples instead.",
   server: "Something went wrong on the server. Nothing was saved. Try again.",
   network: "Can't reach the GradPath server. Check that the API is running, then try again.",
 };
 
 // Statuses whose `detail` is one of the backend's fixed messages (api/main.py, api/limits.py,
-// api/career.py), so it is safe to show. Any other status gets our own message.
-const FIXED_DETAIL_STATUSES = new Set([429, 502, 503]);
+// api/career.py, api/deps.py, api/ratelimit.py), so it is safe to show. Any other status gets our
+// own message. Every error body also carries a machine-readable `code` (T-018).
+const FIXED_DETAIL_STATUSES = new Set([401, 403, 404, 413, 429, 502, 503]);
+const CODE_SHAPE = /^[a-z_]{1,40}$/;
 
 export class ApiError extends Error {
   readonly kind: ApiErrorKind;
   readonly status: number | null;
   /** For validation errors: dotted field paths, e.g. "profile.skills.3". Never Pydantic text. */
   readonly fields: string[];
+  /** The backend's machine-readable code ("passcode_required", "key_refused", ...), or null. */
+  readonly code: string | null;
+  /** Seconds from a 429's Retry-After header, or null. */
+  readonly retryAfter: number | null;
 
-  constructor(kind: ApiErrorKind, status: number | null, message: string, fields: string[] = []) {
+  constructor(
+    kind: ApiErrorKind,
+    status: number | null,
+    message: string,
+    fields: string[] = [],
+    code: string | null = null,
+    retryAfter: number | null = null,
+  ) {
     super(message);
     this.name = "ApiError";
     this.kind = kind;
     this.status = status;
     this.fields = fields;
+    this.code = code;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -74,16 +103,31 @@ export async function toApiError(response: Response): Promise<ApiError> {
   } catch {
     // Not JSON (for example the dev proxy's error page when the API is down).
   }
+  const rawCode =
+    typeof body === "object" && body !== null ? (body as { code?: unknown }).code : undefined;
+  const code = typeof rawCode === "string" && CODE_SHAPE.test(rawCode) ? rawCode : null;
   if (status === 422) {
-    return new ApiError("validation", status, MESSAGES.validation, fieldPaths(body));
+    return new ApiError("validation", status, MESSAGES.validation, fieldPaths(body), code);
   }
-  const kind: ApiErrorKind = status === 503 ? "busy" : status === 429 ? "rate_limited" : "server";
+  const kind: ApiErrorKind =
+    status === 503
+      ? "busy"
+      : status === 429
+        ? "rate_limited"
+        : status === 401
+          ? "auth"
+          : status === 403
+            ? "forbidden"
+            : "server";
   const detail = FIXED_DETAIL_STATUSES.has(status) ? fixedDetail(body) : null;
-  return new ApiError(kind, status, detail ?? MESSAGES[kind]);
+  const retry = Number.parseInt(response.headers.get("Retry-After") ?? "", 10);
+  const retryAfter = Number.isFinite(retry) && retry >= 0 && retry < 86_400 ? retry : null;
+  return new ApiError(kind, status, detail ?? MESSAGES[kind], [], code, retryAfter);
 }
 
 // One request; network failures and non-OK statuses become ApiError, an abort stays an AbortError.
-// Called by post() and get().
+// Called by post() and get(). An auth error tells the live session what to forget (an expired
+// token, a refused key), so the live panel reopens on its own.
 async function request<T>(path: string, init: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -92,38 +136,60 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new ApiError("network", null, MESSAGES.network);
   }
-  if (!response.ok) throw await toApiError(response);
+  if (!response.ok) {
+    const error = await toApiError(response);
+    if (error.kind === "auth") onAuthError(error.code, error.message);
+    throw error;
+  }
   return (await response.json()) as T;
 }
 
-function post<T>(path: string, payload: unknown, signal?: AbortSignal): Promise<T> {
+// `auth`: send the live-mode token and key (model routes only; never to search, demo or health,
+// so the key goes nowhere it isn't needed).
+function post<T>(path: string, payload: unknown, signal?: AbortSignal, auth = false): Promise<T> {
   return request<T>(path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(auth ? authHeaders() : {}) },
     body: JSON.stringify(payload),
     signal,
   });
 }
 
-function get<T>(path: string, signal?: AbortSignal): Promise<T> {
-  return request<T>(path, { method: "GET", signal });
+function get<T>(path: string, signal?: AbortSignal, auth = false): Promise<T> {
+  return request<T>(path, { method: "GET", headers: auth ? authHeaders() : {}, signal });
 }
 
 export const api = {
   health: (signal?: AbortSignal) => get<Health>("/api/health", signal),
   assist: (body: AssistRequest, signal?: AbortSignal) =>
-    post<AssistResponse>("/api/assist", body, signal),
-  chat: (body: ChatRequest, signal?: AbortSignal) => post<ChatAnswer>("/api/chat", body, signal),
+    post<AssistResponse>("/api/assist", body, signal, true),
+  chat: (body: ChatRequest, signal?: AbortSignal) =>
+    post<ChatAnswer>("/api/chat", body, signal, true),
   analyzeJob: (body: AnalyzeRequest, signal?: AbortSignal) =>
-    post<JobAnalysis>("/api/jobs/analyze", body, signal),
+    post<JobAnalysis>("/api/jobs/analyze", body, signal, true),
   importResume: (body: { resume_text: string }, signal?: AbortSignal) =>
-    post<ResumeImport>("/api/profile/from-resume", body, signal),
+    post<ResumeImport>("/api/profile/from-resume", body, signal, true),
   prepare: (body: WorkflowInput, signal?: AbortSignal) =>
-    post<CareerPrepResult>("/api/career/prepare", body, signal),
+    post<CareerPrepResult>("/api/career/prepare", body, signal, true),
   // Background run with live stages (T-016): 202 with a run id, or 503 busy.
   startRun: (body: WorkflowInput, signal?: AbortSignal) =>
-    post<RunStarted>("/api/career/runs", body, signal),
-  // 404 means unknown or expired (ApiError status 404).
+    post<RunStarted>("/api/career/runs", body, signal, true),
+  // 404 means unknown, expired, or (live mode) started with another key.
   getRun: (runId: string, signal?: AbortSignal) =>
-    get<RunStatus>(`/api/career/runs/${encodeURIComponent(runId)}`, signal),
+    get<RunStatus>(`/api/career/runs/${encodeURIComponent(runId)}`, signal, true),
+  // Recorded runs (T-018): every mode, no credentials.
+  recordings: (signal?: AbortSignal) => get<RecordingSummary[]>("/api/demo", signal),
+  recording: (id: string, signal?: AbortSignal) =>
+    get<Recording>(`/api/demo/${encodeURIComponent(id)}`, signal),
+  // Source search (T-018): no model, no credentials.
+  search: (query: string, signal?: AbortSignal) =>
+    post<SourceSearch>("/api/search", { query }, signal),
+  // Live mode: the passcode and key are sent once here, explicitly; on success the caller stores
+  // the token (lib/liveSession.ts) and the key in memory. Never routed through authHeaders().
+  liveCheck: (passcode: string, key: string, signal?: AbortSignal) =>
+    request<LiveCheck>("/api/live/check", {
+      method: "POST",
+      headers: { "X-GradPath-Passcode": passcode.trim(), "X-Anthropic-Key": key.trim() },
+      signal,
+    }),
 };

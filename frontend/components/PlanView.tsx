@@ -8,16 +8,25 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CharCount } from "@/components/CharCount";
+import { LivePanel, LiveStrip } from "@/components/LivePanel";
+import { ModeErrorPanel, isModeError } from "@/components/ModeErrorPanel";
+import { ModeNote } from "@/components/ModeNote";
+import { RecordedExamples, RecordingInputs, RecordingSlotState, RecordingStrip, STRIP_ID } from "@/components/RecordedExamples";
+import { ServerGate } from "@/components/ServerGate";
 import { primaryButton, secondaryButton, textButton } from "@/components/buttonStyles";
 import { OctagonIcon, TriangleIcon } from "@/components/icons";
 import { PlanProgress, PlanRunProblem, isProblemPhase, isProgressPhase } from "@/components/PlanProgress";
 import { PlanResult } from "@/components/PlanResult";
+import { PLAN_STATUS } from "@/lib/plan";
 import { charCount } from "@/lib/charCount";
+import { useLiveSession } from "@/lib/liveSession";
 import { loadProfile } from "@/lib/profileStore";
 import { SAMPLE_POSTING } from "@/lib/samplePosting";
 import { SAMPLE_PROFILE, SAMPLE_PROFILE_LABEL } from "@/lib/sampleProfile";
+import { useServerInfo } from "@/lib/serverInfo";
 import type { CareerPrepResult, UserProfile } from "@/lib/types";
-import { RUN_STORAGE_KEY, usePlanRun } from "@/lib/usePlanRun";
+import { RUN_STORAGE_KEY, isRunId, usePlanRun } from "@/lib/usePlanRun";
+import { useRecordings } from "@/lib/useRecordings";
 
 const JOB_MIN = 50;
 const JOB_MAX = 20000;
@@ -103,8 +112,30 @@ function saveResult(result: CareerPrepResult) {
   }
 }
 
+// True when this tab still holds a run id from before a reload. Called at render, but only after
+// the server's mode is known (client only), by the live panel's first line.
+function hasStoredRun(): boolean {
+  try {
+    return isRunId(window.sessionStorage.getItem(RUN_STORAGE_KEY));
+  } catch {
+    return false;
+  }
+}
+
+const EXPIRED_LIVE = "That run belongs to another key or has expired.";
+
 export function PlanView() {
-  const run = usePlanRun({ persistKey: RUN_STORAGE_KEY });
+  const info = useServerInfo();
+  const session = useLiveSession();
+  const serverReady = info.status === "ready";
+  const demo = serverReady && info.mode === "demo";
+  const liveMode = serverReady && info.mode === "live";
+  const liveReady = session.hasKey && session.hasToken;
+  // A run is resumed after a reload only where this tab may poll it: local, or live with a key.
+  const persist = serverReady && (info.mode === "local" || (liveMode && liveReady));
+  const run = usePlanRun({ persistKey: persist ? RUN_STORAGE_KEY : undefined });
+  const slot = useRecordings("plan", { enabled: serverReady, autoShow: demo });
+  const recording = slot.one.status === "ready" ? slot.one.recording : null;
   const [job, setJob] = useState("");
   const [jobOpen, setJobOpen] = useState(false);
   const [jobError, setJobError] = useState<string | null>(null);
@@ -152,6 +183,8 @@ export function PlanView() {
     if (jobOpen) jobRef.current?.focus();
   }, [jobOpen]);
 
+  // A recording the visitor picked gets the focus through PlanResult's autoFocus (below).
+
   const locked = isProgressPhase(run.phase);
   const jobSet = job.trim().length > 0;
   const profile = profileChoice === "sample" ? SAMPLE_PROFILE : profileChoice === "saved" ? savedProfile : null;
@@ -181,6 +214,7 @@ export function PlanView() {
       return;
     }
     setHandoffNotice(false);
+    slot.clear();
     void run.start({ job_description: job.trim(), profile, corrections: withCorrections });
   }
 
@@ -206,12 +240,18 @@ export function PlanView() {
   }
 
   // The previous plan stays until a new run is accepted, so a busy or failed start keeps it.
-  const shown =
-    run.phase === "done"
+  const shown = demo
+    ? null
+    : run.phase === "done"
       ? run.result
       : run.phase === "idle" || run.phase === "starting" || run.phase === "error"
         ? stored
         : null;
+
+  // A start refused with a 401 shows nothing here: the reopened live panel says what to fix.
+  const problem = isProblemPhase(run.phase) && run.error?.kind !== "auth";
+  const problemRun = liveMode && run.phase === "expired" ? { ...run, failure: EXPIRED_LIVE } : run;
+  const recordingLive = recording && slot.userPicked ? `Recorded example: ${(PLAN_STATUS[recording.result.status] ?? PLAN_STATUS.partial).heading}` : "";
 
   const correctionsSection = (
     <>
@@ -293,6 +333,9 @@ export function PlanView() {
 
   return (
     <div className="space-y-8">
+      <ModeNote screen="plan" />
+      <ServerGate>
+      {!demo && (
       <form
         className="max-w-3xl space-y-4 rounded-md border border-rule bg-surface p-4 sm:p-6"
         noValidate
@@ -301,6 +344,7 @@ export function PlanView() {
           build(corrections);
         }}
       >
+        {liveMode && liveReady && <LiveStrip />}
         {handoffNotice && (
           <p className="flex items-start gap-2 text-small text-caution">
             <TriangleIcon />
@@ -415,6 +459,14 @@ export function PlanView() {
 
         {locked ? (
           <PlanProgress run={run} />
+        ) : liveMode && !liveReady ? (
+          <LivePanel
+            firstLine={
+              !session.hasKey && hasStoredRun()
+                ? "A plan run from before the reload may still be on the server. Enter the same key again to see it."
+                : null
+            }
+          />
         ) : (
           <div className="flex flex-wrap items-center justify-end gap-3">
             {!ready && (
@@ -433,24 +485,46 @@ export function PlanView() {
           </div>
         )}
       </form>
+      )}
 
       <div role="status" className="sr-only">
-        {run.phase !== "idle" ? run.announcement : ""}
+        {recordingLive || (run.phase !== "idle" ? run.announcement : "")}
       </div>
 
-      {isProblemPhase(run.phase) && (
-        <div className="max-w-3xl">
-          <PlanRunProblem run={run} onRetry={() => build(corrections)} />
+      <RecordingSlotState slot={slot} />
+
+      {recording && (
+        <div className="space-y-4">
+          <div className="max-w-3xl space-y-4">
+            <RecordingStrip recordedAt={recording.recorded_at} />
+            <RecordingInputs posting={recording.job_description} hasProfile corrections={recording.corrections} />
+            {demo && <p className="text-small text-ink-muted">Re-running with corrections needs live mode.</p>}
+          </div>
+          <PlanResult result={recording.result} autoFocus={slot.userPicked} describedBy={STRIP_ID} />
         </div>
       )}
 
-      {shown && (
+      {!recording && problem && (
+        <div className="max-w-3xl">
+          {run.error && isModeError(run.error) ? (
+            <ModeErrorPanel error={run.error} />
+          ) : (
+            <PlanRunProblem run={problemRun} onRetry={() => build(corrections)} />
+          )}
+        </div>
+      )}
+
+      {!recording && shown && (
         <PlanResult
           result={shown}
           autoFocus={run.phase === "done"}
           extra={{ id: "plan-corrections", label: "Corrections", content: correctionsSection }}
         />
       )}
+
+      {!demo && <RecordedExamples slot={slot} showPicker disabled={locked} />}
+      {demo && <RecordedExamples slot={slot} showPicker={false} />}
+      </ServerGate>
     </div>
   );
 }

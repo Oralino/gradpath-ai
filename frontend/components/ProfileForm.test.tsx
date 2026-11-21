@@ -1,3 +1,4 @@
+import { inLocal } from "@/components/serverFixtures";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ProfileForm } from "@/components/ProfileForm";
@@ -25,7 +26,7 @@ const type = (label: string, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 async function renderForm() {
-  render(<ProfileForm />);
+  render(inLocal(<ProfileForm />));
   await screen.findByText(/Stored only in this browser/);
 }
 

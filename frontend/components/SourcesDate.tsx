@@ -1,25 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { useServerInfo } from "@/lib/serverInfo";
 
 type Day = { iso: string; label: string };
 
 // "Sources as of {date} · " at the start of the footer (DESIGN.md, footer copy; T-018 step 3).
-// The date comes from /api/health (the oldest page fetch in the index). Fetched after mount, so
-// the static footer renders at once; if the API is down or has no date, nothing is shown.
+// The date comes from the shared /api/health answer (lib/serverInfo.tsx; the oldest page fetch in
+// the index). The static footer renders at once; if the API is down or has no date, nothing shows.
 export function SourcesDate() {
-  const [asOf, setAsOf] = useState<Day | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    api
-      .health(controller.signal)
-      .then((h) => setAsOf(formatDay(h.sources_as_of)))
-      .catch(() => undefined); // the footer simply leaves the date out
-    return () => controller.abort();
-  }, []);
-
+  const asOf = formatDay(useServerInfo().sourcesAsOf);
   if (asOf === null) return null;
   return (
     <>

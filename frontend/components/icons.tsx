@@ -103,3 +103,23 @@ export function QuestionIcon({ size = 14 }: IconProps) {
     </Svg>
   );
 }
+
+// The clock glyph: "recorded, never live" (DESIGN.md, Demo and live modes). One meaning only.
+export function ClockIcon({ size = 14 }: IconProps) {
+  return (
+    <Svg size={size}>
+      <circle cx="8" cy="8" r="5.5" />
+      <path d="M8 4.8V8l2.2 1.4" />
+    </Svg>
+  );
+}
+
+// The key glyph: "a visitor key is held in this tab" (DESIGN.md, Demo and live modes).
+export function KeyIcon({ size = 14 }: IconProps) {
+  return (
+    <Svg size={size}>
+      <circle cx="5" cy="8" r="2.6" />
+      <path d="M7.6 8H14M11.5 8v2.4M13.6 8v1.6" />
+    </Svg>
+  );
+}

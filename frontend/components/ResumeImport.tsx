@@ -3,10 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { CharCount } from "@/components/CharCount";
 import { OctagonIcon } from "@/components/icons";
+import { LivePanel, LiveStrip } from "@/components/LivePanel";
 import { StatusPanel } from "@/components/StatusPanel";
 import { secondaryButton } from "@/components/buttonStyles";
 import { api, ApiError } from "@/lib/api";
 import { charCount } from "@/lib/charCount";
+import { useLiveSession } from "@/lib/liveSession";
+import { useServerInfo } from "@/lib/serverInfo";
 import type { ResumeImport as ResumeImportResult } from "@/lib/types";
 
 const RESUME_MIN = 100;
@@ -26,6 +29,8 @@ export function ResumeImport({
   hasUnsavedEdits: boolean;
   onImported: (result: ResumeImportResult) => void;
 }) {
+  const info = useServerInfo();
+  const session = useLiveSession();
   const [text, setText] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -82,6 +87,7 @@ export function ResumeImport({
       }
     } catch (caught) {
       if (controller.signal.aborted) return; // Stop waiting: quiet
+      if (caught instanceof ApiError && caught.kind === "auth") return; // the reopened live panel says what to fix
       setError(
         caught instanceof ApiError
           ? caught
@@ -109,6 +115,20 @@ export function ResumeImport({
     if (replace && result) onImported(result);
   }
 
+  // Hooks above run in every mode; what shows depends on the server's mode (DESIGN.md, Demo and live
+  // modes): nothing while health loads, a note in demo, the live panel in live mode until a key is held.
+  if (info.status === "loading") return null;
+  if (info.status === "ready" && info.mode === "demo") {
+    return (
+      <p className="rounded-md border border-rule bg-surface p-4 text-small text-ink-muted">
+        Importing a resume needs a model, and this site runs in demo mode. Fill the form by hand, or load the sample
+        profile.
+      </p>
+    );
+  }
+  const liveMode = info.status === "ready" && info.mode === "live";
+  const liveReady = session.hasKey && session.hasToken;
+
   const busy = error?.kind === "busy";
   const count = charCount(text);
   const describedBy = ["resume-help", "resume-count", fieldError ? "resume-error" : ""].filter(Boolean).join(" ");
@@ -116,7 +136,13 @@ export function ResumeImport({
   return (
     <details className="rounded-md border border-rule bg-surface p-4">
       <summary className="cursor-pointer text-label text-link">Fill from a resume</summary>
+      {liveMode && !liveReady ? (
+        <div className="mt-3">
+          <LivePanel examplesHref="/" />
+        </div>
+      ) : (
       <div className="mt-3 space-y-3">
+        {liveMode && <LiveStrip />}
         <p id="resume-help" className="text-small text-ink-muted">
           Contact details are dropped. The resume text is sent to the model once and not stored.
         </p>
@@ -166,6 +192,7 @@ export function ResumeImport({
           </StatusPanel>
         )}
       </div>
+      )}
 
       <dialog
         ref={dialogRef}

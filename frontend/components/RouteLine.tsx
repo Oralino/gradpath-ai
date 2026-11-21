@@ -10,6 +10,12 @@ const DECIDED_BY: Record<RouteDecision["decided_by"], string> = {
   default: "chosen by default",
 };
 
+/** "Knowledge-base answer · chosen by rules": the route wording, shared with the source search preview. */
+export function routeSummary(decision: RouteDecision): string {
+  const path = decision.route === "traditional_rag" ? "Knowledge-base answer" : "Preparation workflow";
+  return `${path} · ${DECIDED_BY[decision.decided_by]}`;
+}
+
 export function RouteLine({
   decision,
   citations,
@@ -17,12 +23,9 @@ export function RouteLine({
   decision: RouteDecision;
   citations: Citation[];
 }) {
-  const path = decision.route === "traditional_rag" ? "Knowledge-base answer" : "Preparation workflow";
   return (
     <div className="space-y-1 text-meta text-ink-muted">
-      <p>
-        {path} · {DECIDED_BY[decision.decided_by]}
-      </p>
+      <p>{routeSummary(decision)}</p>
       <details>
         <summary className="cursor-pointer text-label text-link">How this was answered</summary>
         <div className="mt-2 space-y-2">

@@ -1,9 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CharCount } from "@/components/CharCount";
 import { CitationChip, dedupeByUrl } from "@/components/CitationChip";
+import { LivePanel, LiveStrip } from "@/components/LivePanel";
+import { ModeErrorPanel, isModeError } from "@/components/ModeErrorPanel";
+import { ModeNote } from "@/components/ModeNote";
+import { RecordedExamples, RecordingInputs, RecordingSlotState, RecordingStrip, STRIP_ID } from "@/components/RecordedExamples";
+import { ServerGate } from "@/components/ServerGate";
 import { primaryButton, secondaryButton } from "@/components/buttonStyles";
 import {
   CheckIcon,
@@ -19,7 +25,10 @@ import { StatusPanel } from "@/components/StatusPanel";
 import { api, ApiError, MESSAGES } from "@/lib/api";
 import { charCount } from "@/lib/charCount";
 import { formatElapsed } from "@/lib/formatElapsed";
+import { useLiveSession } from "@/lib/liveSession";
 import { SAMPLE_POSTING } from "@/lib/samplePosting";
+import { useServerInfo } from "@/lib/serverInfo";
+import { useRecordings } from "@/lib/useRecordings";
 import type { AnalyzedRequirement, Citation, Coverage, JobAnalysis } from "@/lib/types";
 
 const JOB_MIN = 50;
@@ -63,6 +72,14 @@ function summaryLine(stats: Record<string, number>): string {
 // and retrieved text render as React text or through ModelText only (DESIGN.md, Security rules).
 export function JobAnalysisView() {
   const router = useRouter();
+  const info = useServerInfo();
+  const session = useLiveSession();
+  const ready = info.status === "ready";
+  const demo = ready && info.mode === "demo";
+  const liveMode = ready && info.mode === "live";
+  const liveReady = session.hasKey && session.hasToken;
+  const slot = useRecordings("job", { enabled: ready, autoShow: demo });
+  const recording = slot.one.status === "ready" ? slot.one.recording : null;
   const [posting, setPosting] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -87,6 +104,11 @@ export function JobAnalysisView() {
   useEffect(() => {
     if (analysis || error) headingRef.current?.focus();
   }, [analysis, error]);
+
+  // A recording the visitor picked gets the focus, like a live result.
+  useEffect(() => {
+    if (recording && slot.userPicked) headingRef.current?.focus();
+  }, [recording, slot.userPicked]);
 
   // Keep focus on a real control (Stop waiting) when the submit button disables.
   useEffect(() => {
@@ -124,6 +146,7 @@ export function JobAnalysisView() {
     }
     const controller = new AbortController();
     controllerRef.current = controller;
+    slot.clear();
     setAnalysis(null);
     setError(null);
     setElapsed(0);
@@ -136,7 +159,9 @@ export function JobAnalysisView() {
       setLive("Analysis ready");
     } catch (caught) {
       if (controller.signal.aborted) return; // "Stop waiting": back to the form, no error
-      if (caught instanceof ApiError) {
+      if (caught instanceof ApiError && caught.kind === "auth") {
+        setLive(""); // the reopened live panel says what to fix
+      } else if (caught instanceof ApiError) {
         setError(caught);
         setLive(caught.kind === "busy" ? BUSY_HEADING : "The request failed");
       } else {
@@ -169,8 +194,13 @@ export function JobAnalysisView() {
     router.push("/plan");
   }
 
+  const recordingLive = recording && slot.userPicked ? `Recorded example: ${analysisHeading(recording.analysis)}` : "";
+
   return (
     <div className="space-y-6">
+      <ModeNote screen="job" />
+      <ServerGate>
+      {!demo && (
       <form
         className="space-y-4 rounded-md border border-rule bg-surface p-4 sm:p-6"
         noValidate
@@ -179,6 +209,7 @@ export function JobAnalysisView() {
           void submit();
         }}
       >
+        {liveMode && liveReady && <LiveStrip />}
         <div className="space-y-1">
           <label htmlFor="posting" className="text-label">
             Job posting
@@ -204,6 +235,9 @@ export function JobAnalysisView() {
           )}
           <CharCount id="posting-count" value={charCount(posting)} max={JOB_MAX} />
         </div>
+        {liveMode && !liveReady ? (
+          <LivePanel />
+        ) : (
         <div className="flex flex-wrap items-center justify-end gap-3">
           {loading && (
             <>
@@ -231,13 +265,32 @@ export function JobAnalysisView() {
             Analyse posting
           </button>
         </div>
+        )}
       </form>
+      )}
 
       <div role="status" className="sr-only">
-        {live}
+        {recordingLive || live}
       </div>
 
-      {error && (
+      <RecordingSlotState slot={slot} />
+
+      {recording && (
+        <>
+          <RecordingStrip recordedAt={recording.recorded_at} />
+          <RecordingInputs posting={recording.job_description} />
+          <AnalysisResult analysis={recording.analysis} headingRef={headingRef} describedBy={STRIP_ID} />
+          <div>
+            <Link href="/plan" className={secondaryButton}>
+              See the recorded plan for this posting
+            </Link>
+          </div>
+        </>
+      )}
+
+      {!recording && error && isModeError(error) && <ModeErrorPanel error={error} headingRef={headingRef} />}
+
+      {!recording && error && !isModeError(error) && (
         <StatusPanel
           tone={error.kind === "busy" ? "info" : "stopped"}
           heading={error.kind === "busy" ? BUSY_HEADING : "The request failed"}
@@ -250,7 +303,7 @@ export function JobAnalysisView() {
         </StatusPanel>
       )}
 
-      {analysis && (
+      {!recording && analysis && (
         <>
           <AnalysisResult analysis={analysis} headingRef={headingRef} />
           <div>
@@ -260,8 +313,17 @@ export function JobAnalysisView() {
           </div>
         </>
       )}
+
+      {!demo && <RecordedExamples slot={slot} showPicker disabled={loading} />}
+      {demo && <RecordedExamples slot={slot} showPicker={false} />}
+      </ServerGate>
     </div>
   );
+}
+
+// The h2 text of an analysis (also announced for a recording). Used by AnalysisResult and the view.
+function analysisHeading(analysis: JobAnalysis): string {
+  return analysis.title.trim() || "Job analysis";
 }
 
 // One analysis: title, summary, overview, responsibilities and the requirement groups. Used by
@@ -269,9 +331,11 @@ export function JobAnalysisView() {
 function AnalysisResult({
   analysis,
   headingRef,
+  describedBy,
 }: {
   analysis: JobAnalysis;
   headingRef: React.Ref<HTMLHeadingElement>;
+  describedBy?: string;
 }) {
   const seniority = SENIORITY[analysis.seniority];
   const eligibility = analysis.requirements.filter((r) => r.coverage === "not_applicable");
@@ -285,8 +349,8 @@ function AnalysisResult({
   return (
     <section className="space-y-4 rounded-md border-0 p-0 sm:border sm:border-rule sm:bg-surface sm:p-6">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 ref={headingRef} tabIndex={-1} className="text-title">
-          {analysis.title.trim() || "Job analysis"}
+        <h2 ref={headingRef} tabIndex={-1} aria-describedby={describedBy} className="text-title">
+          {analysisHeading(analysis)}
         </h2>
         {seniority && <span className="text-meta text-ink-muted">{seniority}</span>}
       </div>

@@ -203,11 +203,13 @@ export function PlanResult({
   result,
   autoFocus = false,
   headingRef,
+  describedBy,
   extra,
 }: {
   result: CareerPrepResult;
   autoFocus?: boolean;
   headingRef?: RefObject<HTMLHeadingElement | null>;
+  describedBy?: string; // id of the recording strip, for a recorded plan
   extra?: PlanExtraSection;
 }) {
   const ownRef = useRef<HTMLHeadingElement>(null);
@@ -249,7 +251,7 @@ export function PlanResult({
     <div className="space-y-6">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 ref={ref} tabIndex={-1} className="text-title">
+          <h2 ref={ref} tabIndex={-1} aria-describedby={describedBy} className="text-title">
             {status.heading}
           </h2>
           {result.status === "complete" && (

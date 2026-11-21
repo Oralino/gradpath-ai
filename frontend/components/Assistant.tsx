@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CharCount } from "@/components/CharCount";
+import { LivePanel, LiveStrip } from "@/components/LivePanel";
+import { ModeErrorPanel, isModeError } from "@/components/ModeErrorPanel";
+import { ModeNote } from "@/components/ModeNote";
+import { RecordedExamples, RecordingInputs, RecordingSlotState, RecordingStrip, STRIP_ID } from "@/components/RecordedExamples";
+import { ServerGate } from "@/components/ServerGate";
 import { CitationList } from "@/components/CitationList";
 import { ModelText } from "@/components/ModelText";
 import { primaryButton, secondaryButton, textButton } from "@/components/buttonStyles";
@@ -16,21 +21,20 @@ import { api, ApiError, MESSAGES } from "@/lib/api";
 import { charCount } from "@/lib/charCount";
 import { formatElapsed } from "@/lib/formatElapsed";
 import { BUSY_BODY, BUSY_HEADING, PLAN_STATUS, PROGRESS_HEADING } from "@/lib/plan";
+import { useLiveSession } from "@/lib/liveSession";
 import { loadProfile } from "@/lib/profileStore";
 import { SAMPLE_PROFILE, SAMPLE_PROFILE_LABEL } from "@/lib/sampleProfile";
 import type { AssistRequest, AssistResponse, UserProfile } from "@/lib/types";
+import { useServerInfo } from "@/lib/serverInfo";
 import { usePlanRun, type PlanRun } from "@/lib/usePlanRun";
+import { useRecordings } from "@/lib/useRecordings";
+import { EXAMPLES } from "@/lib/examples";
 
 const MESSAGE_MIN = 3;
 const MESSAGE_MAX = 2000;
 const JOB_MIN = 50;
 const JOB_MAX = 20000;
 
-const EXAMPLES = [
-  "How do multicolumn indexes work in PostgreSQL?",
-  "What makes an API endpoint idempotent?",
-  "How should a service shut down gracefully?",
-];
 
 const NO_RESULT = "The server returned no result for this request.";
 const NO_CONTENT = "The server returned no content for this request.";
@@ -64,6 +68,14 @@ function resultHeading(response: AssistResponse): string {
 // answers "started" with a run id; usePlanRun then polls it (in memory only) for live stages.
 export function Assistant() {
   const run = usePlanRun();
+  const info = useServerInfo();
+  const session = useLiveSession();
+  const ready = info.status === "ready";
+  const demo = ready && info.mode === "demo";
+  const liveMode = ready && info.mode === "live";
+  const liveReady = session.hasKey && session.hasToken;
+  const slot = useRecordings("ask", { enabled: ready, autoShow: false });
+  const recording = slot.one.status === "ready" ? slot.one.recording : null;
   const [message, setMessage] = useState("");
   const [job, setJob] = useState("");
   const [jobOpen, setJobOpen] = useState(false);
@@ -104,6 +116,11 @@ export function Assistant() {
   useEffect(() => {
     if (response || error) headingRef.current?.focus();
   }, [response, error]);
+
+  // A recording the visitor picked gets the focus, like a live result.
+  useEffect(() => {
+    if (recording && slot.userPicked) headingRef.current?.focus();
+  }, [recording, slot.userPicked]);
 
   // When Ask becomes disabled, keep focus on a real control: Stop waiting.
   useEffect(() => {
@@ -171,6 +188,7 @@ export function Assistant() {
 
     const controller = new AbortController();
     controllerRef.current = controller;
+    slot.clear();
     run.reset();
     setResponse(null);
     setError(null);
@@ -186,7 +204,9 @@ export function Assistant() {
     } catch (caught) {
       if (controller.signal.aborted) return; // "Stop waiting": back to the form, no error
       if (caught instanceof ApiError) {
-        if (caught.kind === "validation") {
+        if (caught.kind === "auth") {
+          setLive(""); // the reopened live panel says what to fix
+        } else if (caught.kind === "validation") {
           setServerFields(caught.fields);
           setSummaryNonce((n) => n + 1);
           setLive(MESSAGES.validation);
@@ -240,8 +260,18 @@ export function Assistant() {
     .filter(Boolean)
     .join(" ");
 
+  const recordingLive =
+    recording && slot.userPicked ? `Recorded example: ${resultHeading(recording.response)}` : "";
+  const picker = (
+    <RecordedExamples slot={slot} showPicker disabled={loading} />
+  );
+
   return (
     <div className="space-y-6">
+      <ModeNote screen="ask" />
+      <ServerGate>
+      {demo && picker}
+      {!demo && (
       <form
         className="space-y-4 rounded-md border border-rule bg-surface p-4 sm:p-6"
         noValidate
@@ -250,6 +280,7 @@ export function Assistant() {
           void submit();
         }}
       >
+        {liveMode && liveReady && <LiveStrip />}
         {summary.length > 0 && (
           <div ref={summaryRef} tabIndex={-1} role="alert" className="rounded-md border-l-4 border-stopped bg-stopped-bg p-4">
             <p className="flex items-center gap-2 text-label text-stopped">
@@ -390,6 +421,9 @@ export function Assistant() {
           </p>
         </div>
 
+        {liveMode && !liveReady ? (
+          <LivePanel />
+        ) : (
         <div className="flex flex-wrap items-center justify-end gap-3">
           {loading && (
             <>
@@ -405,15 +439,39 @@ export function Assistant() {
             Ask
           </button>
         </div>
+        )}
       </form>
+      )}
 
       <div role="status" className="sr-only">
-        {run.phase !== "idle" ? run.announcement : live}
+        {recordingLive || (run.phase !== "idle" ? run.announcement : live)}
       </div>
 
-      {error && <ErrorPanel error={error} headingRef={headingRef} onRetry={() => void submit()} />}
+      <RecordingSlotState slot={slot} />
 
-      {response && (
+      {recording && (
+        <section className="space-y-3">
+          <RecordingStrip recordedAt={recording.recorded_at} />
+          <RecordingInputs message={recording.message} posting={recording.job_description} hasProfile={recording.profile !== null} />
+          <RouteLine decision={recording.response.decision} citations={recording.response.answer?.citations ?? []} />
+          <Result
+            response={recording.response}
+            headingRef={headingRef}
+            onNarrow={() => {}}
+            onPasteJob={() => {}}
+            onUseSample={() => {}}
+            onRetry={() => {}}
+            run={run}
+            profileOn={false}
+            jobSet={false}
+            recorded
+          />
+        </section>
+      )}
+
+      {!recording && error && <ErrorPanel error={error} headingRef={headingRef} onRetry={() => void submit()} />}
+
+      {!recording && response && (
         <section className="space-y-3">
           <RouteLine decision={response.decision} citations={response.answer?.citations ?? []} />
           <Result
@@ -430,6 +488,9 @@ export function Assistant() {
           />
         </section>
       )}
+
+      {!demo && picker}
+      </ServerGate>
     </div>
   );
 }
@@ -445,6 +506,7 @@ function ErrorPanel({
   headingRef: React.Ref<HTMLHeadingElement>;
   onRetry: () => void;
 }) {
+  if (isModeError(error)) return <ModeErrorPanel error={error} headingRef={headingRef} />;
   const busy = error.kind === "busy";
   return (
     <StatusPanel tone={busy ? "info" : "stopped"} heading={busy ? BUSY_HEADING : "The request failed"} headingRef={headingRef}>
@@ -469,6 +531,7 @@ function Result({
   run,
   profileOn,
   jobSet,
+  recorded = false,
 }: {
   response: AssistResponse;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
@@ -480,14 +543,24 @@ function Result({
   run: PlanRun;
   profileOn: boolean;
   jobSet: boolean;
+  recorded?: boolean; // a recording: no form actions, and the h2 points at the recording strip
 }) {
   const heading = resultHeading(response);
+  const describedBy = recorded ? STRIP_ID : undefined;
+
+  if (recorded && response.outcome === "started") {
+    return (
+      <StatusPanel tone="stopped" heading="This recording could not be loaded." headingRef={headingRef}>
+        <p>{NO_RESULT}</p>
+      </StatusPanel>
+    );
+  }
 
   if (response.outcome === "answered" && response.answer) {
     const answer = response.answer;
     if (answer.status === "insufficient_evidence") {
       return (
-        <StatusPanel tone="gap" heading={heading} headingRef={headingRef}>
+        <StatusPanel tone="gap" heading={heading} headingRef={headingRef} describedBy={describedBy}>
           <p>
             GradPath answers only from its curated sources, and none of them answer this well enough. It did not
             guess.
@@ -499,21 +572,23 @@ function Result({
               <CitationList citations={answer.citations} />
             </div>
           )}
-          <p className="flex flex-wrap gap-x-4 gap-y-1 text-small">
-            <button type="button" className={textButton} onClick={onNarrow}>
-              Narrow the question
-            </button>
-            <button type="button" className={textButton} onClick={onPasteJob}>
-              Paste a job posting
-            </button>
-          </p>
+          {!recorded && (
+            <p className="flex flex-wrap gap-x-4 gap-y-1 text-small">
+              <button type="button" className={textButton} onClick={onNarrow}>
+                Narrow the question
+              </button>
+              <button type="button" className={textButton} onClick={onPasteJob}>
+                Paste a job posting
+              </button>
+            </p>
+          )}
         </StatusPanel>
       );
     }
     return (
       <section className="space-y-3 rounded-md border border-rule bg-surface p-4 sm:p-6">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 ref={headingRef} tabIndex={-1} className="text-title">
+          <h2 ref={headingRef} tabIndex={-1} aria-describedby={describedBy} className="text-title">
             {heading}
           </h2>
           {answer.status === "partial" ? (
@@ -555,8 +630,11 @@ function Result({
   if (response.outcome === "needs_input") {
     const missing = response.decision.missing;
     return (
-      <StatusPanel tone="info" heading={heading} headingRef={headingRef}>
+      <StatusPanel tone="info" heading={heading} headingRef={headingRef} describedBy={describedBy}>
         <p>{response.message ?? NO_CONTENT}</p>
+        {recorded ? (
+          <p className="text-small text-ink-muted">In the full app these buttons add the missing input.</p>
+        ) : (
         <p className="flex flex-wrap gap-x-4 gap-y-1 text-small">
           {missing.includes("job_description") && !jobSet && (
             <button type="button" className={textButton} onClick={onPasteJob}>
@@ -574,6 +652,7 @@ function Result({
             </button>
           )}
         </p>
+        )}
       </StatusPanel>
     );
   }
@@ -591,7 +670,7 @@ function Result({
       );
     }
     if (response.outcome === "prepared" && response.result) {
-      return <PlanResult result={response.result} headingRef={headingRef} />;
+      return <PlanResult result={response.result} headingRef={headingRef} describedBy={describedBy} />;
     }
     // started: live progress, then the plan or what went wrong (DESIGN.md, Long runs).
     if (isProgressPhase(run.phase)) return <PlanProgress run={run} />;
@@ -602,7 +681,7 @@ function Result({
 
   // unsupported (or an answered response with no answer body): fixed copy if the server sent none
   return (
-    <StatusPanel tone="info" heading={heading} headingRef={headingRef}>
+    <StatusPanel tone="info" heading={heading} headingRef={headingRef} describedBy={describedBy}>
       <p className="flex items-start gap-2">
         <InfoIcon />
         <span>{response.message ?? NO_CONTENT}</span>

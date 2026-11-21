@@ -1,72 +1,45 @@
-import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, expect, test } from "vitest";
+import { cleanup, render } from "@testing-library/react";
 import { SourcesDate, formatDay } from "@/components/SourcesDate";
+import { ServerInfoForTests, type ServerInfo } from "@/lib/serverInfo";
 
 afterEach(() => {
   cleanup();
-  vi.unstubAllGlobals();
 });
 
-function stubHealth(body: unknown, status = 200) {
-  const fn = vi.fn(async () => new Response(JSON.stringify(body), { status }));
-  vi.stubGlobal("fetch", fn);
-  return fn;
-}
-
-const HEALTH = {
-  status: "ok",
-  llm_provider: "fake",
-  app_mode: "demo",
-  sources_as_of: "2026-11-18",
-  sources_newest: "2026-11-19",
+const READY: ServerInfo = {
+  status: "ready",
+  mode: "demo",
+  searchEnabled: true,
+  sourcesAsOf: "2026-11-18",
 };
 
-test("shows the oldest sources date from /api/health", async () => {
-  const fn = stubHealth(HEALTH);
-  const { container } = render(
-    <p>
-      <SourcesDate />
-      Rest of footer
-    </p>,
+function renderFooter(info: ServerInfo) {
+  return render(
+    <ServerInfoForTests value={info}>
+      <p>
+        <SourcesDate />
+        Rest
+      </p>
+    </ServerInfoForTests>,
   );
-  const time = await screen.findByText("18 Nov 2026");
-  expect(time.tagName).toBe("TIME");
-  expect(time.getAttribute("datetime")).toBe("2026-11-18");
-  expect(container.textContent).toBe("Sources as of 18 Nov 2026 · Rest of footer");
-  expect(fn).toHaveBeenCalledWith("/api/health", expect.objectContaining({ method: "GET" }));
+}
+
+test("shows the oldest sources date from the shared health answer", () => {
+  const { container } = renderFooter(READY);
+  const time = container.querySelector("time");
+  expect(time?.textContent).toBe("18 Nov 2026");
+  expect(time?.getAttribute("datetime")).toBe("2026-11-18");
+  expect(container.textContent).toBe("Sources as of 18 Nov 2026 · Rest");
 });
 
 test.each([
-  ["no date", { ...HEALTH, sources_as_of: null }, 200],
-  ["a malformed date", { ...HEALTH, sources_as_of: "18/11/2026" }, 200],
-  ["a server error", { detail: "x" }, 500],
-])("shows nothing for %s", async (_name, body, status) => {
-  const fn = stubHealth(body, status);
-  const { container } = render(
-    <p>
-      <SourcesDate />
-      Rest
-    </p>,
-  );
-  await waitFor(() => expect(fn).toHaveBeenCalled());
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  expect(container.textContent).toBe("Rest");
-});
-
-test("shows nothing when the API can't be reached", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => {
-      throw new TypeError("offline");
-    }),
-  );
-  const { container } = render(
-    <p>
-      <SourcesDate />
-      Rest
-    </p>,
-  );
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  ["no date", { ...READY, sourcesAsOf: null }],
+  ["a malformed date", { ...READY, sourcesAsOf: "18/11/2026" }],
+  ["health still loading", { ...READY, status: "loading" as const, sourcesAsOf: null }],
+  ["a failed health request", { ...READY, status: "error" as const, sourcesAsOf: null }],
+])("shows nothing for %s", (_name, info) => {
+  const { container } = renderFooter(info);
   expect(container.textContent).toBe("Rest");
 });
 
