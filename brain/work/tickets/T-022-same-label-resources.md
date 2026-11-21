@@ -33,7 +33,8 @@ Used by the roadmap step (`PlanResult.tsx`) and the requirement row (`JobAnalysi
 - Files touched: `frontend/components/CitationChip.tsx` (`pageName`, `pageNames`, `page` prop),
   `PlanResult.tsx`, `JobAnalysisView.tsx`, new `CitationChip.test.tsx` (7 tests), WALKTHROUGH (Job
   screen).
-- Commits (hash, message):
+- Commits (hash, message): `03a8abc` fix: tell apart resource chips that share a label (T-022);
+  `8bbf4dd` docs: record the same-label chip fix (T-022).
 
 ## Verification
 - `npm run lint && npm run typecheck && npm test && npm run build`: clean, 294 tests pass.
