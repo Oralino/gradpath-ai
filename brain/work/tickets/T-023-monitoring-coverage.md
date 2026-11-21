@@ -38,7 +38,9 @@ Owner, 2026-11-21: option (a), add both openly licensed sources (rejected for no
 - Files touched: `knowledge_base/source_manifest.csv` (2 rows), `knowledge_base/index_info.json`
   (29 documents, 1,700 chunks), `evaluation/results/retrieval-20261121-104638.json`, ARCHITECTURE
   (corpus v3), EVALUATION (retrieval re-check), TASKS, DONE.
-- Commits (hash, message):
+- Commits (hash, message): `32b41c1` feat: add Prometheus and OpenTelemetry monitoring sources
+  (T-023); `a5b1b66` merge of `origin/main`; `42fa671` docs: note the eval ran before the T-024
+  merge (T-023).
 
 ## Verification
 - Retrieval eval (one Voyage call, `retrieval-20261121-104638.json`): every summary number equals
