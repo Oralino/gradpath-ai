@@ -4,6 +4,8 @@ Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are li
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
+- [ ] [T-018](tickets/T-018-demo-live-modes.md): Milestone 7, demo and live modes (plan waiting for
+      the owner's go-ahead; the items below marked Milestone 7 are candidates for it).
 - [ ] DESIGN.md: record the visible input rows and "Build plan again" on the Plan screen
       (design-advisor drafts, owner approves; T-011 design critique).
 - [ ] Milestone 7: PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard).
