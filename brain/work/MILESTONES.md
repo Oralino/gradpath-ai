@@ -261,7 +261,7 @@ limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are
 | 3. Sources date | ✅ | `knowledge_base/index_info.json` written by ingest (oldest/newest fetch, counts); `/api/health` returns `sources_as_of`; footer "Sources as of 19 Nov 2026 · …" | Visitors see how fresh the knowledge base is (DESIGN.md footer copy) | Matches Qdrant (1,592 chunks, 27 documents); review fix: the one manual source no longer sets the date (18 → 19 Nov); 602 backend + 195 frontend tests; checked in the browser |
 | 4. Live source search | ✅ | `POST /api/search`: real retrieval, cited passages with excerpts, a rules-only route preview, no model call; demo opens retrieval only with a Voyage key and keeps starting if it fails | Visitors without a key can try the retrieval half of RAG live (owner decision 2026-11-20) | Real demo-mode run: 4 multicolumn-index passages from SQLite and PostgreSQL docs, preview "traditional RAG by rules", `/api/chat` still 403; review fix: search never waits or retries on Voyage's free-tier window (instant 429); 629 backend tests |
 | 5. Visitor key end to end | ✅ | `X-Anthropic-Key` header, shape-checked; both model tiers on the visitor's key; refused key 401, rate limit 429; runs bound to their key (HMAC tag); live refuses a server key, the wrong provider or a redirected Anthropic host; SDK loggers capped | Live mode must run only on the visitor's own key and never leak it | Security review: no leak path found; QA clean; 662 backend tests; no real-key test (no paid key) |
-| 6. 422 handler | ✅ | Validation errors keep `loc`/`msg`/`type` only; unknown field names and odd locations masked | A key pasted in the wrong place must never come back (T-017 finding) | Tests: a key as an unknown field, inside a field, as a field name, in broken JSON: never echoed; 672 backend tests |
+| 6. 422 handler | ✅ | Validation errors keep `loc`/`msg`/`type` only; unknown field names and odd locations masked | A key pasted in the wrong place must never come back (T-017 finding) | Tests: a key as an unknown field, inside a field, as a field name, in broken JSON: never echoed; 680 backend tests |
 
 ### Problems we hit and how we solved them
 - **The old default mode was "demo" but meant "local".** Tests, CLIs and the owner's runs used the
@@ -273,6 +273,10 @@ limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are
   partial answer (probe types from the Pod Lifecycle page, plus what isn't covered), not a refusal.
   We relabelled it "a known gap" instead of spending another call; the recorder now also refuses an
   example whose route differs from the one it is meant to show.
+- **A broken test file reached GitHub (step 6).** An edit script turned an escaped `
+` into a real
+  line break, and the commit was chained after the failing lint with `;`, so it ran anyway. Fixed in
+  the next commit; from then on, commits are chained with `&&` after lint and tests.
 
 ## Milestones 4–8: what's next
 

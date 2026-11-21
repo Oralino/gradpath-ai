@@ -122,6 +122,15 @@ limits, optional key pre-check), and a "no credit" message. qa-checker: ruff, 66
 frontend tests, secret and attribution scan, no key in any log call, `.env` untracked: all clean.
 Not tested with a real key: the owner has none (zero-cost rule).
 
+Step 6 (2026-11-20): `safe_validation_errors` keeps loc/msg/type only; unknown field names
+become "(unknown field)", other non-identifier locations "?". Tests: a key as an unknown field, as
+a field name, inside a too-long or wrong-type field, nested in the profile, and in broken JSON never
+comes back or reaches the logs; the frontend's row locations survive. code-reviewer: no findings
+beyond suggestions (applied: a note about future dict fields, shape pinned, an edge-case table).
+Problem: commit 33dce49 pushed a test file with a syntax error (an escaped newline in an edit
+script became a real one, and the commit was chained with `;` after the failing check); fixed in
+the next commit. 680 backend tests.
+
 For step 11 (owner decision 2026-11-20: left for the release checks): tests for the recorder's
 command-line entry point (`--only` with an unknown id, Qdrant closed in `main`) and for a leftover
 temp file after a failed write; a frontend test that leaving the page aborts the footer's health

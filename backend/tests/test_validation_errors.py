@@ -98,8 +98,7 @@ def test_unsafe_location_parts_are_masked():
         (2, 2),
         ("123", "?"),
         ("naïve", "?"),
-        ("name
-", "?"),
+        ("name" + chr(10), "?"),
         ("x" * 64, "x" * 64),
         ("x" * 65, "?"),
         ("list[str]", "?"),
