@@ -2,6 +2,8 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-21
+- [T-022 Same-label chips told apart](tickets/T-022-same-label-resources.md): chips that share
+  "title: section" in one list add the page name, e.g. "(docker overview)".
 - [T-023 Monitoring sources](tickets/T-023-monitoring-coverage.md): Prometheus (Apache 2.0) and
   OpenTelemetry (CC BY 4.0) docs added, 1,700 chunks; retrieval eval unchanged; a monitoring
   question now gets a cited answer.
