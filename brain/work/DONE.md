@@ -2,6 +2,11 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-21
+- [T-024 Answers may fill gaps again](tickets/T-024-answer-gap-filling.md): the no-advice rule of
+  T-019 removed after the owner's local test; 172/178 claims supported, refusals unchanged.
+- [T-021 One topic of a job gets an answer](tickets/T-021-topic-routing.md): the whole-job rule
+  needs whole-job wording; routing eval 36/36. Merged in
+  [#13](https://github.com/Oralino/gradpath-ai/pull/13) (`15879f5`).
 - **Milestone 7 (demo and live modes) finished:** [T-018](tickets/T-018-demo-live-modes.md).
   Demo mode with recorded runs and no keys, live mode on a visitor's own key, source search,
   passcode and per-IP limits, Origin check, the answer eval and grounding check; release checks

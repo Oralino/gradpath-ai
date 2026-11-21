@@ -13,7 +13,7 @@
       "action": "run",
       "kind": "knowledge_question",
       "missing": [],
-      "reason": "The user asks how to configure Kubernetes liveness probes, a general technical topic answerable from reference docs with no personal job context.",
+      "reason": "This asks how to configure Kubernetes liveness probes, a general technical topic answerable from reference material, with no job or profile involved.",
       "requires_user_profile": false,
       "requires_multi_step_workflow": false,
       "decided_by": "model"
@@ -23,7 +23,7 @@
     "answer": {
       "question": "How do I configure liveness probes for a Kubernetes deployment?",
       "status": "partial",
-      "answer": "The evidence doesn't give configuration steps for liveness probes, but it does describe what probes are. A probe is a diagnostic the kubelet performs periodically on a container. The kubelet can run it using one of three actions:\n- `ExecAction`, performed with the help of the container runtime.\n- `TCPSocketAction`, checked directly by the kubelet.\n- `HTTPGetAction`, checked directly by the kubelet.\n\nThe evidence also lists readiness probe failures as one cause of a Deployment getting stuck on its newest ReplicaSet. You can detect a stalled rollout by setting `.spec.progressDeadlineSeconds` in the Deployment spec.",
+      "answer": "A probe is a diagnostic the kubelet runs periodically on a container. The kubelet can run it in one of three ways:\n- `ExecAction`: run through the container runtime.\n- `TCPSocketAction`: checked directly by the kubelet.\n- `HTTPGetAction`: checked directly by the kubelet.\n\nProbe failures can also affect rollouts. For example, readiness probe failures can leave a Deployment stuck deploying its newest ReplicaSet. You can set `.spec.progressDeadlineSeconds` to have the controller report stalled progress.",
       "citations": [
         {
           "chunk_id": "devops-kubernetes-concepts:2:29",
@@ -42,7 +42,7 @@
       ],
       "route": "traditional_rag",
       "note": null,
-      "not_covered": "The evidence does not show how to configure a liveness probe in a Deployment, such as the YAML fields or an example."
+      "not_covered": "The evidence does not show how to configure a liveness probe in a Deployment spec, such as the YAML fields or example settings."
     },
     "result": null,
     "run_id": null

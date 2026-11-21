@@ -3,8 +3,8 @@ The RAG answer prompt. Related: [T-019](T-019-answers-follow-sources.md) (the ru
 T-018 step 10 (the answer eval), `../../engineering/EVALUATION.md`.
 
 - **Type:** change
-- **Status:** in progress
-- **Opened:** 2026-11-21 · **Closed:**
+- **Status:** done
+- **Opened:** 2026-11-21 · **Closed:** 2026-11-21
 - **GitHub Issue:** none
 
 ## Summary
@@ -26,7 +26,13 @@ around the cited facts again (measured before: 7 of 166 claims not stated by the
 ## Changes
 - Branch: `change/t-024-answer-gap-filling`
 - PR:
-- Files touched:
+- Files touched: `backend/src/gradpath/rag/answer.py` (prompt), `backend/tests/test_rag.py`,
+  `demo_runs/ask-{multicolumn-indexes,idempotent-endpoints,graceful-shutdown,not-covered}.json`,
+  `evaluation/results/answer-eval-20261121-103106.json`, EVALUATION, WALKTHROUGH, T-019, DONE, TASKS.
 - Commits (hash, message):
 
 ## Verification
+809 backend tests; the prompt test now pins the evidence rules and that the no-advice rule is gone.
+Answer eval from the owner's terminal: 12/14 answer cases and 6/6 refusals (unchanged), 172/178
+claims supported (97%; the 6 others are general advice), partial answers 4 (EVALUATION.md). The 4
+RAG recordings re-recorded with this prompt (recorder scan clean).

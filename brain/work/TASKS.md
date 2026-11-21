@@ -66,7 +66,7 @@ Milestone 2 (tracing):
 - [x] Wire `LANGSMITH_TRACING` explicitly and decide what may reach LangSmith (T-002, `tracing.py`).
 - [x] `ChatClaudeCode._generate` worker thread now runs in a copy of the caller's context (T-002).
       `run_manager` is still not passed in: it only matters for token streaming, which we don't use.
-- [ ] Grounding check beyond citation ids (faithfulness metric in `EVALUATION.md`).
+- [x] Grounding check beyond citation ids: per-claim grounding check, T-018 step 10.
 Workflow (from the T-003 evaluation):
 - [ ] The roadmap sometimes says "no source in the knowledge base" for a gap that has retrieved
       evidence (PostgreSQL, twice). `no_resources` flags it as minor; consider blocking, or a prompt
