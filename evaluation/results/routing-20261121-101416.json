@@ -1,0 +1,335 @@
+{
+  "run_at": "2026-11-21T10:14:16+00:00",
+  "mode": "rules_and_model",
+  "provider": "claude_code",
+  "model_fast": "claude-haiku-5-5",
+  "cases_file": "routing_cases.jsonl",
+  "cases": [
+    {
+      "id": "rt-001",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-002",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 4.49
+    },
+    {
+      "id": "rt-003",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-004",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-005",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.63
+    },
+    {
+      "id": "rt-006",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.69
+    },
+    {
+      "id": "rt-007",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-008",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.56
+    },
+    {
+      "id": "rt-009",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.38
+    },
+    {
+      "id": "rt-010",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.41
+    },
+    {
+      "id": "rt-011",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-012",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "model",
+      "seconds": 2.99
+    },
+    {
+      "id": "rt-013",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-014",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "model",
+      "seconds": 2.79
+    },
+    {
+      "id": "rt-015",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "model",
+      "seconds": 2.81
+    },
+    {
+      "id": "rt-016",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-017",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-018",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.57
+    },
+    {
+      "id": "rt-019",
+      "route": "agentic_workflow",
+      "action": "needs_input",
+      "kind": "job_preparation",
+      "decided_by": "model",
+      "seconds": 2.89
+    },
+    {
+      "id": "rt-020",
+      "route": "agentic_workflow",
+      "action": "needs_input",
+      "kind": "job_preparation",
+      "decided_by": "model",
+      "seconds": 2.92
+    },
+    {
+      "id": "rt-021",
+      "route": "agentic_workflow",
+      "action": "needs_input",
+      "kind": "job_preparation",
+      "decided_by": "model",
+      "seconds": 3.63
+    },
+    {
+      "id": "rt-022",
+      "route": "agentic_workflow",
+      "action": "needs_input",
+      "kind": "job_preparation",
+      "decided_by": "model",
+      "seconds": 2.88
+    },
+    {
+      "id": "rt-023",
+      "route": "agentic_workflow",
+      "action": "unsupported",
+      "kind": "job_comparison",
+      "decided_by": "model",
+      "seconds": 2.44
+    },
+    {
+      "id": "rt-024",
+      "route": "agentic_workflow",
+      "action": "unsupported",
+      "kind": "progress_tracking",
+      "decided_by": "model",
+      "seconds": 2.46
+    },
+    {
+      "id": "rt-025",
+      "route": "agentic_workflow",
+      "action": "unsupported",
+      "kind": "resume_rewrite",
+      "decided_by": "model",
+      "seconds": 2.38
+    },
+    {
+      "id": "rt-026",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.58
+    },
+    {
+      "id": "rt-027",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.81
+    },
+    {
+      "id": "rt-028",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "model",
+      "seconds": 3.07
+    },
+    {
+      "id": "rt-029",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.56
+    },
+    {
+      "id": "rt-030",
+      "route": "agentic_workflow",
+      "action": "needs_input",
+      "kind": "job_preparation",
+      "decided_by": "model",
+      "seconds": 4.31
+    },
+    {
+      "id": "rt-031",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.97
+    },
+    {
+      "id": "rt-032",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.92
+    },
+    {
+      "id": "rt-033",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.87
+    },
+    {
+      "id": "rt-034",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "rules",
+      "seconds": 0.0
+    },
+    {
+      "id": "rt-035",
+      "route": "traditional_rag",
+      "action": "run",
+      "kind": "knowledge_question",
+      "decided_by": "model",
+      "seconds": 2.89
+    },
+    {
+      "id": "rt-036",
+      "route": "agentic_workflow",
+      "action": "run",
+      "kind": "job_preparation",
+      "decided_by": "model",
+      "seconds": 2.77
+    }
+  ],
+  "metrics": {
+    "cases": 36,
+    "decided": 36,
+    "undecided": 0,
+    "unknown_ids": [],
+    "accuracy": 1.0,
+    "route_accuracy": 1.0,
+    "workflow_precision": 1.0,
+    "workflow_recall": 1.0,
+    "over_routed": 0.0,
+    "under_routed": 0.0,
+    "by_decider": {
+      "rules": {
+        "cases": 9,
+        "correct": 9
+      },
+      "model": {
+        "cases": 27,
+        "correct": 27
+      },
+      "default": {
+        "cases": 0,
+        "correct": 0
+      }
+    },
+    "by_tag": {
+      "borderline": "8/8",
+      "complex": "7/7",
+      "exact_term": "2/2",
+      "injection": "3/3",
+      "missing_input": "5/5",
+      "simple": "14/14",
+      "topic_scope": "6/6",
+      "unsupported": "3/3"
+    },
+    "model_seconds_mean": 2.88,
+    "wrong": []
+  }
+}
