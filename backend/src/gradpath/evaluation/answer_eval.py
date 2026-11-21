@@ -60,11 +60,16 @@ def load_cases(path: Path = DEFAULT_CASES) -> list[AnswerCase]:
 def phrase_matches(phrase: str, text: str) -> bool:
     """Case-insensitive, whitespace-normalised match on word boundaries ("put" is not in
     "output"; "pytest.raises" and "retry-after" match literally). Used by `group_matches`."""
-    words = phrase.lower().split()
+    words = _straight(phrase).lower().split()
     if not words:
         return False
     pattern = r"(?<!\w)" + r"\s+".join(re.escape(w) for w in words) + r"(?!\w)"
-    return re.search(pattern, " ".join(text.lower().split())) is not None
+    return re.search(pattern, " ".join(_straight(text).lower().split())) is not None
+
+
+def _straight(text: str) -> str:
+    """Curly apostrophes and quotes as straight ones, so "don't" matches "don’t"."""
+    return text.translate({0x2019: "'", 0x2018: "'", 0x201C: '"', 0x201D: '"'})
 
 
 def group_matches(group: list[str], text: str) -> bool:
@@ -202,13 +207,16 @@ def main() -> None:
 
     settings = get_settings()
     ids = list(dict.fromkeys(args.only)) if args.only else list(cases)
+    unknown = [i for i in ids if i not in cases]
+    if unknown:
+        parser.error(f"unknown case ids: {', '.join(unknown)}")
     selected = [cases[i] for i in ids]
     configure_tracing(settings)
     retrieval = get_retrieval_service()
     answer_llm, judge_llm = get_chat_model("smart"), get_chat_model("fast")
     records: list[dict] = []
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    path = RESULTS_DIR / f"answer-eval-{datetime.now(UTC):%Y%m%d-%H%M}.json"
+    path = RESULTS_DIR / f"answer-eval-{datetime.now(UTC):%Y%m%d-%H%M%S}.json"
     out = {
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "provider": settings.llm_provider,

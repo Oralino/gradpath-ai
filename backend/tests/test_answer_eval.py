@@ -165,8 +165,11 @@ def test_load_chunks(tmp_path):
 
 
 def test_real_chunk_ids_load():
-    # knowledge_base/processed holds the chunks ingest indexes, so these ids are the cited ids
-    first = next(PROCESSED_DIR.glob("*.jsonl"))
+    # knowledge_base/processed holds the chunks ingest indexes, so these ids are the cited ids.
+    # The folder is gitignored (built by ingest), so a fresh clone such as CI has none: skip there.
+    first = next(PROCESSED_DIR.glob("*.jsonl"), None)
+    if first is None:
+        pytest.skip("knowledge_base/processed is built by ingest; not present in this checkout")
     cid = json.loads(first.read_text(encoding="utf-8").splitlines()[0])["metadata"]["chunk_id"]
     assert load_chunks([cid])[cid]
 
