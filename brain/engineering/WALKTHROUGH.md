@@ -986,3 +986,22 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
     no passwords to store or reset (multi-user accounts are in "Later").
   - *"What if the passcode leaks?"* Change `LIVE_PASSCODE` and restart; visitors pay with their own
     keys, so a leak costs the owner at most the capped Voyage searches.
+
+## Cross-site requests: no CORS, an Origin check (`api/main.py` `OriginCheck`, T-018 step 8)
+- **What it is:** the answer to "can another website make a visitor's browser use our API?" No:
+  it can't read our responses, and it can't make the API act.
+- **Decision: no CORS at all.** The browser only ever calls its own origin; Next's `/api` rewrite
+  forwards to the API server-side (locally and on Vercel), so the API never needs to grant another
+  origin anything. Rejected: a CORS allow-list of the frontend origin, which would add a way to get
+  CORS wrong for no benefit.
+- **Decision: check `Origin` anyway** (guide 01: CORS is not CSRF protection). A cross-site HTML
+  form can send a POST without a preflight; the browser always marks it with the page's `Origin`,
+  and `OriginCheck` refuses any origin not in `ALLOWED_ORIGINS` before the request is even read.
+  Requests with no `Origin` (curl, CLIs, tests) pass: they aren't a browser acting for a visitor.
+- **Measured, not assumed:** FastAPI already refuses the bodies a form can send (`text/plain`,
+  url-encoded, multipart, none: 422 before the route runs), and with no cookies a forged request
+  has nothing to ride on. The Origin check is the third layer.
+- **Gotcha:** the deployed frontend's address must be added to `ALLOWED_ORIGINS` (Milestone 8), or
+  every POST from the real site gets 403. Locally the default covers `localhost:3000`.
+- **Likely question:** *"Why not CSRF tokens?"* They protect cookie sessions; we have none. Our
+  credentials (passcode, key) are custom headers, which a cross-site form can't set.

@@ -142,6 +142,15 @@ for each. Moved to Milestone 8: verify Render's proxy chain before setting the h
 headers, `/docs`. Accepted: a burst of concurrent guesses can slightly exceed 5. qa-checker: all
 clean (697 tests at that point). 716 backend tests after the fixes.
 
+Step 8 (2026-11-20): measured first: FastAPI refuses `text/plain`, url-encoded, multipart and
+missing content types with 422 before the route runs. No CORS middleware; `OriginCheck` refuses
+POST/PUT/PATCH/DELETE from origins not in `ALLOWED_ORIGINS` (and any request with two Origin
+headers) before the body is read. Real servers: a page POST through `next dev` passed (Next forwards
+the browser's Origin), evil and `null` origins 403, `text/plain` 422, preflight 405 with no CORS
+headers. code-reviewer: no bypass; applied: duplicate Origin refused, tests for other methods, the
+order before the body cap and the preflight status, a fail-closed note in `.env.example`. Milestone 8
+must verify Vercel's rewrite forwards Origin and add the deployed origin. 761 backend tests.
+
 For step 11 (owner decision 2026-11-20: left for the release checks): tests for the recorder's
 command-line entry point (`--only` with an unknown id, Qdrant closed in `main`) and for a leftover
 temp file after a failed write; a frontend test that leaving the page aborts the footer's health

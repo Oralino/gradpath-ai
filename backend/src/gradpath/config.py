@@ -78,6 +78,10 @@ class Settings(BaseSettings):
     # Proxies in front of the API that append to X-Forwarded-For (Render: set in Milestone 8).
     # 0 = use the connection address; never trust the client-written left end of the header.
     trusted_proxy_hops: int = Field(default=0, ge=0, le=5)
+    # Browser origins allowed to POST (T-018 step 8, CSRF defence in depth): comma-separated, exact
+    # scheme://host[:port]. Requests with no Origin header (curl, CLIs) are unaffected. There is
+    # no CORS middleware: the browser only calls its own origin, through Next's /api proxy.
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     # Recorded runs served in every mode (relative to the repo root).
     demo_runs_path: str = "demo_runs"
     # Index summary written by ingest, read by the API for "Sources as of" (T-018 step 3).

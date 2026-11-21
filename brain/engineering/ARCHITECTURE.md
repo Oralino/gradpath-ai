@@ -132,6 +132,11 @@ with `TRUSTED_PROXY_HOPS=n` the n-th `X-Forwarded-For` entry from the right, nor
 /64 network, ports dropped). Request bodies over 256 KB get 413 before FastAPI reads them
 (`BodySizeLimit`). In memory and per process: deploy with one worker.
 
+**Cross-site requests (T-018 step 8):** no CORS middleware: the browser only calls its own origin
+and Next's `/api` rewrite proxies to the API server-side, so cross-origin reads stay blocked.
+`OriginCheck` (outermost ASGI middleware) answers 403 to a POST whose `Origin` header is present
+and not in `ALLOWED_ORIGINS`; requests with no `Origin` (curl, CLIs) pass.
+
 **Source search (T-018 step 4):** `POST /api/search {query}` (`rag/sources.py`, `api/search.py`) is
 the retrieval half of RAG for visitors without a key: one Voyage request, the top passages (at most
 2 per document) as citations with a 600-character excerpt, an `insufficient` flag, and a rules-only

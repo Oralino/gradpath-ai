@@ -244,6 +244,41 @@ class BodySizeLimit:
         await send({"type": "http.response.body", "body": TOO_LARGE})
 
 
+CROSS_SITE = b'{"detail":"Cross-site requests are not accepted."}'
+UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def allowed_origins(settings: Settings) -> frozenset[str]:
+    """The ALLOWED_ORIGINS setting as a set (trailing slashes and case don't matter)."""
+    return frozenset(
+        o.strip().rstrip("/").lower() for o in settings.allowed_origins.split(",") if o.strip()
+    )
+
+
+class OriginCheck:
+    """Refuse a state-changing request whose Origin header names a site not in ALLOWED_ORIGINS
+    (403), before anything reads it (T-018 step 8, guide 01: CORS is not CSRF protection, check
+    Origin too). Browsers send Origin on every cross-site POST, including form posts; requests
+    with no Origin (curl, server-to-server) pass. `null` (sandboxed or privacy-redirected pages) is
+    refused. Added by `create_app`, outermost."""
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] == "http" and scope.get("method", "") in UNSAFE_METHODS:
+            origins = [v for k, v in scope.get("headers") or [] if k == b"origin"]
+            if origins:
+                # Browsers send exactly one; more than one is refused rather than guessed at.
+                value = origins[0].decode("latin-1").strip().rstrip("/").lower()
+                if len(origins) > 1 or value not in allowed_origins(get_settings()):
+                    await send({"type": "http.response.start", "status": 403,
+                                "headers": [(b"content-type", b"application/json")]})  # fmt: skip
+                    await send({"type": "http.response.body", "body": CROSS_SITE})
+                    return
+        await self.app(scope, receive, send)
+
+
 def create_app(*, use_lifespan: bool = True) -> FastAPI:
     """Build the app; tests pass `use_lifespan=False` and provide their own dependencies."""
     app = FastAPI(
@@ -253,6 +288,8 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
         lifespan=lifespan if use_lifespan else None,
     )
     app.add_middleware(BodySizeLimit)
+    app.add_middleware(OriginCheck)  # added last = runs first
+    # Deliberately no CORSMiddleware: cross-origin browser reads stay blocked (T-018 step 8).
     app.add_exception_handler(RequestValidationError, _validation_handler)
     # Subclasses are matched first (voyageai.error.RateLimitError before VoyageError).
     for exc_type, status, detail in [
