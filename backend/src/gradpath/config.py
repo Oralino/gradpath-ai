@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     retrieval_k: int = 5
     retrieval_min_score: float = 0.45  # probe 2026-11-17: covered >= 0.59, uncovered <= 0.39
 
-    # Tracing rules live in tracing.py: off unless true AND a key is set; never in live mode.
+    # Tracing rules live in tracing.py: off unless true AND a key is set; only in local mode.
     langsmith_tracing: bool = False
     langsmith_api_key: SecretStr | None = None
     langsmith_endpoint: str = "https://api.smith.langchain.com"
@@ -68,7 +68,12 @@ class Settings(BaseSettings):
     # Relative to the repo root; "" turns it off. `logs/` is gitignored.
     route_log_path: str = "logs/routes.jsonl"
 
-    app_mode: Literal["demo", "live"] = "demo"
+    # T-018 (owner decision 2026-11-20): local = the owner's machine, server credentials, tracing
+    # allowed; demo = deployed, recorded runs only, model routes off; live = deployed, recordings
+    # plus model routes with a visitor's key. Default demo: the safest, and it needs no keys.
+    app_mode: Literal["local", "demo", "live"] = "demo"
+    # Recorded runs served in every mode (relative to the repo root).
+    demo_runs_path: str = "demo_runs"
 
 
 @lru_cache

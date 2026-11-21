@@ -26,17 +26,21 @@ Python 3.13 · FastAPI · LangGraph · LangChain · Claude (Anthropic) · Voyage
 LangSmith tracing and evaluation · Next.js + Tailwind CSS.
 
 ## Modes
-| Mode | Where | Model calls |
+| Mode (`APP_MODE`) | Where | Model calls |
 |---|---|---|
-| Local live | Your machine | Claude through Claude Code, on your own Claude subscription |
-| Demo (default online) | Deployed site | None: replays recorded runs made with a sample profile |
-| Live with your key | Deployed site | Your Anthropic API key, sent per request, never stored |
+| `local` | Your machine | Claude through Claude Code, on your own Claude subscription |
+| `demo` (the default) | Deployed site | None: replays recorded runs made with a sample profile; needs no keys |
+| `live` (in progress) | Deployed site | Your Anthropic API key, sent per request, never stored |
+
+`APP_MODE` defaults to `demo`, the safe choice for a server: the model routes answer 403 and only
+the recorded examples (`/api/demo`) are served. Set `APP_MODE=local` in `.env` to run models on your
+own machine (`.env.example` already does).
 
 ## Setup
 Needs [uv](https://docs.astral.sh/uv/) and Python 3.13.
 
 ```bash
-cp .env.example .env          # then fill in the keys you have; demo mode needs none
+cp .env.example .env          # then fill in the keys you have (APP_MODE=local); demo mode needs none
 cd backend
 uv sync
 uv run pytest -q              # no keys or network needed

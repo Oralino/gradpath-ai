@@ -50,8 +50,7 @@ Before any deploy (Milestones 7–8):
       Code process and spend plan quota). Concurrency caps done: `api/limits.py` (T-003).
       Known gap (T-006): `/api/assist` spends its routing call before the career cap can answer
       503 while a workflow is running; per-IP limits close it.
-- [ ] Enforce `APP_MODE` (demo vs live); the app must start and serve demo mode with no keys set
-      (today the lifespan needs `VOYAGE_API_KEY`).
+- [x] Enforce `APP_MODE`; the app starts and serves demo mode with no keys set (T-018 step 1).
 - [ ] `POST /api/career/prepare` (like the other routes) uses the server's model credentials
       whatever `APP_MODE` says; live mode must pass the visitor's key instead (T-003 review).
 - [x] LangGraph's "Retrying task" log line no longer carries exception text (filter in

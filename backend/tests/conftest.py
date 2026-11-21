@@ -62,6 +62,16 @@ def kb_service() -> RetrievalService:
 
 
 @pytest.fixture(autouse=True)
+def _local_mode(monkeypatch):
+    """API tests run in local mode (model routes on), whatever `.env` or CI sets. Demo and live
+    tests patch `gradpath.api.deps.get_settings` again themselves."""
+    from gradpath.api import deps
+    from gradpath.config import Settings
+
+    monkeypatch.setattr(deps, "get_settings", lambda: Settings(_env_file=None, app_mode="local"))
+
+
+@pytest.fixture(autouse=True)
 def _no_tracing():
     """Tests never send traces, even if the developer's shell sets LANGSMITH_TRACING=true."""
     import langsmith

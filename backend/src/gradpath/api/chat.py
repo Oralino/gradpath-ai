@@ -7,11 +7,11 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, ConfigDict, Field
 
 from gradpath.api import limits
-from gradpath.api.deps import get_answer_model, get_retrieval
+from gradpath.api.deps import get_answer_model, get_retrieval, require_model_routes
 from gradpath.rag import ChatAnswer, answer_question
 from gradpath.retrieval import RetrievalService
 
-router = APIRouter(prefix="/api", tags=["chat"])
+router = APIRouter(prefix="/api", tags=["chat"], dependencies=[Depends(require_model_routes)])
 
 
 class ChatRequest(BaseModel):

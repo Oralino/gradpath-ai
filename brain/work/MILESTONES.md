@@ -246,6 +246,25 @@ partial) and clear errors. `DESIGN.md` comes first; the owner approves it before
 
 ---
 
+## Milestone 7: Demo and live modes ⏳
+*Ticket: `tickets/T-018-demo-live-modes.md`*
+
+**Goal:** a public site that costs nothing. Demo mode (the default) replays recorded runs with no
+keys; live mode runs on a visitor's own Anthropic key, never stored, logged or traced; plus the
+limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are in the ticket.
+
+| Step | Status | What we built | Why | Result |
+|---|---|---|---|---|
+| 0. Ticket + plan | ✅ | T-018, branch `feat/t-018-demo-live-modes`; plan approved; modes `local / demo / live`; separate demo endpoints | The owner decides scope and order before code | Resume upload moved out of 7 |
+| 1. Demo mode with no keys | ✅ | `APP_MODE` local/demo/live (default demo); `require_model_routes` on every model router (deny by default); lifespan skips Voyage and Qdrant in demo; `demo/` recordings validated against the live response models; `GET /api/demo`, `GET /api/demo/{id}`; tracing only in local | The public site must start and serve with no keys, and no route may spend quota in demo | 568 backend tests; review fixes applied (default and fail-closed guard tested, links and unreadable files skipped); a real startup with every key blanked opened no retrieval and refused `/api/chat` with 403 |
+
+### Problems we hit and how we solved them
+- **The old default mode was "demo" but meant "local".** Tests, CLIs and the owner's runs used the
+  server's credentials under `APP_MODE=demo`. Fixed with a third value, `local`; `.env.example` now
+  sets it, and API tests force it through a `conftest.py` fixture.
+- **FastAPI 0.163 nests included routers**, so a test that walked `app.routes` for the guard found
+  nothing. The route inventory now comes from the OpenAPI schema.
+
 ## Milestones 4–8: what's next
 
 | # | Milestone | What it will do | Why it matters |

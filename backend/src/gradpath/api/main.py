@@ -15,10 +15,12 @@ from langgraph.errors import GraphRecursionError
 from gradpath.api.assist import router as assist_router
 from gradpath.api.career import router as career_router
 from gradpath.api.chat import router as chat_router
+from gradpath.api.demo import router as demo_router
 from gradpath.api.jobs import router as jobs_router
 from gradpath.api.profile import router as profile_router
 from gradpath.api.runs import router as runs_router
-from gradpath.config import get_settings
+from gradpath.config import REPO_ROOT, get_settings
+from gradpath.demo import load_library
 from gradpath.providers import ClaudeCodeError
 from gradpath.retrieval import get_retrieval_service
 from gradpath.tracing import configure_tracing, flush
@@ -57,20 +59,26 @@ def _error_handler(status: int, detail: str):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Open the retrieval service once per process and close it on shutdown.
+    """Load the demo recordings and, outside demo mode, open the retrieval service once per process.
 
-    Qdrant's local (file) mode allows one open client per folder, so routes share this one
-    instead of creating their own. Tests set `app.state.retrieval` themselves and skip this.
-    Tracing is decided here, once per process (see `tracing.py`).
+    Demo mode opens no Voyage or Qdrant client, so the API starts with no keys at all (T-018);
+    its model routes are refused by `deps.require_model_routes`. Qdrant's local (file) mode
+    allows one open client per folder, so routes share this one instead of creating their own.
+    Tests set `app.state` themselves and skip this. Tracing is decided here, once per process.
     """
-    configure_tracing(get_settings())
-    if getattr(app.state, "retrieval", None) is None:
+    settings = get_settings()
+    configure_tracing(settings)
+    if getattr(app.state, "demo", None) is None:
+        app.state.demo = load_library(REPO_ROOT / settings.demo_runs_path)
+    if settings.app_mode != "demo" and getattr(app.state, "retrieval", None) is None:
         app.state.retrieval = get_retrieval_service()
     try:
         yield
     finally:
         try:
-            app.state.retrieval.store.client.close()
+            retrieval = getattr(app.state, "retrieval", None)
+            if retrieval is not None:
+                retrieval.store.client.close()
         finally:
             flush()
 
@@ -102,6 +110,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
     app.include_router(assist_router)
     app.include_router(profile_router)
     app.include_router(runs_router)
+    app.include_router(demo_router)
 
     @app.get("/api/health", tags=["meta"])
     def health() -> dict[str, str]:

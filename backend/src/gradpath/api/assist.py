@@ -14,7 +14,12 @@ from langchain_core.language_models.chat_models import BaseChatModel
 
 from gradpath.api import limits
 from gradpath.api.career import BUSY as CAREER_BUSY
-from gradpath.api.deps import get_answer_model, get_extraction_model, get_retrieval
+from gradpath.api.deps import (
+    get_answer_model,
+    get_extraction_model,
+    get_retrieval,
+    require_model_routes,
+)
 from gradpath.api.runs import get_run_store
 from gradpath.config import get_settings
 from gradpath.retrieval import RetrievalService
@@ -31,7 +36,7 @@ from gradpath.workflows import WorkflowContext
 from gradpath.workflows.runs import RunBusy, RunStore
 from gradpath.workflows.schemas import WorkflowInput
 
-router = APIRouter(prefix="/api", tags=["assist"])
+router = APIRouter(prefix="/api", tags=["assist"], dependencies=[Depends(require_model_routes)])
 
 
 @router.post("/assist", response_model=AssistResponse)

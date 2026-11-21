@@ -25,7 +25,7 @@ TRACING_DEFAULTS = dict(
     langsmith_tracing=False,
     langsmith_api_key=None,
     langsmith_endpoint="http://127.0.0.1:9",  # never a real service, even if a test slips
-    app_mode="demo",
+    app_mode="local",
 )
 
 
@@ -43,15 +43,14 @@ def test_off_by_default_and_without_a_key():
     assert not decide(settings(langsmith_tracing=True, langsmith_api_key=" ")).enabled
 
 
-def test_live_mode_never_traces():
-    status = decide(
-        settings(langsmith_tracing=True, langsmith_api_key=FAKE_LS_KEY, app_mode="live")
-    )
+@pytest.mark.parametrize("mode", ["live", "demo"])
+def test_the_deployed_modes_never_trace(mode):
+    status = decide(settings(langsmith_tracing=True, langsmith_api_key=FAKE_LS_KEY, app_mode=mode))
     assert not status.enabled
-    assert "live mode" in status.reason
+    assert f"{mode} mode" in status.reason
 
 
-def test_on_only_when_asked_with_a_key_in_demo_mode():
+def test_on_only_when_asked_with_a_key_in_local_mode():
     assert decide(settings(langsmith_tracing=True, langsmith_api_key=FAKE_LS_KEY)).enabled
 
 
@@ -276,3 +275,14 @@ def test_resume_import_through_claude_code_is_never_traced(fails):
         else:
             assert import_resume("Python developer resume " * 10, llm).profile.skills == ["Python"]
     assert client.created == []
+
+
+def test_tracing_asked_for_outside_local_mode_warns(caplog):
+    """An old `.env` with APP_MODE=demo turns tracing off; the log says how to fix it (T-018)."""
+    with caplog.at_level("WARNING", logger="gradpath.tracing"):
+        configure_tracing(
+            settings(langsmith_tracing=True, langsmith_api_key=FAKE_LS_KEY, app_mode="demo")
+        )
+    assert not is_tracing()
+    assert "set APP_MODE=local" in caplog.text
+    assert FAKE_LS_KEY not in caplog.text

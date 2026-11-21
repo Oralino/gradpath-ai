@@ -11,10 +11,12 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, ConfigDict, StringConstraints
 
 from gradpath.api import limits
-from gradpath.api.deps import get_extraction_model
+from gradpath.api.deps import get_extraction_model, require_model_routes
 from gradpath.profiles import MAX_RESUME_CHARS, MIN_RESUME_CHARS, ResumeImport, import_resume
 
-router = APIRouter(prefix="/api/profile", tags=["profile"])
+router = APIRouter(
+    prefix="/api/profile", tags=["profile"], dependencies=[Depends(require_model_routes)]
+)
 
 
 class ResumeRequest(BaseModel):

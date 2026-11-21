@@ -795,3 +795,35 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   loop may or may not run, so a percentage would be invented. A stage list and a timer show what is
   really known.
 
+## App modes and demo mode (`config.py`, `api/deps.py`, `demo/`, `api/demo.py`, T-018 step 1)
+- **What it is:** `APP_MODE` says where the server runs. `local` is the owner's machine (models on
+  the server's credentials, tracing allowed). `demo` is the deployed default: recorded runs only.
+  `live` is deployed with a visitor's own key (wired in step 4). Recorded runs from `demo_runs/`
+  are served in every mode by `GET /api/demo` (a list) and `GET /api/demo/{id}` (one run).
+- **Decision: deny by default.** One router-level dependency, `require_model_routes`, sits on every
+  router that calls a model or Voyage, and lets only `local` through. FastAPI solves it before the
+  route's other dependencies and before body validation, so a refused request builds no model,
+  opens no retrieval and echoes nothing back. The default mode is `demo`, so a server with a
+  missing setting is safe rather than spending the owner's quota.
+  - Rejected: hiding the screens in the frontend only. Guide 02: the frontend is untrusted.
+  - Rejected: two modes (demo/live), where today's local behaviour ran under the name "demo".
+- **Decision: separate demo endpoints, not replay on the same routes.** Matching a request body to
+  a recording is brittle and keeps the model routes reachable. Separate read-only endpoints keep
+  the model routes simply off; the frontend shows a picker (step 8).
+- **Decision: demo never opens Voyage or Qdrant.** The lifespan skips the retrieval service in demo
+  mode, which is why the API starts with no keys at all (a release check).
+- **Gotchas:**
+  - Each recording is validated against the live response models (`AssistResponse`,
+    `JobAnalysis`, `CareerPrepResult`). If the API changes, a stale recording is skipped at startup
+    and `test_every_committed_recording_is_valid` fails, so drift is caught in CI.
+  - A bad file is logged by name and error count only: validation messages can quote content.
+  - Ids are looked up in a dict; a client id is never turned into a file path.
+  - API tests run in local mode through an autouse fixture in `conftest.py`; the demo tests switch
+    it back. FastAPI 0.163 nests included routers, so the guard test checks the OpenAPI route list
+    instead of walking router internals.
+- **Likely questions:**
+  - *"How do you know no route was forgotten?"* `test_every_route_is_either_open_or_in_the_guard_test`
+    lists every route from the OpenAPI schema; a new route fails until it is listed as open or
+    guarded, and each guarded one is proven to answer 403 in demo and live.
+  - *"Why 403 and not 404?"* The route exists; the server refuses it in this mode, and the message
+    points to the recorded examples.

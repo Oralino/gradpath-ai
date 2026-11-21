@@ -97,6 +97,19 @@ All LLM calls go through one factory that returns a LangChain chat model.
 | `anthropic_api` | `ChatAnthropic` with a server key or the visitor's key | Live mode |
 | `fake` | LangChain fake chat model with canned responses | Tests |
 
+`APP_MODE` (T-018, owner decision 2026-11-20) picks one of three modes; the default is `demo`
+because it is the safe one for a server:
+
+| `APP_MODE` | Where | Model routes | Retrieval (Voyage + Qdrant) | Tracing |
+|---|---|---|---|---|
+| `local` | Owner's machine | On, with the server's credentials | Opened at startup | Allowed (`tracing.decide`) |
+| `demo` | Deployed | Off: 403 from `api/deps.require_model_routes` | Never opened, so no keys are needed | Off |
+| `live` | Deployed | Off until visitor keys are wired in (T-018 step 4) | Opened at startup | Off |
+
+The recordings in `demo_runs/` (`demo/library.py`) are served in every mode by `GET /api/demo` and
+`GET /api/demo/{id}`. Each JSON file holds the inputs and the exact response, validated against the
+same response models as the live routes; a file that drifts is skipped and `test_demo.py` fails.
+
 Deployed site:
 - **Demo mode (default):** replays recorded runs from `demo_runs/`; no model or embedding calls, no
   keys needed.
@@ -113,7 +126,7 @@ for the whole process; the API lifespan and the model-calling CLIs (`rag.ask`, `
 | Rule | Where |
 |---|---|
 | On only if `LANGSMITH_TRACING=true` **and** `LANGSMITH_API_KEY` is set in `.env` | `tracing.decide` |
-| Always off in live mode (`APP_MODE=live`), whatever `.env` says | `tracing.decide` |
+| Off unless `APP_MODE=local`: never on the deployed site (demo or live), whatever `.env` says | `tracing.decide` |
 | Off from import: `gradpath.tracing` sets `enabled=False` when first imported (retrieval and providers import it), so ingest, probe and eval never trace. Only `configure_tracing` turns it on, from our settings; langsmith's own variables (`LANGSMITH_TRACING`, `LANGCHAIN_TRACING_V2`) can't act alone | `tracing.py` |
 | Uploads go only to `LANGSMITH_ENDPOINT` from settings (default LangSmith US); refused if `LANGSMITH_RUNS_ENDPOINTS` (extra destinations) is set | `tracing.decide`, `configure_tracing` |
 | A request (visitor) API key is refused while tracing is on (checked when the model is built) | `providers.factory.get_chat_model` |

@@ -14,7 +14,7 @@ statuses and permissions are decided in our code; the model only fills validated
 ## Attack surface today
 - **API** (`api/`): `/api/chat`, `/api/jobs/analyze`, `/api/assist`, `/api/career/prepare`,
   `/api/career/runs` (start) and `/api/career/runs/{id}` (poll), `/api/profile/from-resume`,
-  `/api/health`; no login, no cookies, no CORS middleware, not deployed. Runs on the owner's PC.
+  `/api/health`, `/api/demo` and `/api/demo/{id}` (T-018); no login, no cookies, no CORS middleware, not deployed. Runs on the owner's PC.
 - **Frontend** (`frontend/`, Milestone 6): Next.js pages that call same-origin `/api/*`, which Next
   forwards to the API, so the backend address stays server-side. The profile and the last plan stay
   in the browser (localStorage / sessionStorage) and leave it only inside a request the visitor makes.
@@ -23,8 +23,10 @@ statuses and permissions are decided in our code; the model only fills validated
 - **Ingestion** (`ingestion/`): fetches approved URLs from `knowledge_base/source_manifest.csv`, run
   by the owner only.
 - **Vector store**: local Qdrant in file mode (`backend/data/qdrant/`, no network port).
-- **Not built yet**: demo/live modes and visitor keys (7), deploy (8), file uploads (7; T-014 takes
-  pasted resume text only).
+- **Modes** (T-018): `APP_MODE` local / demo / live, default demo. Outside local every model route
+  answers 403 (`api/deps.require_model_routes`, deny by default); `/api/demo` serves recorded runs.
+- **Not built yet**: visitor keys (7), deploy (8), file uploads (later; T-014 takes pasted resume
+  text only).
 
 Status key: ✅ defended · ⚠️ gap, fix now · 🕒 applies from a later milestone · — does not apply.
 
@@ -52,7 +54,7 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 | Brute force, password spraying, credential stuffing | 🕒 7 | No user passwords. If a demo passcode is added: long random value, constant-time compare, per-IP rate limit and back-off on failures, never logged. |
 | Session hijacking, session fixation | 🕒 7 | Prefer no sessions. If one is ever needed: `HttpOnly`, `Secure`, `SameSite=Strict`, a new id after login, short expiry. |
 | Privilege escalation, broken access control | 🕒 7 | One role (visitor). Settings that cost money (revision limit, model choice) come only from server settings, never from the request: already true for `max_revisions` (`api/career.py`). |
-| IDOR / BOLA | ✅ | Run ids (T-016): random uuid4, validated, not listable, the same 404 for unknown/expired/malformed; a run record never holds the posting or profile; the result (profile-derived reasoning) is kept in memory for 15 min after the run, at most 20 runs. Anyone holding a run id can read that result until it expires. |
+| IDOR / BOLA | ✅ | Run ids (T-016): random uuid4, validated, not listable, the same 404 for unknown/expired/malformed; a run record never holds the posting or profile; the result (profile-derived reasoning) is kept in memory for 15 min after the run, at most 20 runs. Anyone holding a run id can read that result until it expires. Guide 02 says unguessable ids aren't access control: before live mode opens the run routes to visitors (T-018 steps 4/6), bind each run to its starter (to be designed then). |
 
 ## 03 API security
 
@@ -62,7 +64,7 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 | Mass assignment | ✅ | `extra="forbid"`; the workflow refuses node writes to protected keys (`workflows/graph.py` `_wrap`). | — |
 | Excessive data exposure | ✅ | Fixed error messages (`api/main.py`); exception text never returned; results are typed response models. | — |
 | Resource limits | ✅ / 🕒 7 | Concurrency caps (`api/limits.py`: chat 2, jobs 1, career 1, else 503); revision limit 0–3; recursion backstop. | Workflow time budget done (T-006: 300 s, then a labelled fallback); per-IP rate limits (7). |
-| Inventory | ✅ | Seven routes, all in `api/main.py` (resume import T-014; run start and poll T-016). | Keep the list in ARCHITECTURE.md current. |
+| Inventory | ✅ | Nine routes, all in `api/main.py` (resume import T-014; run start and poll T-016; `/api/demo` list and get, T-018). `test_demo.py` fails if a route is added without being listed as open or guarded. | Keep the list in ARCHITECTURE.md current. |
 
 ## 04 Network and infrastructure
 
