@@ -1151,6 +1151,51 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   exactly and compares payloads and vectors on about 20 spread-out samples before saying done;
   then the retrieval eval runs against the cloud and must match the local numbers.
 
+## The API as a Docker image (`backend/Dockerfile`, `.dockerignore`, CI `docker` job, T-020 step 2b)
+- **What it is:** the recipe for a sealed package of the API (an *image*): Python, the exact
+  libraries from `uv.lock`, our code and the two data files it reads. Render runs the image as a
+  *container*; CI builds the same image on every push, and the owner can run it with Docker Desktop.
+  It replaces "install Python, run `uv sync`, start uvicorn" on each machine with one file.
+- **Decision: two stages.** The first stage (`builder`) has uv and does the installing; the second
+  copies only the finished environment. The shipped image has no uv and no build leftovers: smaller
+  and less to attack. Rejected: one stage (simpler, but ships the installer).
+- **Decision: dependencies before code.** `pyproject.toml` and `uv.lock` are copied and installed
+  first, then `backend/src`. Docker caches each step, so a code-only change reuses the slow
+  dependency layer and rebuilds in seconds.
+- **Decision: the build context is the repo root, behind an allowlist.** The API reads
+  `demo_runs/` and `knowledge_base/index_info.json`, which live outside `backend/`. The root
+  `.dockerignore` starts with `*` (send nothing) and names the five paths the image needs, so
+  `.env`, `private/` and the local index can't leak into the image, even if someone adds a new
+  secret file later. Rejected: a blocklist (`.env`, `private/`...), which fails open when a new file
+  appears.
+- **Decision: secrets only at run time.** No key appears in the Dockerfile or as a build argument
+  (build arguments stay readable in the image history). Render injects keys as environment
+  variables when the container starts; locally they'd be `-e` flags.
+- **Decision: the tokenizer is downloaded while building.** The Voyage client fetches its
+  tokenizer from the Hugging Face Hub the first time it embeds anything. Render's free tier
+  restarts often and loses files written at run time, so every cold start would download it again,
+  and a Hub outage would break search. The build fetches it into the image, and
+  `HF_HUB_OFFLINE=1` makes the running container read only that copy. CI proves it by tokenizing
+  with networking switched off (`--network none`).
+- **Decision: a normal user, one worker.** The container runs as uid 10001, not root, so a
+  compromised app can't rewrite the image's files; only `logs/` is writable. One uvicorn worker,
+  because background plan runs live in the process's memory (`workflows/runs.py`).
+- **Gotchas:** the project is installed *editable*, so `config.py` stays at
+  `/app/backend/src/gradpath/` and its `REPO_ROOT` (three folders up) is `/app`, the same layout as
+  the repo; a non-editable install would move it into `site-packages` and break every
+  `REPO_ROOT` path. `.gitattributes` keeps the Dockerfile LF on Windows checkouts, because CRLF
+  line endings break `RUN` lines. Base images are pinned by tag *and* digest, so a re-tagged image
+  can't change the build silently.
+- **Likely questions:**
+  - *"Why Docker if uv already pins every package?"* uv pins the Python libraries; the image also
+    pins the operating system, the Python build and the start command, and Render runs exactly
+    what CI tested.
+  - *"How do you know no secret is in the image?"* The context is an allowlist, keys only arrive
+    at run time, and CI fails if `.env`, `private/` or the local data are inside or if the
+    container runs as root.
+  - *"Why not Docker for the frontend?"* Vercel builds and serves Next.js itself; a container
+    would add work and lose Vercel's preview deployments.
+
 ## One topic of a job is a question, not a plan (`router/rules.py`, `router/route.py`, T-021)
 - **What happened:** with a posting and profile attached, "How should I prepare for the PostgreSQL
   indexing part of this role?" ran the full workflow. A rule treated any personal message with

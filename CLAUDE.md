@@ -53,6 +53,13 @@ uv run python -m gradpath.router.cli "message" [--job FILE] [--profile FILE] [--
 uv run python -m gradpath.demo.record [--only ID ...] [--force] [--list]   # record demo runs (real calls, sample inputs only)
 uv run uvicorn gradpath.api.main:app --reload            # API on :8000 (docs at /docs)
 ```
+Docker (from the repo root, needs Docker Desktop; CI's `docker` job builds and smoke-tests it too):
+```bash
+docker build -f backend/Dockerfile -t gradpath-api .      # the API image the deployed site runs
+docker run --rm -p 8000:8000 gradpath-api                 # demo mode, no keys; settings via -e at run time
+```
+- The image's build context is an allowlist (`.dockerignore` at the root): add a file there before
+  the image can use it. Never pass keys as build args.
 - Local Qdrant allows one process at a time: stop the API before running ingest, probe, ask or eval.
 Frontend (from `frontend/`, Node >= 20.9, versions pinned exactly in `package.json`):
 ```bash

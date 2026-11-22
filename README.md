@@ -83,5 +83,17 @@ npm run dev                                  # http://localhost:3000; /api/* goe
 Local Qdrant allows one process at a time: stop the API before running ingest or an evaluation.
 Frontend checks: `npm run lint && npm run typecheck && npm test && npm run build`.
 
+### Run the API in Docker
+The API also ships as a Docker image (the one the deployed site runs). With Docker Desktop
+installed, from the repo root:
+
+```bash
+docker build -f backend/Dockerfile -t gradpath-api .
+docker run --rm -p 8000:8000 gradpath-api   # demo mode: recorded runs, no keys needed
+```
+
+Keys are never built into the image; pass settings at run time (for example `-e APP_MODE=...`).
+The image has no local index, so modes that search need `QDRANT_URL` pointing at a Qdrant server.
+
 ## Documentation
 Requirements, architecture, evaluation results and the design decisions live in `brain/`.

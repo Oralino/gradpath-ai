@@ -179,6 +179,16 @@ Deployed site:
   only in memory for that request, and is never stored, logged, traced or returned. Query embeddings
   use the owner's Voyage key with a per-IP rate limit, and live routes need a shared passcode in a
   header (owner decision 2026-11-20, T-018).
+- **Container (T-020 step 2b):** the API ships as a Docker image built from `backend/Dockerfile`
+  with the repo root as context (`docker build -f backend/Dockerfile .`). Two stages: uv installs
+  the `uv.lock` pins and pre-downloads the Voyage tokenizer; the runtime stage holds Python, the
+  environment, `backend/src`, `demo_runs/` and `knowledge_base/index_info.json`, runs as a non-root
+  user with `HF_HUB_OFFLINE=1`, and starts one uvicorn worker on `$PORT`. The root `.dockerignore`
+  is an allowlist, so `.env`, `private/` and the local index never enter the build. Keys and
+  `QDRANT_URL` come from the host's environment at run time. CI's `docker` job builds the image,
+  checks its contents, and starts it in demo mode with no keys. Known limit: the offline setting
+  covers the Voyage tokenizer only; fastembed's BM25 and reranker models (eval-only today) are
+  not in the image and would need the network if the API ever used them.
 
 ## Tracing
 Built in Milestone 2 (`tracing.py`, ticket T-002). One function, `configure_tracing(settings)`, decides
