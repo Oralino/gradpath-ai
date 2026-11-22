@@ -76,7 +76,27 @@ in the background with short polls; the cold start needs a visible "Waiting for 
 ## Changes
 - Branch: `feat/t-020-deploy`
 - PR:
-- Files touched:
-- Commits (hash, message):
+- Files touched (step 2b): `backend/Dockerfile`, `.dockerignore`, `.gitattributes` (all new),
+  `.github/workflows/ci.yml` (`docker` job), CLAUDE.md and README (Docker commands),
+  ARCHITECTURE (Container), WALKTHROUGH (The API as a Docker image).
+- Commits (hash, message): `7777054` docs: plan the backend Docker image and move the ticket to
+  in-progress (T-020); `21f7573` feat: package the API as a Docker image and build it in CI
+  (T-020); `29e93a9` docs: explain the API Docker image and how to run it (T-020); `ba117e5`
+  fix: let the image check tolerate unreadable folders (T-020).
 
 ## Verification
+Step 2b (2026-11-22), CI run 44982475342, `docker` job green (backend and frontend jobs green too):
+- The image builds from the repo root in about 50 s on a cold runner.
+- Inside the image: no `.env` file anywhere, no `private/`, local data, tests, frontend or uv; no
+  key-like strings under `/app`; runs as uid 10001.
+- The Voyage tokenizer loads with networking switched off (`--network none`).
+- Started with no keys, the API answers `/api/health` in demo mode (`search_enabled: false`);
+  memory at idle 204 MiB (Render free limit 512 MB). Memory during a search is measured in step 5,
+  once the deployed service has its keys.
+- Image size: 338 MB compressed, 1.27 GB unpacked. Most of it is libraries the deployed API
+  doesn't use (the bundled Claude Code CLI in `claude-agent-sdk`, fastembed and onnxruntime for the
+  evals); trimming them is a possible later change, not needed for the free tier.
+- code-reviewer: no blocking issue; taken: a stricter secret scan, `demo_runs/*.json` only, the
+  model name read from settings, a faster failing health loop, precompiled code. qa-checker:
+  secrets, attribution, YAML, allowlist paths, lockfile and ruff all pass (actionlint not run).
+- Not checked locally: Docker isn't installed on the owner's PC (Docker Desktop is optional).
