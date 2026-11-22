@@ -1,6 +1,7 @@
 # T-000: short name
-Copy this file to `T-NNN-short-name.md` (next free number). Open it when the work starts. Index entries
-go in `../TASKS.md` (open) and `../DONE.md` (closed).
+Copy this file to `open/T-NNN-short-name.md` (next free number) when the work is planned; move it to
+`in-progress/` when the work starts and to `done/` when it closes (`git mv`, then fix links to it).
+Index entries go in `../../TASKS.md` (open) and `../../DONE.md` (closed).
 
 - **Type:** feature | bug | change
 - **Status:** open | in progress | done
@@ -15,7 +16,7 @@ Bugs only: what actually went wrong and where (`file:function`).
 
 ## Decision
 What was chosen, why, and which alternatives were rejected. This feeds
-`../../engineering/WALKTHROUGH.md`.
+`../../../engineering/WALKTHROUGH.md`.
 
 ## Changes
 - Branch:

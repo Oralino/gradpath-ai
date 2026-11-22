@@ -1,5 +1,5 @@
 # T-002: Milestone 2, retrieval evaluation + tracing
-Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
+Index entries go in `../../TASKS.md` (open) and `../../DONE.md` (closed).
 
 - **Type:** feature
 - **Status:** done (merged, 93f1b79)
@@ -11,7 +11,7 @@ Measure how well search finds the right sources, so every later experiment (hybr
 reranking, chunk sizes) has a baseline to beat. A labelled set of 30–50 questions with their
 correct sources; an eval runner (our own code) reporting Recall@K, Precision@K, MRR and latency;
 the 0.45 threshold re-checked against the labels; LangSmith tracing wired explicitly; results in
-`../../engineering/EVALUATION.md`.
+`../../../engineering/EVALUATION.md`.
 
 Steps:
 1. Ticket, branch, Milestone 1 housekeeping.
@@ -29,7 +29,7 @@ Steps:
   Actions CI included.
 - Labels name pages (`source_url`) plus an optional section heading, not chunk ids, so they
   survive chunk-size experiments; sections are needed for the two 100+ chunk single-page sources.
-  Format and metric definitions: `../../engineering/EVALUATION.md`.
+  Format and metric definitions: `../../../engineering/EVALUATION.md`.
 - Uncovered questions are mostly near-domain (Kubernetes, OAuth, JWT, CI/CD, CORS, React, salary
   negotiation) to stress the threshold; 3 are off-domain.
 - Rejected: LLM-generated labels (they would grade the model with its own opinion).

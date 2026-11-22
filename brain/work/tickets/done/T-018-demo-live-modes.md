@@ -1,7 +1,7 @@
 # T-018: Milestone 7, demo and live modes
-Milestone 7 ticket. Plan and story in `../MILESTONES.md`; modes in
-`../../engineering/ARCHITECTURE.md` ("Providers and modes"); threats in
-`../../engineering/SECURITY.md` (01, 07, release checklist).
+Milestone 7 ticket. Plan and story in `../../MILESTONES.md`; modes in
+`../../../engineering/ARCHITECTURE.md` ("Providers and modes"); threats in
+`../../../engineering/SECURITY.md` (01, 07, release checklist).
 
 - **Type:** feature
 - **Status:** done

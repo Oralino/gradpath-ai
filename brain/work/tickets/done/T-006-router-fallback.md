@@ -1,5 +1,5 @@
 # T-006: Milestone 4: router + fallback
-Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
+Index entries go in `../../TASKS.md` (open) and `../../DONE.md` (closed).
 
 - **Type:** feature
 - **Status:** done (merged, 56fd164)

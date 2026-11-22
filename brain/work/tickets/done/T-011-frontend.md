@@ -1,6 +1,6 @@
 # T-011: Next.js frontend (Milestone 6)
 The Milestone 6 ticket: a Next.js + Tailwind UI over the existing API. Milestone story in
-`../MILESTONES.md`, open items in `../TASKS.md`, look and feel in `../../design/DESIGN.md`.
+`../../MILESTONES.md`, open items in `../../TASKS.md`, look and feel in `../../../design/DESIGN.md`.
 
 - **Type:** feature
 - **Status:** done
@@ -12,7 +12,7 @@ Make GradPath usable without the terminal: ask a question, analyse a job descrip
 full preparation workflow (job + profile -> gaps -> roadmap -> interview questions) from a browser.
 Results show clickable citations, honest statuses (a workflow fallback and a partial answer are
 shown as partial, never as complete) and clear errors. Model and retrieved text are untrusted and
-rendered as plain text (`../../engineering/SECURITY.md`, "From Milestone 6").
+rendered as plain text (`../../../engineering/SECURITY.md`, "From Milestone 6").
 
 ## Decision
 Owner decisions 2026-11-19:

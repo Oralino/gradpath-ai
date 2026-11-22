@@ -1,5 +1,5 @@
 # T-012: partial answer status
-One RAG answer status for "the sources answer only part of this". Index: `../TASKS.md`.
+One RAG answer status for "the sources answer only part of this". Index: `../../TASKS.md`.
 
 - **Type:** change
 - **Status:** done

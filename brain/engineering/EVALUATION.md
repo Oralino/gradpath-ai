@@ -513,3 +513,49 @@ Unchanged from the labels v1.3 semantic baseline (same index: corpus v2, 1,592 c
 of uncovered rejected (`q-031`, `q-047`, `q-049`, `q-050` clear it); the same three partial misses
 (`q-001`, `q-027`, `q-034`). Milestone 7 changed modes, limits and the answer prompt, not
 retrieval. One Voyage call. Output: `evaluation/results/retrieval-20261121-063353.json`.
+
+### Retrieval re-check after adding monitoring sources (2026-11-21, corpus v3, T-023)
+Same labels v1.3, index now 1,700 chunks (Prometheus and OpenTelemetry added). Every summary number
+is unchanged: Recall@5 0.961, Precision@5 0.605, MRR 0.987; at 0.45, 97% of covered questions kept
+(`q-041` 0.393) and 67% of uncovered rejected; partial misses `q-001`, `q-027`, `q-034`. New chunks
+could have pushed relevant chunks out of a top 5; they didn't: they appear in a top 10 only for two
+uncovered questions (`q-032`, `q-033`, at 0.26 to 0.30, under the threshold). The set has no
+monitoring question, so the gain is shown by one real answer instead (T-023 ticket). One Voyage
+call. Output: `evaluation/results/retrieval-20261121-104638.json`.
+
+### Routing after the topic-scope fix (2026-11-21, labels v1.1, T-021)
+Six new owner-approved cases (tag `topic_scope`, `rt-031`..`rt-036`): four questions about one
+topic of the attached job that must get a cited answer, and two whole-job requests that must still
+run the workflow. The rule now decides the workflow only on whole-job wording, and the classifier
+prompt says one-topic preparation is a knowledge question. One run, Haiku via Claude Code.
+Output: `evaluation/results/routing-20261121-101416.json`.
+
+| Measure | Result |
+|---|---|
+| Accuracy (route + action), 36 cases | 36/36 |
+| Decided by rules / by the model | 9/9 / 27/27 correct |
+| Workflow precision / recall | 1.0 / 1.0 |
+| `topic_scope` cases | 6/6 |
+| Mean routing call (model) | 2.88 s |
+
+- Two original cases ("What should I study to get this job?", "Help me prepare for this role in
+  the next four weeks") moved from the rules to the model and are still routed correctly.
+- Limits: one run; the model decides more cases than before (27 of 36 vs 20 of 30), each costing a
+  routing call.
+
+### Answer eval with gap-filling again (2026-11-21, cases v1, T-024)
+The owner tested both prompts locally and chose to let answers add advice around the cited facts
+(the T-019 rule removed; the evidence rules stay). Same 20 cases, one run from the owner's
+terminal. Output: `evaluation/results/answer-eval-20261121-103106.json`.
+
+| Measure | T-018 run (0557) | T-019 strict (0621) | T-024 gap-filling (103106) |
+|---|---|---|---|
+| Answer cases passed | 12/14 | 12/14 | 12/14 |
+| Refuse cases passed | 6/6 | 6/6 | 6/6 |
+| Claims supported by their cited chunk | 159/166 (96%) | 150/151 (99%) | 172/178 (97%) |
+| Answers marked `partial` | 3 | 6 | 4 |
+
+- The 6 unsupported claims are general knowledge or advice ("EXPLAIN ANALYZE runs the query",
+  "exponential backoff is a reasonable approach to 429", "cache-aside is recommended for
+  read-heavy data"): the trade the owner chose for fuller answers. No invented specifics; refusals
+  unchanged; the same two retrieval failures (`a-005`, `a-013`).

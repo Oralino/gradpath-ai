@@ -1,6 +1,7 @@
 # TASKS.md
 Open work. Owner-only items are marked **(owner)**. Finished work moves to `DONE.md`.
-Non-trivial work gets a ticket in `tickets/` when it starts; open tickets are listed here as links.
+Non-trivial work gets a ticket in `tickets/open/` (moved to `tickets/in-progress/`, then
+`tickets/done/`, as its status changes); open tickets are listed here as links.
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
@@ -16,13 +17,13 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 Answer quality (owner decision 2026-11-19: before Milestone 7's public demo):
 - [x] Answer eval set: 20 cases (14 must-contain, 6 must-refuse), scored in code (T-018 step 10).
 - [x] Answers add unsupported advice: fixed by the no-advice prompt rule, 7/166 -> 1/151
-      unsupported claims ([T-019](tickets/T-019-answers-follow-sources.md)).
+      unsupported claims ([T-019](tickets/done/T-019-answers-follow-sources.md)).
 - [x] Grounding check: Haiku checks each claim against its cited chunk; 96% supported (T-018 step 10).
 - [ ] Re-run the retrieval and answer evals as a release check when sources, prompts or models change.
 
 Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner):
-- [x] [T-007](tickets/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.
-- [x] [T-008](tickets/T-008-tag-neutraliser-unicode.md): tag neutraliser handles invisible and look-alike characters.
+- [x] [T-007](tickets/done/T-007-ingestion-url-allowlist.md): ingestion URLs limited to https manifest hosts.
+- [x] [T-008](tickets/done/T-008-tag-neutraliser-unicode.md): tag neutraliser handles invisible and look-alike characters.
 - [ ] Add `uvx pip-audit` to the release checks (dependency vulnerabilities). Ran for Milestone 6:
       clean (T-011); `npm audit` for the frontend also found 0 vulnerabilities (2026-11-20). Adopting
       both in `CLAUDE.md` is the owner's call.
@@ -31,7 +32,7 @@ Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner
 ## Corpus (before Milestone 5)
 - [x] Fill corpus gaps (T-009, 2026-11-19): 10 sources added.
 - [x] Citations for raw GitHub files point at raw.githubusercontent.com; map them to the docs
-      sites' readable URLs ([T-015](tickets/T-015-readable-citation-links.md)).
+      sites' readable URLs ([T-015](tickets/done/T-015-readable-citation-links.md)).
 - [x] Before Milestone 5: the 0.45 threshold no longer separates near-topic uncovered questions.
       Reranker scores tried in T-010: no better. Follow-up moved to "Current" (answer-step abstention).
 - [ ] More new-grad backend job descriptions in `private/job_descriptions/` (one so far).
@@ -65,7 +66,7 @@ Milestone 2 (tracing):
 - [x] Wire `LANGSMITH_TRACING` explicitly and decide what may reach LangSmith (T-002, `tracing.py`).
 - [x] `ChatClaudeCode._generate` worker thread now runs in a copy of the caller's context (T-002).
       `run_manager` is still not passed in: it only matters for token streaming, which we don't use.
-- [ ] Grounding check beyond citation ids (faithfulness metric in `EVALUATION.md`).
+- [x] Grounding check beyond citation ids: per-claim grounding check, T-018 step 10.
 Workflow (from the T-003 evaluation):
 - [ ] The roadmap sometimes says "no source in the knowledge base" for a gap that has retrieved
       evidence (PostgreSQL, twice). `no_resources` flags it as minor; consider blocking, or a prompt

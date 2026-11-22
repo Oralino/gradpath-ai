@@ -23,7 +23,7 @@ loaded as context). Only `CLAUDE.md` and `README.md` stay in the root.
 | `brain/work/MILESTONES.md` | Milestone plan and story: what was built, why, what it does (for the owner to retell) | main session |
 | `brain/work/TASKS.md` | Open work and bugs; links to open tickets | main session |
 | `brain/work/DONE.md` | Finished work, newest first; links to closed tickets | main session |
-| `brain/work/tickets/` | One file per non-trivial change or bug (`T-001-name.md`, template `_TEMPLATE.md`) | main session |
+| `brain/work/tickets/` | One file per non-trivial change or bug (`T-001-name.md`, template `_TEMPLATE.md`), in `open/`, `in-progress/` or `done/` by its status | main session |
 | `brain/work/HANDOFF.md` | Session handoff, only when written (local, gitignored) | main session |
 | `brain/archive/SPEC.md` | The original project spec. Reference only: superseded by REQUIREMENTS and ARCHITECTURE where they differ | nobody (frozen) |
 

@@ -53,6 +53,28 @@ def test_rules_leave_unclear_messages_to_the_model(message):
     assert rule_kind(req(message, jd=True, profile=True)) is None
 
 
+@pytest.mark.parametrize(
+    "message",
+    [
+        "How should I prepare for the PostgreSQL indexing part of this role?",  # T-021: one topic
+        "What should I study to get this job?",  # "study" alone is not a whole-job signal
+        "Make me a roadmap for just the testing part of this job.",  # narrowed
+        "What am I missing specifically for the Docker section?",  # narrowed
+        "How do I get ready for the SQL questions in this posting?",  # "ready" without "am I"
+    ],
+)
+def test_topic_or_narrowed_preparation_is_left_to_the_model(message):
+    assert rule_kind(req(message, jd=True, profile=True)) is None
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["Make me a study roadmap for this job.", "What am I missing for this role?", "Am I ready?"],
+)
+def test_whole_job_requests_still_go_to_the_workflow_by_rule(message):
+    assert rule_kind(req(message, jd=True, profile=True))[0] == "job_preparation"
+
+
 def test_rule_routes_personal_plan_only_with_both_inputs():
     message = "Make me a study roadmap for this job."
     assert rule_kind(req(message, jd=True, profile=True))[0] == "job_preparation"

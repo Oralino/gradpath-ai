@@ -1,5 +1,5 @@
 # T-008: tag neutraliser misses invisible and fullwidth variants
-Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
+Index entries go in `../../TASKS.md` (open) and `../../DONE.md` (closed).
 
 - **Type:** bug
 - **Status:** done (merged, 56fd164)

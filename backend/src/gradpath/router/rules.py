@@ -16,6 +16,11 @@ PERSONAL = re.compile(r"\b(i|i'm|i've|i'd|me|my|mine|myself)\b", re.IGNORECASE)
 PLAN_WORDS = re.compile(
     r"\b(roadmap|plan|prepare|preparation|study|missing|ready|gaps?)\b", re.IGNORECASE
 )
+# Words that only fit a request about the whole job (T-021). "prepare" and "study" are not enough:
+# "how should I prepare for the indexing part of this role?" is about one topic.
+WHOLE_JOB_WORDS = re.compile(r"\b(roadmap|plan|missing|gaps?|am i ready)\b", re.IGNORECASE)
+# Words that narrow a request to part of the job: never decided by a rule (T-021).
+SCOPE_WORDS = re.compile(r"\b(part|parts|section|only|just|specifically|aspect)\b", re.IGNORECASE)
 # Words of the request kinds we don't support yet (comparing jobs, resumes, progress), or that try
 # to steer routing: never decided by a rule, so the classifier sees them.
 HOLD_WORDS = re.compile(
@@ -34,7 +39,8 @@ MAX_RULE_CHARS = 200
 
 def rule_kind(req: RouteRequest) -> tuple[Kind, str] | None:
     """(kind, reason) when a rule is certain, else None. The definition rule needs a single
-    sentence, so "What is Docker? Also summarise this posting." goes to the classifier."""
+    sentence, so "What is Docker? Also summarise this posting." goes to the classifier. The
+    whole-job rule needs a whole-job word and no narrowing word (T-021); "prepare" alone is open."""
     text = " ".join(req.message.split())
     if len(text) > MAX_RULE_CHARS or HOLD_WORDS.search(text) or "<" in text or "{" in text:
         return None
@@ -50,6 +56,7 @@ def rule_kind(req: RouteRequest) -> tuple[Kind, str] | None:
         and not (attached and DEICTIC.search(text))
     ):
         return "knowledge_question", "A general definition or explanation question."
-    if personal and plan and req.has_job_description and req.has_profile:
+    whole_job = WHOLE_JOB_WORDS.search(text) is not None and not SCOPE_WORDS.search(text)
+    if personal and whole_job and req.has_job_description and req.has_profile:
         return "job_preparation", "A personal preparation request with job and profile attached."
     return None

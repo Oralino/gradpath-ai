@@ -1,5 +1,5 @@
 # T-015: citations link to raw GitHub files
-Citations for some sources opened unreadable raw files. Index: `../TASKS.md`, `../DONE.md`.
+Citations for some sources opened unreadable raw files. Index: `../../TASKS.md`, `../../DONE.md`.
 
 - **Type:** bug
 - **Status:** done

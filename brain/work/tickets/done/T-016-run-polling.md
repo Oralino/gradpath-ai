@@ -1,5 +1,5 @@
 # T-016: background preparation runs with a run id to poll
-Live stage progress for 80-300 s workflow runs. Index: `../TASKS.md`, `../DONE.md`.
+Live stage progress for 80-300 s workflow runs. Index: `../../TASKS.md`, `../../DONE.md`.
 
 - **Type:** feature
 - **Status:** done

@@ -53,7 +53,7 @@ because its licence forbids derivatives.
 ---
 
 ## Milestone 1: RAG foundation ✅
-*Ticket: `tickets/T-001-rag-foundation.md`*
+*Ticket: `tickets/done/T-001-rag-foundation.md`*
 
 **Goal:** a backend that loads trusted sources, answers focused questions from them with citations,
 and analyses a job description, or says when it doesn't know.
@@ -103,7 +103,7 @@ and analyses a job description, or says when it doesn't know.
 ---
 
 ## Milestone 2: Retrieval evaluation + tracing ✅
-*Ticket: `tickets/T-002-retrieval-evaluation.md`*
+*Ticket: `tickets/done/T-002-retrieval-evaluation.md`*
 
 **Goal:** measure how well search finds the right sources, so later experiments have a baseline.
 
@@ -130,7 +130,7 @@ and analyses a job description, or says when it doesn't know.
 ---
 
 ## Milestone 3: Agentic workflow (LangGraph) ✅
-*Ticket: `tickets/T-003-agentic-workflow.md`*
+*Ticket: `tickets/done/T-003-agentic-workflow.md`*
 
 **Goal:** job description + profile -> requirements -> gap analysis -> prioritised roadmap ->
 critic, with a bounded revision loop, as a LangGraph workflow behind `POST /api/career/prepare`.
@@ -163,7 +163,7 @@ critic, with a bounded revision loop, as a LangGraph workflow behind `POST /api/
 ---
 
 ## Milestone 4: Router + fallback ✅
-*Ticket: `tickets/T-006-router-fallback.md`*
+*Ticket: `tickets/done/T-006-router-fallback.md`*
 
 **Goal:** pick traditional RAG or the workflow per request and record why; when the workflow can't
 finish, return a labelled partial result instead of an error; measure routing accuracy.
@@ -193,7 +193,7 @@ finish, return a labelled partial result instead of an error; measure routing ac
 ---
 
 ## Milestone 5: Hybrid retrieval + reranking ✅
-*Ticket: `tickets/T-010-hybrid-retrieval.md`*
+*Ticket: `tickets/done/T-010-hybrid-retrieval.md`*
 
 **Goal:** add keyword (sparse) search and a reranker next to semantic search, and keep each only if
 the retrieval evaluation shows it helps, measured against semantic-only on the same corpus (v2,
@@ -223,7 +223,7 @@ threshold, whose margin is gone (`q-031` 0.520 vs lowest covered 0.526).
 ---
 
 ## Milestone 6: Frontend ✅
-*Ticket: `tickets/T-011-frontend.md`*
+*Ticket: `tickets/done/T-011-frontend.md`*
 
 **Goal:** make GradPath usable from a browser: questions, job analysis and the full preparation
 workflow, with clickable citations, honest statuses (fallback and partial answers shown as
@@ -247,7 +247,7 @@ partial) and clear errors. `DESIGN.md` comes first; the owner approves it before
 ---
 
 ## Milestone 7: Demo and live modes ✅
-*Ticket: `tickets/T-018-demo-live-modes.md`*
+*Ticket: `tickets/done/T-018-demo-live-modes.md`*
 
 **Goal:** a public site that costs nothing. Demo mode (the default) replays recorded runs with no
 keys (plus a live source search, no model call, when the server has a Voyage key); live mode runs on a visitor's own Anthropic key, never stored, logged or traced; plus the

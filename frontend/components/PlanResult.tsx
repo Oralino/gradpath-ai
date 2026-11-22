@@ -6,7 +6,7 @@
 // retrieved text renders through ModelText or as React text only (DESIGN.md, Security rules).
 
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
-import { CitationChip, dedupeByUrl } from "@/components/CitationChip";
+import { CitationChip, dedupeByUrl, pageNames } from "@/components/CitationChip";
 import { CitationList } from "@/components/CitationList";
 import {
   CheckIcon,
@@ -157,6 +157,7 @@ function GapRow({ gap }: { gap: GapItem }) {
 function RoadmapStep({ item, total }: { item: RoadmapItem; total: number }) {
   const after = afterSteps(item.depends_on);
   const chips = dedupeByUrl(item.resources);
+  const pages = pageNames(chips);
   const parts: [string, string][] = [
     ["Why it matters", item.why_it_matters],
     ["Objective", item.objective],
@@ -191,7 +192,7 @@ function RoadmapStep({ item, total }: { item: RoadmapItem; total: number }) {
         <div className="flex flex-wrap items-center gap-2 text-small">
           <span className="text-label">Resources:</span>
           {chips.map((c) => (
-            <CitationChip key={c.source_url} citation={c} />
+            <CitationChip key={c.source_url} citation={c} page={pages.get(c.source_url)} />
           ))}
         </div>
       )}

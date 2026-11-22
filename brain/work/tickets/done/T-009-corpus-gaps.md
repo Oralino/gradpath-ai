@@ -1,5 +1,5 @@
 # T-009: fill the knowledge-base gaps before Milestone 5
-Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
+Index entries go in `../../TASKS.md` (open) and `../../DONE.md` (closed).
 
 - **Type:** change
 - **Status:** done (merged, 6390fef)

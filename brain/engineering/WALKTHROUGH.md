@@ -664,7 +664,11 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   appear in identifiers and arithmetic (`snake_case`, `2 * 3`), so italics would mangle code more
   often than they help.
 
-## No added advice (`rag/answer.py` prompt, T-019)
+## No added advice (`rag/answer.py` prompt, T-019; reversed by T-024)
+- **Reversed (T-024, 2026-11-21):** after trying both locally, the owner chose fuller answers:
+  the rule below was removed, so answers may add advice around the cited facts again (6 of 178
+  claims unsupported, all general advice; refusals unchanged). Kept here because the trade-off is
+  a likely interview question: honest-but-thin versus helpful-but-partly-uncited.
 - **What it is:** a rule in the answer prompt: every sentence must be stated by a cited evidence
   block, so the model may rephrase the sources but not add its own advice, "use X when" guidance or
   well-known facts. Guidance the sources don't give is named in `not_covered`.
@@ -763,6 +767,12 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Gotchas:** chips are one per page and labelled "Title: Section". Two chunks from the same source
   looked identical in the first real run. Raw GitHub fetch URLs are cited as their github.com page
   (T-015). The plan button hands the posting to the Ask screen until the Plan screen exists.
+- **Decision: same-label chips get the page name (T-022).** Different pages of one source can share
+  a heading ("Docker Docs ...: Next steps"), so after `dedupeByUrl` two chips could read the same.
+  `pageNames` (in `CitationChip.tsx`, used here and by the Plan screen's roadmap) adds the page's
+  file name from its URL, e.g. "(docker overview)", only when a label repeats in that one list;
+  the chip cuts the title, never the page name. Rejected: merging them (they are different
+  pages), and always showing the page name (longer chips for no gain).
 - **Likely questions:** *"Why are most requirements 'weak evidence'?"* A requirement is
   "covered" only when retrieval found relevant evidence and the notes model wrote a cited study note
   it rates as a direct answer (`jobs/analyze.py`). Evidence that is only related, or a note rated
@@ -1124,7 +1134,6 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
     are scored in code and the judge only answers a narrow question (does this passage state this
     claim?), with its negative verdicts checked by reading.
 
-
 ## Copying the index to Qdrant Cloud (`ingestion/copy_index.py`, `index.publish_points`, T-020 step 1)
 - **What it is:** how the deployed site gets its knowledge base. The script reads every point
   (vector and payload) from the local index and publishes them to Qdrant Cloud.
@@ -1141,3 +1150,19 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Likely question:** *"How do you know the copy is right?"* It checks the point ids match
   exactly and compares payloads and vectors on about 20 spread-out samples before saying done;
   then the retrieval eval runs against the cloud and must match the local numbers.
+
+## One topic of a job is a question, not a plan (`router/rules.py`, `router/route.py`, T-021)
+- **What happened:** with a posting and profile attached, "How should I prepare for the PostgreSQL
+  indexing part of this role?" ran the full workflow. A rule treated any personal message with
+  "prepare" plus both inputs as whole-job preparation, without asking the model.
+- **Decision:** the rule decides the workflow only on whole-job words (roadmap, plan, missing,
+  gaps, "am I ready") and never when the message narrows itself ("part", "only", "just",
+  "section"...); the classifier prompt says one-topic preparation is a knowledge question.
+  Rejected: keeping "prepare" in the rule and guessing the topic with more regexes (rules should
+  decide only what is certain; the model is there for the rest).
+- **Measured:** 6 new labels, 36/36 correct; two old cases moved from rules to the model and stayed
+  correct.
+- **Gotcha:** "ready" alone was too broad ("get ready for the SQL questions"), found while tracing
+  the new labels before the run; only "am I ready" counts now.
+- **Likely question:** *"Why not let the model decide everything?"* Rules are free and instant for
+  the certain cases; every case they give up costs a routing call (about 3 s).

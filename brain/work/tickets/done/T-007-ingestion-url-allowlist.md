@@ -1,5 +1,5 @@
 # T-007: ingestion redirects may reach any host or a private address
-Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
+Index entries go in `../../TASKS.md` (open) and `../../DONE.md` (closed).
 
 - **Type:** bug
 - **Status:** done (merged, 56fd164)
@@ -7,7 +7,7 @@ Index entries go in `../TASKS.md` (open) and `../DONE.md` (closed).
 - **GitHub Issue:** none
 
 ## Summary
-Found in the security threat model (`../../engineering/SECURITY.md`, SSRF and RAG poisoning).
+Found in the security threat model (`../../../engineering/SECURITY.md`, SSRF and RAG poisoning).
 `ingestion/fetch.py` follows redirects by hand (T-005) but accepts any target: another host not in
 the manifest, plain `http`, or a private address such as `127.0.0.1` or `169.254.169.254`. An
 approved page that starts redirecting could make ingestion request internal services, or put an
