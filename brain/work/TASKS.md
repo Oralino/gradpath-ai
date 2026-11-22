@@ -5,7 +5,7 @@ Non-trivial work gets a ticket in `tickets/open/` (moved to `tickets/in-progress
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] [T-020](tickets/T-020-deploy.md): Milestone 8, deploy (plan approved 2026-11-21: decisions
+- [ ] [T-020](tickets/in-progress/T-020-deploy.md): Milestone 8, deploy (plan approved 2026-11-21: decisions
       in the ticket). **(owner)** create the Vercel, Render and Qdrant Cloud accounts and a second
       Voyage key for the server when the steps ask for them.
 - [ ] DESIGN.md: record the visible input rows and "Build plan again" on the Plan screen

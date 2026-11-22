@@ -1,7 +1,7 @@
 # T-020: Milestone 8, deploy
-Milestone 8 ticket: the public site on free tiers. Plan and story in `../MILESTONES.md`; modes and
-deploy in `../../engineering/ARCHITECTURE.md`; threats and the live-deploy checklist lines in
-`../../engineering/SECURITY.md`.
+Milestone 8 ticket: the public site on free tiers. Plan and story in `../../MILESTONES.md`; modes and
+deploy in `../../../engineering/ARCHITECTURE.md`; threats and the live-deploy checklist lines in
+`../../../engineering/SECURITY.md`.
 
 - **Type:** feature
 - **Status:** in progress
@@ -19,8 +19,9 @@ Owner decisions, 2026-11-21 (plan approved as recommended):
   passcode only with chosen people. Rejected: demo only (nobody could try the real app online).
 - **Voyage key on the server for search: yes** (decision of 2026-11-20), behind the limits below.
 - **Order:** 0 free-tier check, 1 copy the index to Qdrant Cloud without re-embedding, 2 production
-  backend + Voyage and shared-network protections, 3 frontend on Vercel, 4 measure the proxy chain
-  and set `TRUSTED_PROXY_HOPS`, 5 checks on the deployed site, 6 README and docs, then the PR.
+  backend + Voyage and shared-network protections, 2b the backend as a Docker image, 3 frontend on
+  Vercel, 4 measure the proxy chain and set `TRUSTED_PROXY_HOPS`, 5 checks on the deployed site,
+  6 README and docs, then the PR.
 - **Voyage protections (step 2):** a site-wide search budget (daily and total) stored in Qdrant
   Cloud so restarts don't reset it, failing closed when spent (starting at 300 a day, a setting);
   a cache of question embeddings (identical normalised questions reuse one; the example
@@ -39,6 +40,27 @@ Owner decisions, 2026-11-21 (plan approved as recommended):
   Rejected: a scheduled GitHub Actions ping (a Qdrant key in GitHub secrets, a job forever).
 - Accounts and every dashboard secret are created and pasted by the owner; the lead only gives
   the list of setting names.
+- **Backend in Docker (step 2b, owner 2026-11-21):** the API ships as a Docker image that Render
+  runs (Render's Docker runtime, free tier), so it runs the same on the owner's PC, in CI and in
+  production, and the owner learns Docker on a real service. Plan, explained before building:
+  - `backend/Dockerfile`: `python:3.13-slim`; uv from its official image; `uv sync --frozen
+    --no-dev` from `uv.lock` (same pins as today); a non-root user; one uvicorn worker on Render's
+    `$PORT` (runs live in memory, so never more than one worker).
+  - `backend/.dockerignore`: keeps `.env`, `private/`, local Qdrant data, caches, tests and
+    reports out of the image. Secrets reach the container only as Render environment variables,
+    never baked into the image; the image holds no index (the deployed API reads Qdrant Cloud).
+  - CI: a job in `.github/workflows/ci.yml` builds the image on every push and PR (GitHub's
+    runners have Docker; free for a public repo); it builds only, never pushes to a registry.
+  - Local run: optional, needs Docker Desktop (free for personal use; the owner installs it).
+  - Checks: the image builds; `/api/health` answers from the container in demo mode with no keys;
+    no secret or `.env` inside the image (`docker history`, a file listing); memory at idle and
+    during a search stays well under Render's 512 MB; image size recorded.
+  - Watch for: the API printed an "unauthenticated requests to the HF Hub" warning at startup,
+    so something downloads from Hugging Face; find what and make sure the container doesn't
+    depend on a download at every cold start.
+  - Rejected: Render's native Python runtime (simpler, but nothing to run the same way locally
+    or in CI, and no Docker learning); a Dockerfile for the frontend (Vercel builds Next.js
+    itself); Docker Compose (one service only; Qdrant is a cloud service).
 
 ## Step 0: free-tier terms (checked 2026-11-21, from the providers' pages)
 | Service | Free, no card | Limits that matter |

@@ -297,10 +297,10 @@ limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are
   commit chain.
 
 ## Milestone 8: Deploy ⏳
-*Ticket: `tickets/T-020-deploy.md`*
+*Ticket: `tickets/in-progress/T-020-deploy.md`*
 
 **Goal:** a public link employers can open, on free tiers with no payment method: Next.js on
-Vercel, FastAPI on Render, the index on Qdrant Cloud. The site runs in live mode: without the
+Vercel, FastAPI on Render (as a Docker image), the index on Qdrant Cloud. The site runs in live mode: without the
 passcode it shows what demo shows; with it and their own key, visitors use the full app.
 
 | Step | Status | What we built | Why | Result |
