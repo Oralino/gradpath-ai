@@ -72,7 +72,8 @@ jobs:
               if [ -e "$p" ]; then echo "unexpected in image: $p"; exit 1; fi
             done
             if [ "$(id -u)" = "0" ]; then echo "runs as root"; exit 1; fi
-            found=$(find / -xdev -name ".env*" -not -path "/proc/*" 2>/dev/null)
+            # As the normal user some folders are unreadable, so find exits 1; only its output counts.
+            found=$(find / -xdev -name ".env*" -not -path "/proc/*" 2>/dev/null || true)
             if [ -n "$found" ]; then echo "env files in image: $found"; exit 1; fi
             if grep -rlE "sk-ant-[A-Za-z0-9_-]{8}|lsv2_[a-z]{2}_[A-Za-z0-9]{8}" /app/backend/src /app/demo_runs /app/knowledge_base; then
               echo "key-like strings in /app"; exit 1
