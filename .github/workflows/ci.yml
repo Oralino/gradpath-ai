@@ -51,6 +51,56 @@ jobs:
       - name: Tests
         run: uv run pytest -q
 
+  # The API image Render will run (T-020 step 2b): build it, check what is inside, and start it in
+  # demo mode with no keys. Builds only; nothing is pushed to a registry.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the API image
+        run: docker build -f backend/Dockerfile -t gradpath-api:ci .
+
+      - name: Image holds no secrets or local data, and runs as a normal user
+        run: |
+          docker run --rm gradpath-api:ci sh -c '
+            set -e
+            for p in /app/.env /app/private /app/backend/data /app/backend/tests /app/frontend /bin/uv; do
+              if [ -e "$p" ]; then echo "unexpected in image: $p"; exit 1; fi
+            done
+            if [ "$(id -u)" = "0" ]; then echo "runs as root"; exit 1; fi
+            found=$(find / -xdev -name ".env*" -not -path "/proc/*" 2>/dev/null)
+            if [ -n "$found" ]; then echo "env files in image: $found"; exit 1; fi
+            if grep -rlE "sk-ant-[A-Za-z0-9_-]{8}|lsv2_[a-z]{2}_[A-Za-z0-9]{8}" /app/backend/src /app/demo_runs /app/knowledge_base; then
+              echo "key-like strings in /app"; exit 1
+            fi
+            echo "clean, uid $(id -u)"'
+
+      - name: Tokenizer loads with no network (baked in at build time)
+        run: >-
+          docker run --rm --network none gradpath-api:ci python -c
+          "import voyageai; from gradpath.config import Settings;
+          print(len(voyageai.Client(api_key='placeholder').tokenize(['offline check'], model=Settings().embed_model)[0].ids), 'tokens')"
+
+      - name: API starts in demo mode with no keys and answers /api/health
+        run: |
+          docker run -d --name api -p 8000:8000 gradpath-api:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/api/health; then echo; break; fi
+            if [ "$(docker inspect -f '{{.State.Running}}' api)" != "true" ]; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/api/health || { docker logs api; exit 1; }
+          echo
+          docker stats --no-stream api
+          docker logs api
+
+      - name: Image size
+        run: docker image ls gradpath-api:ci
+
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 15

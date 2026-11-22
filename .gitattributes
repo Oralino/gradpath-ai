@@ -1,0 +1,5 @@
+# Files read by Linux tools keep LF line endings on every checkout, Windows included: a CRLF
+# Dockerfile can break RUN lines when the owner builds the image with Docker Desktop (T-020).
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+*.sh text eol=lf
