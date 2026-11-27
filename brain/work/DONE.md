@@ -1,6 +1,11 @@
 # DONE.md
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
+## 2026-11-27
+- [T-025 Slim API image](tickets/done/T-025-slim-api-image.md): the Docker image installs only the
+  API's runtime set (dependency groups `local`, `eval`, `ingest` left out): 1.27 GB -> 560 MB
+  unpacked, deployed on Render. On the Milestone 8 branch (`0995875`, `8cf9f8a`).
+
 ## 2026-11-21
 - [T-022 Same-label chips told apart](tickets/done/T-022-same-label-resources.md): chips that share
   "title: section" in one list add the page name, e.g. "(docker overview)". Merged in

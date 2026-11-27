@@ -1,11 +1,11 @@
 # T-025: slim the API Docker image
 Make the deployed API image install only what the server runs. Part of Milestone 8 (the image
-from [T-020](T-020-deploy.md) step 2b); the image is described in
+from [T-020](../in-progress/T-020-deploy.md) step 2b); the image is described in
 `../../../engineering/ARCHITECTURE.md` ("Container").
 
 - **Type:** change
-- **Status:** in progress
-- **Opened:** 2026-11-27 · **Closed:**
+- **Status:** done
+- **Opened:** 2026-11-27 · **Closed:** 2026-11-27
 - **GitHub Issue:** none
 
 ## Summary
@@ -40,7 +40,8 @@ that installs only what the product needs to run, and a look at lighter base ima
 - Files touched: `backend/pyproject.toml`, `backend/uv.lock`, `backend/Dockerfile`,
   `backend/src/gradpath/providers/claude_code.py`, `backend/tests/test_runtime_deps.py` (new),
   `.github/workflows/ci.yml`; ARCHITECTURE, WALKTHROUGH, TASKS.
-- Commits (hash, message):
+- Commits (hash, message): `0995875` feat: install only the API's runtime dependencies in
+  the image (T-025); `8cf9f8a` docs: record the slimmed API image (T-025).
 
 ## Verification
 Local, 2026-11-27 (Docker Desktop 29.9.3):
@@ -52,3 +53,12 @@ Local, 2026-11-27 (Docker Desktop 29.9.3):
   and provider checks pass.
 - Backend: 851 passed, 1 skipped; ruff clean. `test_runtime_deps.py` imports the app and the
   retrieval stack with the left-out modules blocked.
+- code-reviewer: no bugs; no API-reachable module imports a left-out library. Taken: a static
+  check that only four files import one (`providers/claude_code.py`, `retrieval/sparse.py`,
+  `retrieval/rerank.py`, `ingestion/clean.py`), so lazy imports on request paths are covered; a
+  clear `ClaudeCodeError` if `LLM_PROVIDER=claude_code` runs without the `local` group; a longer
+  subprocess timeout. After: 852 passed, 1 skipped.
+- CI run 46083083882 green (backend, frontend, docker with the new "runtime set only" step).
+- Render auto-deployed `8cf9f8a` (build about 1 min): `/api/health` live with `search_enabled:
+  true`; a new search through the Vercel site returned 4 passages in 2.7 s (Qdrant Cloud, the
+  Voyage budget and the embedding path all ran in the slim image); no new errors in the log.
