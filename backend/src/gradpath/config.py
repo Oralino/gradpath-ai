@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     # Voyage limits without a payment method: 3 requests and ~10K tokens per minute.
     voyage_rpm: int = 3
     voyage_tpm: int = 10_000
+    # Cost protection on the deployed server (never local mode): public search off switch, a
+    # persistent cap on query embeddings per UTC day and in total, and a persistent query cache.
+    search_enabled: bool = True
+    embed_budget_daily: int = Field(default=300, ge=0)
+    embed_budget_total: int = Field(default=20_000, ge=0)
+    query_cache_max: int = Field(default=10_000, ge=0)
+    usage_collection: str = "gradpath_usage"
+    query_cache_collection: str = "gradpath_query_cache"
 
     qdrant_url: str | None = None
     qdrant_api_key: SecretStr | None = None

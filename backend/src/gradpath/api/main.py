@@ -35,6 +35,7 @@ from gradpath.ingestion.embed import WindowFull
 from gradpath.ingestion.index_info import read_index_info
 from gradpath.providers import ClaudeCodeError
 from gradpath.retrieval import RetrievalService, get_retrieval_service
+from gradpath.retrieval.budget import DailyBudgetSpent, TotalBudgetSpent
 from gradpath.tracing import configure_tracing, flush
 
 log = logging.getLogger(__name__)
@@ -43,6 +44,8 @@ LLM_DOWN = "The language model is unavailable. Try again later."
 LLM_INVALID = "The language model returned an invalid response. Try again."
 SEARCH_LIMITED = "Search is rate limited on the free tier. Try again in a minute."
 SEARCH_DOWN = "Search is unavailable. Try again later."
+BUDGET_DAILY = "Search has reached today's limit on this free demo. Try again tomorrow."
+BUDGET_TOTAL = "Search is paused on this server. Browse the recorded examples instead."
 WORKFLOW_LIMIT = "The preparation workflow stopped at its step limit. Try again."
 KEY_REFUSED = "Anthropic refused this API key. Check the key, then try again."
 KEY_LIMITED = "Your Anthropic key is at its rate limit. Wait a minute, then try again."
@@ -150,6 +153,8 @@ def error_codes() -> dict[str, str]:
         search.SEARCH_OFF: "search_off",
         SEARCH_LIMITED: "search_rate_limited",
         SEARCH_DOWN: "search_unavailable",
+        BUDGET_DAILY: "search_budget_daily",
+        BUDGET_TOTAL: "search_budget_spent",
         LLM_DOWN: "llm_unavailable",
         LLM_INVALID: "llm_invalid",
         WORKFLOW_LIMIT: "workflow_limit",
@@ -232,6 +237,9 @@ def open_retrieval(settings: Settings) -> RetrievalService | None:
     key it stays closed, and a failure to open it turns search off instead of stopping demo mode."""
     if settings.app_mode != "demo":
         return get_retrieval_service(settings)
+    if not settings.search_enabled:
+        log.info("SEARCH_ENABLED=false: source search is off")
+        return None
     key = settings.voyage_api_key
     if key is None or not key.get_secret_value().strip():
         log.info("demo mode without VOYAGE_API_KEY: source search is off")
@@ -351,6 +359,8 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
         (voyageai.error.RateLimitError, 429, SEARCH_LIMITED),
         (WindowFull, 429, SEARCH_LIMITED),
         (voyageai.error.VoyageError, 503, SEARCH_DOWN),
+        (DailyBudgetSpent, 503, BUDGET_DAILY),
+        (TotalBudgetSpent, 503, BUDGET_TOTAL),
         (pydantic.ValidationError, 502, LLM_INVALID),
         (json.JSONDecodeError, 502, LLM_INVALID),
         # Anything not listed (a guard error, a missing service) gets FastAPI's default 500,
@@ -379,7 +389,8 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
             app_mode=s.app_mode,
             sources_as_of=info.sources_as_of if info else None,
             sources_newest=info.sources_newest if info else None,
-            search_enabled=getattr(request.app.state, "retrieval", None) is not None,
+            search_enabled=getattr(request.app.state, "retrieval", None) is not None
+            and s.search_enabled,
         )
 
     return app

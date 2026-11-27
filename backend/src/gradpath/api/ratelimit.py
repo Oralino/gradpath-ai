@@ -1,8 +1,9 @@
 """Per-IP rate limits and the live-mode passcode's brute-force lock (T-018 step 7, always-hard).
 
 Each limited route names a bucket (search, model, workflow, poll); a bucket has per-IP sliding
-windows and, for search, a global daily cap that protects the owner's non-refreshing Voyage tokens
-against many IPs. Limits are off in local mode (the owner's machine). Everything is in memory,
+windows and may have a site-wide cap (`GLOBAL`). The owner's Voyage tokens are protected across
+IPs by the persistent embedding budget instead (`retrieval/budget.py`, T-020 step 2), which
+survives restarts. Limits are off in local mode (the owner's machine). Everything is in memory,
 per process (deploy with one worker), and bounded: at most MAX_TRACKED clients, oldest dropped.
 Own code, no dependency: a few dozen lines with a fake clock for tests (CLAUDE.md: own code for
 limits). Over a limit the route answers 429 with a fixed message and `Retry-After`.
@@ -19,8 +20,15 @@ from fastapi import HTTPException, Request
 
 from gradpath.config import Settings, get_settings
 
-LIMITED = "Too many requests from your connection. Try again later."
-LOCKED = "Too many wrong passcodes. Try again in 15 minutes."
+# "Your network": limits are per IP, and one IP can be a whole household, office or campus.
+LIMITED = (
+    "Too many requests from your network (this can include other people on the same Wi-Fi). "
+    "Try again later."
+)
+LOCKED = (
+    "Too many wrong passcodes from your network (this can include other people on the same "
+    "Wi-Fi). Try again in 15 minutes."
+)
 MAX_TRACKED = 10_000
 MINUTE, HOUR, DAY = 60.0, 3600.0, 86_400.0
 
@@ -41,7 +49,9 @@ PER_IP: dict[str, tuple[Window, ...]] = {
     "workflow": (Window(3, HOUR), Window(10, DAY)),
     "poll": (Window(60, MINUTE),),
 }
-GLOBAL: dict[str, tuple[Window, ...]] = {"search": (Window(1000, DAY),)}
+# Site-wide caps kept in memory. Search's daily cap moved to `retrieval/budget.py` (T-020 step 2):
+# stored in Qdrant, so a restart doesn't reset it, and it counts every server-paid embedding.
+GLOBAL: dict[str, tuple[Window, ...]] = {}
 PASSCODE_FAILURES = Window(5, 15 * MINUTE)
 
 
