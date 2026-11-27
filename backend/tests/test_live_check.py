@@ -148,9 +148,32 @@ def test_a_bad_token_is_refused_and_counts(monkeypatch, checked, kb_service):
         r = c.post("/api/chat", json={"question": "What?"},
                    headers={TOKEN_HEADER: forged, KEY_HEADER: KEY_A, **ip(1)})  # fmt: skip
         assert r.status_code == 401
+    again = c.post("/api/chat", json={"question": "What?"},
+                   headers={TOKEN_HEADER: forged, KEY_HEADER: KEY_A, **ip(1)})  # fmt: skip
+    assert again.status_code == 429  # five bad tokens lock the IP, like wrong passcodes
+
+
+def test_a_valid_token_passes_while_its_network_is_locked(monkeypatch, checked, kb_service):
+    """Shared networks (T-020 step 2): a neighbour's wrong guesses lock the IP for guessing, but a
+    visitor who already unlocked live mode keeps working. Guesses still meet the lock."""
+    c = client(monkeypatch, kb_service)
+    spy_answer(monkeypatch)
+    token = check(c).json()["token"]
+    wrong = {PASSCODE_HEADER: "wrong-" + "x" * 20, KEY_HEADER: KEY_A, **ip(1)}
+    for _ in range(5):  # someone else on the same Wi-Fi guesses wrong (the passcode guard runs
+        r = c.post("/api/chat", json={"question": "What?"}, headers=wrong)  # before rate limits)
+        assert r.status_code == 401
     good = c.post("/api/chat", json={"question": "What?"},
                   headers={TOKEN_HEADER: token, KEY_HEADER: KEY_A, **ip(1)})  # fmt: skip
-    assert good.status_code == 429  # locked like wrong passcodes
+    assert good.status_code == 200
+    right = {PASSCODE_HEADER: PASSCODE, KEY_HEADER: KEY_A, **ip(1)}
+    right_passcode = c.post("/api/chat", json={"question": "What?"}, headers=right)
+    assert right_passcode.status_code == 429  # passcodes, even right ones, wait out the lock
+    forged = token[:-1] + ("0" if token[-1] != "0" else "1")
+    bad = c.post("/api/chat", json={"question": "What?"},
+                 headers={TOKEN_HEADER: forged, KEY_HEADER: KEY_A, **ip(1)})  # fmt: skip
+    assert bad.status_code == 429
+    assert bad.json()["code"] == "passcode_locked"
 
 
 def test_tokens_expire_and_die_with_a_new_passcode_or_another_key():

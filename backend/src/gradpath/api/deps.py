@@ -61,28 +61,33 @@ def check_passcode(request: Request, settings: Settings, *, allow_token: bool = 
     """Accept the passcode header (constant-time compare with LIVE_PASSCODE) or, when
     `allow_token`, a session token from `POST /api/live/check` that stands in for it (T-018 step 9;
     bound to the key sent with the request, so it only works together with that key).
-    A locked-out IP gets 429 before anything is compared; a wrong passcode or a bad token counts
-    towards the lock. Nothing here is ever logged. `check_live_settings` guarantees a passcode."""
+    A valid token is accepted even while the IP is locked (T-020 step 2): one household, office or
+    campus shares an IP, and a token proves an earlier correct passcode and can't be guessed.
+    Everything else meets the lock first (429), and a wrong passcode or a bad token counts towards
+    it. Nothing here is ever logged. `check_live_settings` guarantees a passcode."""
     from gradpath.api.live import TOKEN_HEADER, token_status  # live imports deps
 
-    ratelimit.check_passcode_lock(request, settings)
     expected = "" if settings.live_passcode is None else settings.live_passcode.get_secret_value()
     expected = expected.strip()
     given = request.headers.get(PASSCODE_HEADER, "").strip()
     token = request.headers.get(TOKEN_HEADER, "").strip() if allow_token else ""
-    if expected and given:
-        # Both sides trimmed (`check_live_settings` requires printable ASCII), compared as bytes.
-        if hmac.compare_digest(given.encode("utf-8", "replace"), expected.encode()):
-            return
-    elif expected and token:
+    if expected and token and not given:
         key = request.headers.get(KEY_HEADER, "").strip()
         if not key:  # a token is bound to a key: without one it can't be checked, so it's no guess
             raise HTTPException(status_code=401, detail=KEY_NEEDED)
         status = token_status(token, expected, key)
-        if status == "valid":
+        if status == "valid":  # before the lock: a neighbour's wrong guesses don't lock this out
             return
         if status == "expired":  # genuine but old: ask again without counting it as a guess
             raise HTTPException(status_code=401, detail=PASSCODE_NEEDED)
+    ratelimit.check_passcode_lock(request, settings)
+    # Both sides trimmed (`check_live_settings` requires printable ASCII), compared as bytes.
+    if (
+        expected
+        and given
+        and hmac.compare_digest(given.encode("utf-8", "replace"), expected.encode())
+    ):
+        return
     ratelimit.record_passcode_failure(request, settings)
     raise HTTPException(status_code=401, detail=PASSCODE_NEEDED)
 
