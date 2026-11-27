@@ -62,5 +62,7 @@ RUN mkdir -p /app/logs && chown app:app /app/logs
 USER app
 EXPOSE 8000
 # Render sets PORT; 8000 otherwise. One worker only: background plan runs live in this process's
-# memory (workflows/runs.py), so a second worker could not see them.
-CMD ["sh", "-c", "exec uvicorn gradpath.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+# memory (workflows/runs.py), so a second worker could not see them. --no-proxy-headers: uvicorn
+# must not rewrite the client address from X-Forwarded-For; the app reads that header itself,
+# trusting only TRUSTED_PROXY_HOPS entries (api/ratelimit.py, SECURITY.md checklist).
+CMD ["sh", "-c", "exec uvicorn gradpath.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --no-proxy-headers"]
