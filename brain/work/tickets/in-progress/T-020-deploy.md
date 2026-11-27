@@ -76,6 +76,11 @@ in the background with short polls; the cold start needs a visible "Waiting for 
 ## Changes
 - Branch: `feat/t-020-deploy`
 - PR:
+- Files touched (step 2): `retrieval/budget.py`, `retrieval/query_cache.py`,
+  `retrieval/guarded.py` (new), `retrieval/service.py`, `config.py`, `api/main.py`,
+  `api/search.py`, `api/deps.py`, `api/ratelimit.py`, `backend/Dockerfile`
+  (`--no-proxy-headers`), tests `test_embed_guard.py` (new) and `test_live_check.py`;
+  ARCHITECTURE, WALKTHROUGH, SECURITY, MILESTONES.
 - Files touched (step 2b): `backend/Dockerfile`, `.dockerignore`, `.gitattributes` (all new),
   `.github/workflows/ci.yml` (`docker` job), CLAUDE.md and README (Docker commands),
   ARCHITECTURE (Container), WALKTHROUGH (The API as a Docker image).
@@ -85,6 +90,25 @@ in the background with short polls; the cold start needs a visible "Waiting for 
   fix: let the image check tolerate unreadable folders (T-020).
 
 ## Verification
+Step 2 (2026-11-27), backend protections:
+- Built as designed: `GuardedEmbeddings` (cache, then budget, then Voyage) wraps every query
+  embedding outside local mode; the budget (300 a day, 20,000 in all) and the cache live in
+  Qdrant; `SEARCH_ENABLED`; a valid token passes a locked network; "your network" wording.
+- Found while building: LangChain's vector store embedded a probe text with Voyage at every
+  start, outside any budget; turned off (`validate_collection_config=False`).
+- code-reviewer: no blocker; guard covers search, RAG, job analysis and the workflow; the
+  passcode change has no abuse path. Taken: refunds only for a single question refused at no
+  cost (`WindowFull`, Voyage 429), since a failed batch may have paid; demo and live refuse a
+  local Qdrant folder; one-instance and live-spends-the-public-budget limits in SECURITY.
+  Not taken: mapping Qdrant errors to 503 (same as today's search), reloading counts before
+  every spend (one more round trip per question; one instance covers it).
+- qa-checker: 847 tests, the new tests 5 times in a row (no flakes), no secrets, no query
+  text in any log or payload. Docstrings left off trivial `__init__`s and one-liners.
+- After the fixes: 850 passed, ruff clean. Real check on the owner's Qdrant Cloud in
+  throwaway collections (deleted after): a vector-less collection works, the daily cap holds
+  across a restart, a refund is saved, a respelled question hits the cache, payloads hold
+  only counts, the day and the model name.
+
 Step 1 (2026-11-27), the owner's Qdrant Cloud cluster (free tier):
 - `.env` checked without printing values: `QDRANT_CLOUD_URL` is https on `*.cloud.qdrant.io`,
   the key is set, `QDRANT_URL` stays empty; a read-only call found the new cluster empty.

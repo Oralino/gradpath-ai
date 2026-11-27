@@ -53,7 +53,7 @@ become design rules for Milestone 7 (a passcode or token guarding the model rout
 
 | Threat | Status | Rule for Milestone 7 |
 |---|---|---|
-| Brute force, password spraying, credential stuffing | ✅ | No user passwords. The live passcode (T-018 step 7): 16+ characters enforced at startup, constant-time compare, 5 failures per IP in 15 min lock that IP, never logged or echoed (tested). |
+| Brute force, password spraying, credential stuffing | ✅ | No user passwords. The live passcode (T-018 step 7): 16+ characters enforced at startup, constant-time compare, 5 failures per IP in 15 min lock that IP, never logged or echoed (tested). Shared networks (T-020 step 2): a valid session token still passes while its IP is locked (it proves an earlier correct passcode and can't be guessed); passcodes, even right ones, and bad tokens wait out the lock; limit messages say "your network". |
 | Session hijacking, session fixation | 🕒 7 | Prefer no sessions. If one is ever needed: `HttpOnly`, `Secure`, `SameSite=Strict`, a new id after login, short expiry. |
 | Privilege escalation, broken access control | 🕒 7 | One role (visitor). Settings that cost money (revision limit, model choice) come only from server settings, never from the request: already true for `max_revisions` (`api/career.py`). |
 | IDOR / BOLA | ✅ | Live mode (T-018 step 5): each run is bound to the key that started it (HMAC owner tag; another key gets the same 404 as an unknown id). Run ids (T-016): random uuid4, validated, not listable, the same 404 for unknown/expired/malformed; a run record never holds the posting or profile; the result (profile-derived reasoning) is kept in memory for 15 min after the run, at most 20 runs. Anyone holding a run id can read that result until it expires. Guide 02 says unguessable ids aren't access control: done for live mode (above); local mode stays unbound (one user). |
@@ -106,7 +106,7 @@ Solo project, so the realistic risks are a phished account or a leaked key.
 | Vector database attacks | ✅ / 🕒 8 | Local file store; only the ingest command writes. | Qdrant Cloud (8): key only on the server; use a read-only key for serving if the free tier offers one (check then). |
 | Excessive agency | ✅ | No model has tools: `ChatClaudeCode` runs with `tools=[]`, `setting_sources=[]`, `max_turns=3` (`providers/claude_code.py`). Every output is a validated Pydantic model; nothing the model says triggers an action. | Keep: any future tool needs an allow-list and server-side checks. |
 | Insecure output handling | ✅ | Outputs validated; ids filtered to known facts and chunks; model text bounded; the frontend renders it as text (see XSS). | — |
-| Unbounded consumption | ✅ | Size limits, concurrency caps, revision limit, `max_turns`, one batched Voyage call per request; per-IP limits and a global daily search cap (T-018 step 7). | Time budget done (T-006). |
+| Unbounded consumption | ✅ | Size limits, concurrency caps, revision limit, `max_turns`, one batched Voyage call per request; per-IP limits (T-018 step 7). The owner's Voyage key (T-020 step 2): every server-paid query embedding spends from a daily (300) and lifetime (20,000) budget stored in Qdrant, so restarts don't reset it, and search fails closed when it's spent (`retrieval/budget.py`); repeated questions reuse a cached vector keyed by a hash, with no query text stored (`retrieval/query_cache.py`); `SEARCH_ENABLED=false` turns public search off. | Time budget done (T-006). |
 | System prompt leakage | ✅ | The prompts are public in the repo by design; none holds a secret or a rule that security depends on. | — |
 | Model supply chain, theft, poisoning | — | Hosted models only; no model files, no fine-tuning. Libraries pinned (see 04). | — |
 | Hallucination | ✅ | Answers only from retrieved evidence, citations checked in code, abstention below the 0.45 threshold, critic + revision, evaluations in EVALUATION.md. | Grounding check beyond citation ids (TASKS). |
@@ -133,6 +133,14 @@ From guide 09, narrowed to this app. Run before each release; the project's rele
 - [ ] From Milestone 7: auth on model routes, per-IP limits, CORS allow-list, visitor key never
       logged or traced, demo mode works with no keys.
 - [ ] From Milestone 8: HTTPS only, security headers, `/docs` decision, separate dev and prod keys.
+- [ ] Live deploy, Voyage (T-020 step 2): the server uses its own revocable Voyage key; the
+      budget numbers (`EMBED_BUDGET_DAILY`, `EMBED_BUDGET_TOTAL`) are set on purpose; a restart
+      keeps the counts (check on the deployed site); the owner knows `SEARCH_ENABLED=false`.
+      One server instance only: the counters are read once per UTC day and written back, so two
+      instances (a second Render instance, a long deploy overlap) would overwrite each other's
+      counts. Demo and live refuse a local Qdrant folder (`QDRANT_URL` required). Known limit:
+      live-mode plans spend from the same daily budget (about one embedding per skill), so
+      passcode holders can use up the day's public searches.
 - [ ] Live deploy (T-018): exactly one uvicorn worker (the run store, run-owner secret and slots
       are per process); never `--log-level trace`; no proxy or platform log format that records
       request headers (`X-Anthropic-Key`); `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_URL` unset (live

@@ -179,6 +179,14 @@ Deployed site:
   only in memory for that request, and is never stored, logged, traced or returned. Query embeddings
   use the owner's Voyage key with a per-IP rate limit, and live routes need a shared passcode in a
   header (owner decision 2026-11-20, T-018).
+- **Voyage protections (T-020 step 2):** outside local mode, `get_retrieval_service` wraps the
+  query embeddings in `GuardedEmbeddings` (`retrieval/guarded.py`): a persistent query cache
+  first (`retrieval/query_cache.py`, Qdrant collection `gradpath_query_cache_<model>`, keyed by a
+  hash, no query text), then for misses a persistent budget (`retrieval/budget.py`, collection
+  `gradpath_usage`: `EMBED_BUDGET_DAILY` 300 per UTC day, `EMBED_BUDGET_TOTAL` 20,000 in all),
+  spent before Voyage is called and refunded if the call fails; spent budget answers 503.
+  `SEARCH_ENABLED=false` turns public search off. The vector store skips its startup collection
+  check, which would embed a probe text with Voyage on every restart.
 - **Container (T-020 step 2b):** the API ships as a Docker image built from `backend/Dockerfile`
   with the repo root as context (`docker build -f backend/Dockerfile .`). Two stages: uv installs
   the `uv.lock` pins and pre-downloads the Voyage tokenizer; the runtime stage holds Python, the

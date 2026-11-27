@@ -1196,6 +1196,41 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   - *"Why not Docker for the frontend?"* Vercel builds and serves Next.js itself; a container
     would add work and lose Vercel's preview deployments.
 
+## Protecting the owner's Voyage key on the deployed site (`retrieval/budget.py`, `retrieval/query_cache.py`, `retrieval/guarded.py`, T-020 step 2)
+- **What it is:** every question the deployed server turns into a vector is paid with the
+  owner's Voyage key, whose free tokens never refresh. `GuardedEmbeddings` sits in front of the
+  Voyage client (only outside local mode): it answers repeated questions from a cache, and for
+  new ones spends from a budget before calling Voyage.
+- **Decision: the budget lives in Qdrant, not in memory.** Render's free tier restarts the
+  server often, and the old in-memory daily cap (T-018) started from zero after every restart.
+  Two counters (today, all time) sit in a small collection with no vectors. Rejected: a file
+  (Render's disk is wiped on restart) and a new database service (one more account and secret).
+- **Decision: count at the embedding layer, not at the search route.** In live mode the RAG
+  answer and the workflow embed questions with the owner's key too, even though the model call
+  uses the visitor's key. Guarding the embeddings covers every paid path in one place.
+- **Decision: spend first, refund on failure.** The count is reserved under a lock before Voyage
+  is called, so parallel requests can't overshoot the cap; if the call fails (a full free-tier
+  window, Voyage's 429), the reservation is given back, so refused requests can't burn the day's
+  searches.
+- **Decision: the cache stores a hash, not the question.** The key is a hash of the model name
+  and the question with case and spacing folded, so "What is REST?" and "what is  rest?" share one
+  vector; the text itself is never stored, keeping the rule that queries are never logged. A cache
+  failure only means no caching; a budget failure refuses the search (fail closed).
+- **Decision: a valid session token passes a locked network.** Limits are per IP, and a whole
+  household or campus can share one. The passcode lock exists to stop guessing; a token proves an
+  earlier correct passcode and can't be guessed, so it's checked before the lock. Passcodes, even
+  right ones, still wait out the lock.
+- **Gotcha:** LangChain's `QdrantVectorStore` checks the collection at startup by embedding a
+  probe text, a real Voyage call on every restart outside the budget. Our searches always pass
+  vectors, so the check is turned off (`validate_collection_config=False`).
+- **Likely questions:**
+  - *"Why not a CAPTCHA?"* A third-party script on every page, and the budget caps the damage
+    anyway. Owner decision in T-020.
+  - *"What happens when the budget runs out?"* Search answers 503 with a fixed message; the
+    recorded examples keep working. `SEARCH_ENABLED=false` does the same on purpose.
+  - *"Is the hash of a question private?"* Mostly: common questions could be confirmed by hashing
+    a guess, but nothing links an entry to a visitor, and no text is stored.
+
 ## One topic of a job is a question, not a plan (`router/rules.py`, `router/route.py`, T-021)
 - **What happened:** with a posting and profile attached, "How should I prepare for the PostgreSQL
   indexing part of this role?" ran the full workflow. A rule treated any personal message with
