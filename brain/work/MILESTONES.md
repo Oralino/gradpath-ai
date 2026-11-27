@@ -306,6 +306,7 @@ passcode it shows what demo shows; with it and their own key, visitors use the f
 | Step | Status | What we built | Why | Result |
 |---|---|---|---|---|
 | 0. Ticket + free-tier check | ✅ | T-020, branch `feat/t-020-deploy`; each provider's free terms checked on its own pages | Zero-cost rule: no assumptions about free tiers | All free with no card; Qdrant suspends idle clusters after a week, Render sleeps after 15 min, Vercel proxies for at most 120 s |
+| 1. Index on Qdrant Cloud | ✅ | `ingestion/copy_index.py` copies the local index's vectors and payloads to the owner's free cluster and checks them | The deployed API needs an index it can reach; copying spends no Voyage tokens and moves exactly the evaluated index | 1,700 points copied; the retrieval eval on the cloud matches the local one exactly |
 | 2b. API as a Docker image | ✅ | `backend/Dockerfile` (two stages, pinned bases, non-root, tokenizer baked in), an allowlist `.dockerignore`, a CI job that builds, inspects and starts the image | The same API on the owner's PC, in CI and on Render; Docker as a portfolio skill | Builds in CI; no secrets inside; starts in demo mode with no keys at 204 MiB idle (limit 512 MB) |
 
 ## Milestones 4–8: what's next

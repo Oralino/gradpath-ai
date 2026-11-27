@@ -523,6 +523,15 @@ uncovered questions (`q-032`, `q-033`, at 0.26 to 0.30, under the threshold). Th
 monitoring question, so the gain is shown by one real answer instead (T-023 ticket). One Voyage
 call. Output: `evaluation/results/retrieval-20261121-104638.json`.
 
+### Retrieval on Qdrant Cloud (2026-11-27, corpus v3, T-020 step 1)
+The local index copied to the deployed cluster (`copy_index`, 1,700 points, no re-embedding),
+then the same eval run against it. Identical to the local run of 2026-11-21: Recall@5 0.961,
+Precision@5 0.605, MRR 0.987; at 0.45, 97% of covered kept and 67% of uncovered rejected; the
+same partial misses. All 50 questions rank the same chunks in the same order; scores differ by
+at most 0.0001 (float rounding). Search: about 67 ms per question over the network from the
+owner's PC, against 3 ms locally. One Voyage call. Output:
+`evaluation/results/retrieval-20261127-215553.json`.
+
 ### Routing after the topic-scope fix (2026-11-21, labels v1.1, T-021)
 Six new owner-approved cases (tag `topic_scope`, `rt-031`..`rt-036`): four questions about one
 topic of the attached job that must get a cited answer, and two whole-job requests that must still

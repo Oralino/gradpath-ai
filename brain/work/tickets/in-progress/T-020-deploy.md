@@ -85,6 +85,17 @@ in the background with short polls; the cold start needs a visible "Waiting for 
   fix: let the image check tolerate unreadable folders (T-020).
 
 ## Verification
+Step 1 (2026-11-27), the owner's Qdrant Cloud cluster (free tier):
+- `.env` checked without printing values: `QDRANT_CLOUD_URL` is https on `*.cloud.qdrant.io`,
+  the key is set, `QDRANT_URL` stays empty; a read-only call found the new cluster empty.
+- `copy_index --dry-run`: 1,700 local points. `copy_index`: 1,700 copied and checked (ids match
+  exactly, sampled payloads and vectors equal). No Voyage tokens.
+- Retrieval eval against the cloud (one Voyage call, `retrieval-20261127-215553.json`): every
+  summary number equals the local run of 2026-11-21 (Recall@5 0.961, Precision@5 0.605, MRR
+  0.987; 97% covered kept, 67% uncovered rejected), every question ranks the same chunks in the
+  same order, scores differ by at most 0.0001. Search takes about 67 ms per question from the
+  owner's PC (3 ms locally): the network round trip.
+
 Step 2b (2026-11-22), CI run 44982475342, `docker` job green (backend and frontend jobs green too):
 - The image builds from the repo root in about 50 s on a cold runner.
 - Inside the image: no `.env` file anywhere, no `private/`, local data, tests, frontend or uv; no

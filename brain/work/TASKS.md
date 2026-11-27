@@ -6,8 +6,9 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 
 ## Current
 - [ ] [T-020](tickets/in-progress/T-020-deploy.md): Milestone 8, deploy (plan approved 2026-11-21: decisions
-      in the ticket). **(owner)** create the Vercel, Render and Qdrant Cloud accounts and a second
-      Voyage key for the server when the steps ask for them.
+      in the ticket). Done: steps 0, 1 (index on Qdrant Cloud) and 2b (Docker image). **(owner)**
+      create the Vercel and Render accounts and a second Voyage key for the server when the steps
+      ask for them.
 - [ ] DESIGN.md: record the visible input rows and "Build plan again" on the Plan screen
       (design-advisor drafts, owner approves; T-011 design critique).
 - [ ] PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard). Moved out of Milestone 7
