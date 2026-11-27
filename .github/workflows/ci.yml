@@ -80,6 +80,13 @@ jobs:
             fi
             echo "clean, uid $(id -u)"'
 
+      - name: Image leaves out the local, eval and ingest groups (T-025)
+        run: >-
+          docker run --rm gradpath-api:ci python -c
+          "import importlib.util as u;
+          extra = [m for m in ('claude_agent_sdk', 'fastembed', 'onnxruntime', 'bs4', 'pypdf') if u.find_spec(m)];
+          assert not extra, extra; print('runtime set only')"
+
       - name: Tokenizer loads with no network (baked in at build time)
         run: >-
           docker run --rm --network none gradpath-api:ci python -c

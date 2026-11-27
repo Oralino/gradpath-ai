@@ -24,12 +24,12 @@ WORKDIR /app/backend
 
 # Dependencies first: this layer is reused from cache while only our code changes.
 COPY backend/pyproject.toml backend/uv.lock ./
-RUN uv sync --locked --no-dev --no-install-project
+RUN uv sync --locked --no-default-groups --no-install-project
 
 # Then our package. uv installs it editable, so config.py stays at /app/backend/src/gradpath/ and
 # its REPO_ROOT (three folders up) is /app, the same layout as the repo.
 COPY backend/src ./src
-RUN uv sync --locked --no-dev \
+RUN uv sync --locked --no-default-groups \
     && .venv/bin/python -m compileall -q src
 
 # The Voyage client downloads its tokenizer from the Hugging Face Hub on first use. Fetch it now, so
