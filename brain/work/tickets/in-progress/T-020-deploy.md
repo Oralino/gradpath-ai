@@ -90,6 +90,42 @@ in the background with short polls; the cold start needs a visible "Waiting for 
   fix: let the image check tolerate unreadable folders (T-020).
 
 ## Verification
+Step 3 (2026-11-27), deploy on Render and Vercel (the owner made the accounts and pasted every
+value; the lead checked setting names and value shapes only, never values):
+- **Render** web service `gradpath-ai`: Docker runtime, `backend/Dockerfile`, build context the
+  repo root, branch `feat/t-020-deploy` (switch to `main` after the milestone merges), region
+  Virginia (closest to the Qdrant cluster in AWS `ca-central-1`), Free instance (one instance),
+  health check `/api/health`, auto-deploy on commit, no build filters. Environment: `APP_MODE`,
+  `LLM_PROVIDER`, `LIVE_PASSCODE`, `VOYAGE_API_KEY` (the server-only `gradpath-server` key),
+  `QDRANT_URL`, `QDRANT_API_KEY`, `LANGSMITH_TRACING=false`, then `ALLOWED_ORIGINS`; no
+  `ANTHROPIC_*`. Values checked before deploying with a script that reported only yes/no
+  (exact for the three public values; passcode length and characters; `pa-` and `https://`
+  prefixes; no quotes or spaces).
+- First deploy of `38b3fed`: build 2 min 21 s, startup about 1 s. `/api/health`: `app_mode:
+  live`, `llm_provider: anthropic_api`, `search_enabled: true`, sources dates present.
+- **Vercel** project `gradpath-ai` (Hobby): root `frontend`, Next.js preset, branch `main` (its
+  `frontend/` is identical to the deploy branch's), `GRADPATH_API_URL` = the Render URL,
+  `NEXT_TELEMETRY_DISABLED=1`. Build 34 s. Production domain `https://gradpath-ai-phi.vercel.app`;
+  HTTPS with `Strict-Transport-Security`.
+- Through the site: `/api/health` and `/api/demo` 200; before `ALLOWED_ORIGINS`, a search POST
+  with the site's `Origin` got 403 `cross_site` (so Vercel's rewrite forwards the browser's
+  `Origin` unchanged); after it, 200 with passages. A forged `Origin` and a preview-deployment
+  `Origin` both get 403.
+- In the browser: a recorded example (Kubernetes liveness, partial answer with sources), source
+  search ("What makes an API endpoint idempotent?", 2 passages), the live panel shown.
+- Live mode: a wrong or missing passcode gets 401 `passcode_required` before any Anthropic call.
+  The owner entered the real passcode and a fake key of the right shape: the passcode passed and
+  Render's call to Anthropic was refused ("Anthropic refused this API key"), so the whole path up
+  to Anthropic works. **Not checked:** a full answer with a real key (the owner has no Anthropic
+  API key: zero-cost rule).
+- Render's logs (searched server-side for `sk-ant`, the fake key, `passcode`; read in full after
+  the first deploy): no key, passcode or token; only request lines and `AuthenticationError on
+  /api/live/check`.
+- Seen for step 4: every request reaches the app from `127.0.0.1` (`TRUSTED_PROXY_HOPS=0`), so all
+  visitors share one rate-limit and passcode-lock bucket. The lead's two test searches spent the browser's
+  "two searches a minute". Step 4 measures the chain and sets the hops. `/docs` is public (200): the
+  SECURITY.md decision is still open.
+
 Step 2 (2026-11-27), backend protections:
 - Built as designed: `GuardedEmbeddings` (cache, then budget, then Voyage) wraps every query
   embedding outside local mode; the budget (300 a day, 20,000 in all) and the cache live in
