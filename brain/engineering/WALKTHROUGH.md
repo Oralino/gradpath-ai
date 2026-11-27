@@ -1177,6 +1177,19 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   and a Hub outage would break search. The build fetches it into the image, and
   `HF_HUB_OFFLINE=1` makes the running container read only that copy. CI proves it by tokenizing
   with networking switched off (`--network none`).
+- **Decision: install only what the server runs (T-025).** `pyproject.toml` splits the libraries:
+  `[project] dependencies` is what the API imports; dependency groups hold the rest: `local`
+  (`claude-agent-sdk`, which bundles the whole Claude Code program, for `LLM_PROVIDER=claude_code`),
+  `eval` (fastembed and onnxruntime, for the retrieval experiments) and `ingest` (the HTML cleaner
+  and splitter, for building the index). `uv sync` on a PC installs every group
+  (`default-groups`); the image runs `uv sync --no-default-groups`. The Claude Code provider imports
+  the SDK inside its call, not at the top of the file, because the API imports the providers
+  module at every start. Rejected: a lighter base image such as UBI 9, Alpine or distroless. The
+  base was about 130 MB of 1.27 GB, UBI 9 and distroless don't ship our pinned Python 3.13, and
+  Alpine lacks wheels for several of our libraries.
+- **Gotcha (T-025):** tests and CI install every group, so a new top-level import of a left-out
+  library would pass the tests and fail only on Render. `tests/test_runtime_deps.py` imports the
+  app with those modules blocked, and the CI `docker` job checks they aren't in the image.
 - **Decision: a normal user, one worker.** The container runs as uid 10001, not root, so a
   compromised app can't rewrite the image's files; only `logs/` is writable. One uvicorn worker,
   because background plan runs live in the process's memory (`workflows/runs.py`).
@@ -1195,6 +1208,9 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
     container runs as root.
   - *"Why not Docker for the frontend?"* Vercel builds and serves Next.js itself; a container
     would add work and lose Vercel's preview deployments.
+  - *"Why didn't you pick a smaller base image?"* The base wasn't the problem: unused libraries
+    were. Measured before choosing: dropping the dev-only groups cut the image far more than any
+    base swap could, and kept the same Debian and Python build CI already tests.
 
 ## Protecting the owner's Voyage key on the deployed site (`retrieval/budget.py`, `retrieval/query_cache.py`, `retrieval/guarded.py`, T-020 step 2)
 - **What it is:** every question the deployed server turns into a vector is paid with the

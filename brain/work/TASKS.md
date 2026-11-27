@@ -6,9 +6,10 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 
 ## Current
 - [ ] [T-020](tickets/in-progress/T-020-deploy.md): Milestone 8, deploy (plan approved 2026-11-21: decisions
-      in the ticket). Done: steps 0, 1 (index on Qdrant Cloud) and 2b (Docker image). **(owner)**
-      create the Vercel and Render accounts and a second Voyage key for the server when the steps
-      ask for them.
+      in the ticket). Done: steps 0, 1 (index on Qdrant Cloud), 2, 2b (Docker image) and 3 (live
+      on Render and Vercel). Next: step 4 (proxy hops), 5 (deployed-site checks), 6 (README), PR.
+- [ ] [T-025](tickets/in-progress/T-025-slim-api-image.md): slim the API Docker image to the
+      runtime set (1.27 GB -> 560 MB), on the Milestone 8 branch.
 - [ ] DESIGN.md: record the visible input rows and "Build plan again" on the Plan screen
       (design-advisor drafts, owner approves; T-011 design critique).
 - [ ] PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard). Moved out of Milestone 7

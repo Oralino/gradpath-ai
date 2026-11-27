@@ -189,7 +189,8 @@ Deployed site:
   check, which would embed a probe text with Voyage on every restart.
 - **Container (T-020 step 2b):** the API ships as a Docker image built from `backend/Dockerfile`
   with the repo root as context (`docker build -f backend/Dockerfile .`). Two stages: uv installs
-  the `uv.lock` pins and pre-downloads the Voyage tokenizer; the runtime stage holds Python, the
+  the `uv.lock` pins of the runtime set only (`--no-default-groups`: the `local`, `eval` and
+  `ingest` dependency groups stay out, T-025) and pre-downloads the Voyage tokenizer; the runtime stage holds Python, the
   environment, `backend/src`, `demo_runs/` and `knowledge_base/index_info.json`, runs as a non-root
   user with `HF_HUB_OFFLINE=1`, and starts one uvicorn worker on `$PORT`. The root `.dockerignore`
   is an allowlist, so `.env`, `private/` and the local index never enter the build. Keys and
