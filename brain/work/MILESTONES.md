@@ -17,7 +17,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 5 | Hybrid retrieval + reranking | ✅ | Improve search for exact terms | Measured and rejected: semantic 0.961 Recall@5 beat hybrid (0.921) and both rerankers; stays semantic-only |
 | 6 | Frontend | ✅ | Make it usable | Next.js app designed from `DESIGN.md` |
 | 7 | Demo and live modes | ✅ | A public site that costs nothing | Demo mode with 8 recorded runs and no keys; live mode on a visitor's key (never stored); source search; answer eval 12/14, 6/6 refusals, 99% of claims grounded |
-| 8 | Deploy | ⏳ | A live link | Vercel + Render + Qdrant Cloud (free tiers) |
+| 8 | Deploy | 🔨 | A live link | Live at `gradpath-ai-phi.vercel.app` on Vercel + Render + Qdrant Cloud (free tiers); Sign in with GitHub for live mode; Trivy-scanned Docker image |
 
 ## Tech stack at a glance
 
@@ -296,7 +296,7 @@ limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are
   starts it had run; it now waits for it (6 clean runs in a row). Never pipe a check inside the
   commit chain.
 
-## Milestone 8: Deploy ⏳
+## Milestone 8: Deploy 🔨
 *Ticket: `tickets/in-progress/T-020-deploy.md`*
 
 **Goal:** a public link employers can open, on free tiers with no payment method: Next.js on
@@ -310,6 +310,10 @@ passcode it shows what demo shows; with it and their own key, visitors use the f
 | 2. Backend protections | ✅ | A persistent Voyage budget (300 a day, 20,000 in all) and query cache in Qdrant, an off switch for search, valid tokens pass a locked network | Render restarts wiped the in-memory cap; shared Wi-Fi locked everyone out | Every server-paid embedding is cached or budgeted; refused calls are refunded; tested |
 | 2b. API as a Docker image | ✅ | `backend/Dockerfile` (two stages, pinned bases, non-root, tokenizer baked in), an allowlist `.dockerignore`, a CI job that builds, inspects and starts the image | The same API on the owner's PC, in CI and on Render; Docker as a portfolio skill | Builds in CI; no secrets inside; starts in demo mode with no keys at 204 MiB idle (limit 512 MB) |
 | 3. Deploy on Render and Vercel | ✅ | The API image on a free Render web service (live mode, server-only Voyage key, Qdrant Cloud); the Next.js site on Vercel forwarding `/api` to it; `ALLOWED_ORIGINS` set to the site | A public link, with secrets only in the providers' dashboards | Live at `https://gradpath-ai-phi.vercel.app`: recorded examples, source search and the live panel work; foreign origins get 403; no key or passcode in Render's logs. A full live answer is unchecked (no Anthropic key, zero-cost rule) |
+| 3b. Sign in with GitHub | ✅ | GitHub OAuth (PKCE, no scopes) replaces the live passcode: accounts 30+ days old, a signed one-day cookie, no database; per-user limits ([T-026](tickets/done/T-026-github-sign-in.md)) | Sharing a passcode was a chore, and live mode still spends the owner's Voyage key | The owner's real sign-in works; the callback's code never reaches the logs |
+| 4. Visitor address + site only | ✅ | `frontend/proxy.ts` vouches for each visitor's address with a shared secret; the API believes it only with the secret and refuses every other request except its health check ("origin cloaking") | Measured: Vercel passes the browser's own `X-Forwarded-For` through, so no hop count is safe; the public Render URL let anyone skip the site's limits | Rate limits key on the real visitor; straight calls to Render (API, `/docs`) get 403; forged headers are dropped |
+| 5. Checks on the deployed site | ✅ | Release checklist and secret scans; 7-day log scan; eval on the deployed index; Trivy in CI with two gates and a weekly run; security headers on pages and the API; separate Qdrant keys; a waking screen for the 43 s cold start ([T-028](tickets/done/T-028-wake-up-screen.md)) | The project's release gate, run against the real deployment | All clean; retrieval eval unchanged; 0 CRITICAL and no fixable HIGH in the image; restarts keep the search budget |
+| 6. README and docs | ✅ | Public README: the site link, what visitors can do, Sign in with GitHub, the waking screen, the deploy diagram, running locally and in Docker | The first thing an employer reads | Checked against the code; no private host names |
 
 ## Milestones 4–8: what's next
 
