@@ -148,12 +148,23 @@ address. Normalised (IPv6 by /64 network, ports dropped). The site side is `fron
 (Next.js Proxy, server only): it drops any copy of the two headers a browser sent and adds them
 from the rightmost `X-Forwarded-For` entry, which Vercel overwrites with the address it saw. The
 temporary `GET /api/debug/forwarded` (404 unless `DEBUG_FORWARDED=true`) shows a caller their own
-chain, for measuring the deployed setup. Request bodies over 256 KB get 413 before FastAPI reads them
+chain, for measuring the deployed setup.
+
+**Site only (T-020 step 4, owner decision "origin cloaking"):** once `PROXY_SHARED_SECRET` is set,
+`SiteOnly` (outermost ASGI middleware, `api/main.py`) answers 403 `site_only` to every request
+without the matching secret, except `GET`/`HEAD /api/health` (Render's health check calls the
+API directly). So the Render URL is useless on its own: no API, no `/docs`, `/redoc` or
+`/openapi.json` (the site forwards only `/api/*`, so those are unreachable on the deployed site;
+they stay available locally). Unset (local, CI, the Docker smoke test): no effect. Measured chain
+(2026-11-28): through the site, Render receives `X-Forwarded-For` = [whatever the browser sent,
+or Vercel's view of the visitor, then Vercel's outgoing server, Render's Cloudflare, Render's
+internal proxy]; Vercel forwards the browser's own `X-Forwarded-For` on an external rewrite, so
+no hop count is safe through the site, while `proxy.ts` sees Vercel's overwritten value. Request bodies over 256 KB get 413 before FastAPI reads them
 (`BodySizeLimit`). In memory and per process: deploy with one worker.
 
 **Cross-site requests (T-018 step 8):** no CORS middleware: the browser only calls its own origin
 and Next's `/api` rewrite proxies to the API server-side, so cross-origin reads stay blocked.
-`OriginCheck` (outermost ASGI middleware) answers 403 to a POST whose `Origin` header is present
+`OriginCheck` (ASGI middleware, right inside `SiteOnly`) answers 403 to a POST whose `Origin` header is present
 and not in `ALLOWED_ORIGINS`; requests with no `Origin` (curl, CLIs) pass.
 
 **Live check (T-018 step 9, T-026):** `POST /api/live/check` (`api/live.py`, live mode only;

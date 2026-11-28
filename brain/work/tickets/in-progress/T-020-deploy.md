@@ -70,8 +70,18 @@ Owner decisions, 2026-11-21 (plan approved as recommended):
   the secret matches. Owner requirement: the secret never reaches the browser (no `NEXT_PUBLIC_`
   name, never on a response, not in the build). Rejected: hops only (the public Render URL lets a
   direct caller forge the trusted entry); Vercel IP allow-list (no fixed outgoing IPs on Hobby);
-  a private network (two companies); blocking direct calls to Render (later, if needed). The
-  temporary `/api/debug/forwarded` page (off unless `DEBUG_FORWARDED=true`) measures it.
+  a private network (two companies). The temporary `/api/debug/forwarded` page (off unless
+  `DEBUG_FORWARDED=true`) measured it.
+- **Direct calls to Render (step 4, owner 2026-11-28): blocked (option C).** After the
+  measurement the owner asked what other sites do. Options: A, keep `TRUSTED_PROXY_HOPS=0` (all
+  direct callers share one bucket); B, `TRUSTED_PROXY_HOPS=3` (each direct caller by the address
+  Render's Cloudflare added); C, refuse every call without the site's secret ("origin
+  cloaking", AWS's documented pattern). Chosen: C (`SiteOnly`, health check exempt).
+  `TRUSTED_PROXY_HOPS` stays 0. Rejected: B (hop counts break silently when a provider changes
+  its chain; Render doesn't document it), A (lead's first recommendation; weaker than the
+  standard). Consequences: `/docs`, `/redoc`, `/openapi.json` are unreachable on the deployed
+  site (that SECURITY.md decision is settled); a mismatched secret takes the site down (403
+  `site_only`) until both dashboards match.
 
 ## Step 0: free-tier terms (checked 2026-11-21, from the providers' pages)
 | Service | Free, no card | Limits that matter |
@@ -126,6 +136,32 @@ Step 4 (2026-11-28), shared-secret client address, before deploy:
   Known limit: a CDN put in front of Vercel later would make every visitor share one address
   (fails closed: a shared limit, never a bypass).
 - After the fixes: backend 914 passed, 1 skipped; frontend proxy tests 10/10, lint, typecheck.
+  Commits `dd25ff9`, `dcd565f`; CI green on `dcd565f`.
+- Deployed measurement (2026-11-28; the owner set `PROXY_SHARED_SECRET` in Render and Vercel,
+  Vercel Production only, and `DEBUG_FORWARDED=true` for a few minutes; the lead never saw the
+  value). Through the site, from the owner's browser: `proxy_secret_matches: true`; the API's
+  rate-limit key was the owner's real public IP, the same with a forged `X-Forwarded-For:
+  6.6.6.6`, a forged `X-GradPath-Client-IP` and a guessed secret (both dropped by `proxy.ts`).
+  `X-Forwarded-For` at Render: 4 entries [the browser's own value or Vercel's view of it,
+  Vercel's outgoing server, Render's Cloudflare, Render's internal 10.x proxy]: the forged
+  `6.6.6.6` arrived first, so Vercel passes the browser's header through on an external rewrite
+  and no hop count is safe through the site. Responses through the site carry no
+  `x-middleware-*` and no `x-gradpath-*` header. Straight at the Render URL (curl, from the
+  owner's PC): a forged `X-GradPath-Client-IP` and a guessed secret were ignored; the chain had 3
+  entries [caller, Cloudflare, internal] plus any forged ones on the left, so hops 3 named the
+  real caller. `DEBUG_FORWARDED` then removed: the page answers 404 through the site and
+  directly. The owner's IP is not recorded here.
+- Option C built (`SiteOnly` in `api/main.py`; tests in `test_proxy_secret.py`; a conftest
+  fixture keeps a developer's `.env` secret from turning the guard on for the whole suite).
+  qa-checker: targeted tests 3 runs, no flakes; no secrets, attribution or control characters;
+  CI's Docker smoke test calls only `/api/health` and sets no secret. code-reviewer: no bypass
+  found (trailing or double slashes, case, encodings, `OPTIONS`, `HEAD` all get 403; body never
+  read before the check). Taken: `proxy.ts` now sends the secret even when it can't measure the
+  address (else that visitor would be refused); one warning (no values) when a request carries
+  a wrong secret, the sign of a Render/Vercel mismatch; the site shows "The site can't reach its
+  server right now" for `site_only` instead of the API's "use the website" text; the unused
+  `HEAD` exemption dropped; more tests. Backend 936 passed, 1 skipped; frontend 319 passed,
+  lint, typecheck.
 
 Step 3 (2026-11-27), deploy on Render and Vercel (the owner made the accounts and pasted every
 value; the lead checked setting names and value shapes only, never values):

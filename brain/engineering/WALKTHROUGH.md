@@ -1012,6 +1012,23 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   browser; it is sent only as a request header from Vercel to Render over HTTPS and never set on
   a response. A build with a dummy secret had no trace of it in `.next/`. If it ever leaks, a new
   value in both dashboards cuts the old one off at once.
+- **What the measurement showed (2026-11-28):** through the site, Render received the browser's
+  own `X-Forwarded-For` first (a forged `6.6.6.6` arrived as is), then Vercel's server, Render's
+  Cloudflare and Render's internal proxy. So counting hops could never have found the visitor
+  safely; the shared secret was needed. `proxy.ts` itself sees Vercel's overwritten value: the
+  API got the real visitor address even with forged headers.
+- **Decision (owner, after reading what others do): block direct calls ("origin cloaking").**
+  Three options for callers who skip the site: keep them in one shared bucket (A), give each
+  their own limit by counting Render's proxies, `TRUSTED_PROXY_HOPS=3` (B), or refuse them (C).
+  B was dropped: hop counts are known to break silently when a provider changes its chain, and
+  Render doesn't document its chain. C is the standard (AWS documents it for CloudFront): the
+  origin refuses requests without the proxy's secret. `SiteOnly` answers 403 to everything but
+  the health check once the secret is set. Trade-off accepted: all traffic now goes through
+  Vercel, whose free plan pauses the site if usage runs over; and a secret mismatch between the
+  two dashboards takes the site down until fixed (fails closed).
+- **Likely question:** *"Why is the health check open?"* Render's health check calls the API
+  directly, without the site's secret; blocking it would make Render think the service is down
+  and restart it. It shows only what the page footer shows (mode, sources date).
 - **Gotcha:** on `next dev` / `next start` nothing rewrites `X-Forwarded-For`, so locally the
   "visitor address" is whatever the caller wrote. That's harmless there (no secret is set locally,
   so the API ignores it) but it means the design depends on Vercel's overwrite, which is why the

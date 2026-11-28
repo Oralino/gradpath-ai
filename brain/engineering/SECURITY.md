@@ -45,7 +45,7 @@ Status key: ✅ defended · ⚠️ gap, fix now · 🕒 applies from a later mil
 | Unsafe file uploads | 🕒 7 | No upload endpoint. | Before any upload: size limit, type from the file's signature not its name, parse in memory, never execute or serve back, never index into the shared collection. High-risk area in CLAUDE.md. |
 | Remote code execution | ✅ | No `eval`, `exec`, `pickle`, `shell=True` or `yaml.load` in `src/` (checked 2026-11-18). Models have no tools (see 07 Excessive agency). | Keep it that way; the release secret scan can grep for these. |
 | Insecure deserialization | ✅ | JSON only, parsed by Pydantic with `extra="forbid"` on every request body. | — |
-| Security misconfiguration | 🕒 8 | Settings typed in `config.py`; secrets are `SecretStr`; `.env` gitignored. | Milestone 8: decide whether `/docs` stays public, set security headers, debug off, check Render/Vercel defaults. |
+| Security misconfiguration | 🕒 8 | Settings typed in `config.py`; secrets are `SecretStr`; `.env` gitignored. | Milestone 8: set security headers, debug off, check Render/Vercel defaults. `/docs`, `/redoc`, `/openapi.json` decided (T-020 step 4): unreachable on the deployed site (`SiteOnly` refuses direct calls to Render; the site forwards only `/api/*`), available locally. |
 
 ## 02 Authentication and access control
 
@@ -151,6 +151,11 @@ From guide 09, narrowed to this app. Run before each release; the project's rele
       are per process); never `--log-level trace`; no proxy or platform log format that records
       request headers (`X-Anthropic-Key`); `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_URL` unset (live
       refuses to start otherwise).
+- [ ] Live deploy, site only (T-020 step 4): straight at the Render URL every path but
+      `/api/health` answers 403 `site_only` (`/docs`, `/openapi.json`, `/api/demo` included);
+      the site works. Changing the secret: set the new value in Render and Vercel, then
+      redeploy Vercel; until both match, the site answers 403 `site_only` (a short outage, never
+      an opening).
 - [ ] Live deploy, client address (T-020 step 4): `PROXY_SHARED_SECRET` set to the same 32+
       character random value in Render and Vercel (server settings only, never a `NEXT_PUBLIC_`
       name; not in `.next/static`); through the site the debug page's `rate_limit_key` is the
