@@ -12,16 +12,14 @@
 // the model list, never a posting. Read defensively: anything odd is ignored.
 
 import { useSyncExternalStore } from "react";
-import { checkAddress, DEFAULT_ADDRESS, type LocalServer } from "@/lib/localModels";
+import { checkAddress, DEFAULT_ADDRESS, MAX_NAME, PICKER_SERVERS, type LocalServer } from "@/lib/localModels";
 import type { RelayModels } from "@/lib/relayRun";
 
 export type Choice = "claude" | LocalServer;
 
 export const STORAGE_KEY = "gradpath-provider";
 const MAX_ADDRESS = 300;
-const MAX_NAME = 200;
-const MAX_STORED = 5_000;
-const LOCAL_SERVERS: LocalServer[] = ["ollama", "lmstudio"];
+const MAX_STORED = 12_000; // two servers' addresses and up to four names of MAX_NAME
 
 /** One local server's draft in the dialog. `connectedBase` is the checked address the model list
  * came from; editing the address clears the connection. */
@@ -55,7 +53,7 @@ function defaults(): ProviderState {
   return {
     choice: "claude",
     oneModel: true,
-    servers: { ollama: freshServer("ollama"), lmstudio: freshServer("lmstudio") },
+    servers: { ollama: freshServer("ollama"), llamacpp: freshServer("llamacpp"), lmstudio: freshServer("lmstudio") },
     active: null,
     confirmCount: 0,
     dialogOpen: false,
@@ -66,7 +64,8 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 const text = (v: unknown, max: number): string => (typeof v === "string" && v.length <= max ? v : "");
 
 // The remembered choice, read defensively: a stored address is re-checked (this computer only),
-// strings are length-capped, anything that is not the expected shape is dropped.
+// strings are length-capped, anything that is not the expected shape is dropped. Only the servers
+// the picker offers are read: a remembered LM Studio choice (now hidden) falls back to the default.
 function loadStored(): Partial<ProviderState> {
   if (typeof window === "undefined") return {};
   try {
@@ -75,10 +74,12 @@ function loadStored(): Partial<ProviderState> {
     const data: unknown = JSON.parse(raw);
     if (!isRecord(data)) return {};
     const out: Partial<ProviderState> = {};
-    if (data.choice === "claude" || data.choice === "ollama" || data.choice === "lmstudio") out.choice = data.choice;
+    if (data.choice === "claude") out.choice = "claude";
+    const stored = PICKER_SERVERS.find((server) => server === data.choice);
+    if (stored) out.choice = stored;
     if (typeof data.oneModel === "boolean") out.oneModel = data.oneModel;
     const servers = defaults().servers;
-    for (const server of LOCAL_SERVERS) {
+    for (const server of PICKER_SERVERS) {
       const entry = data[server];
       if (!isRecord(entry)) continue;
       const address = text(entry.address, MAX_ADDRESS);
@@ -97,11 +98,13 @@ function loadStored(): Partial<ProviderState> {
 function persist(): void {
   try {
     const { choice, oneModel, servers } = state;
-    const entry = (s: ServerDraft) => ({ address: s.address, fast: s.fast, smart: s.smart });
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ choice, oneModel, ollama: entry(servers.ollama), lmstudio: entry(servers.lmstudio) }),
+    const entries = Object.fromEntries(
+      PICKER_SERVERS.map((server) => {
+        const s = servers[server];
+        return [server, { address: s.address, fast: s.fast, smart: s.smart }];
+      }),
     );
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ choice, oneModel, ...entries }));
   } catch {
     // storage blocked: the choice just isn't remembered
   }

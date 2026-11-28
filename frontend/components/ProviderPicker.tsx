@@ -19,6 +19,8 @@ import {
   DEFAULT_ADDRESS,
   listModels,
   LocalModelError,
+  modelLabel,
+  PICKER_SERVERS,
   SERVER_NAMES,
   shortAddress,
   type LocalServer,
@@ -55,10 +57,23 @@ const PRIVACY =
 
 const HINT: Record<LocalServer, string> = {
   ollama: "Ollama's address on this computer. Default http://localhost:11434.",
+  llamacpp: "llama-server's address on this computer, ending in /v1. Default http://localhost:9931/v1.",
   lmstudio:
     "LM Studio's address on this computer, ending in /v1. Use the port LM Studio prints when its server starts (often 1234 or 1235).",
 };
 const LOCAL_HINT = "Free. Runs on your machine; slower, quality depends on model.";
+const OPTION_LABEL: Record<LocalServer, string> = {
+  ollama: "Ollama on this computer",
+  llamacpp: "llama.cpp on this computer",
+  lmstudio: "LM Studio on this computer",
+};
+// The "connected, no models" line per server.
+const NO_MODELS: Record<LocalServer, string> = {
+  ollama:
+    "Connected, but Ollama has no models installed. Install one (for example `ollama pull llama3.1:8b`), then Connect again.",
+  llamacpp: "Connected, but llama-server listed no model. Start it with -m and a model file, then Connect again.",
+  lmstudio: "Connected, but LM Studio has no models downloaded. Download one in LM Studio, then Connect again.",
+};
 
 type Note = { server: LocalServer; kind: "unreachable" | "not_server" | "cancelled" | "forgotten"; address: string };
 
@@ -131,7 +146,7 @@ export function ProviderPicker({ mode, firstLine }: { mode: "live" | "local"; fi
     wasConnecting.current = connecting;
   }, [connecting]);
 
-  // This site's address for the Ollama setup help; read after mount so server and client HTML match.
+  // This site's address for the setup help; read after mount so server and client HTML match.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOrigin(window.location.origin);
@@ -259,8 +274,7 @@ export function ProviderPicker({ mode, firstLine }: { mode: "live" | "local"; fi
 
   const radios: { value: Choice; label: string; hint: string }[] = [
     { value: "claude", label: claudeLabel, hint: claudeHint },
-    { value: "ollama", label: "Ollama on this computer", hint: LOCAL_HINT },
-    { value: "lmstudio", label: "LM Studio on this computer", hint: LOCAL_HINT },
+    ...PICKER_SERVERS.map((s) => ({ value: s, label: OPTION_LABEL[s], hint: LOCAL_HINT })),
   ];
 
   return (
@@ -413,9 +427,7 @@ export function ProviderPicker({ mode, firstLine }: { mode: "live" | "local"; fi
                 <p className="flex items-start gap-1 text-small text-caution">
                   <TriangleIcon size={14} />
                   <span>
-                    {server === "ollama"
-                      ? "Connected, but Ollama has no models installed. Install one (for example `ollama pull llama3.1:8b`), then Connect again."
-                      : "Connected, but LM Studio has no models downloaded. Download one in LM Studio, then Connect again."}
+                    {NO_MODELS[server]}
                   </span>
                 </p>
               )}
@@ -445,7 +457,7 @@ export function ProviderPicker({ mode, firstLine }: { mode: "live" | "local"; fi
                 <OctagonIcon size={16} />
                 <p>
                   Something answered at {shownNote.address}, but not like {name}. Check the address
-                  {server === "lmstudio" ? "; LM Studio's ends in /v1" : ""}.
+                  {server === "ollama" ? "" : `; ${name}'s ends in /v1`}.
                 </p>
               </div>
             )}
@@ -498,7 +510,8 @@ export function ProviderPicker({ mode, firstLine }: { mode: "live" | "local"; fi
             )}
 
             <p className="text-meta text-ink-muted">
-              Address and model names are remembered on this device (they aren&apos;t secret).{" "}
+              Address and model names are remembered on this device (they aren&apos;t secret; a llama.cpp name is
+              the model file&apos;s path).{" "}
               <button type="button" className={textButton} onClick={doForget}>
                 Forget
               </button>
@@ -528,6 +541,30 @@ export function ProviderPicker({ mode, firstLine }: { mode: "live" | "local"; fi
                       </span>
                     </li>
                     <li>Start Ollama again, then Connect.</li>
+                  </ol>
+                ) : server === "llamacpp" ? (
+                  <ol className="list-decimal space-y-2 pl-5">
+                    <li className="space-y-1">
+                      <span className="block">
+                        Start llama-server with your model, a long enough context, thinking off and this site
+                        allowed:
+                      </span>
+                      <code className={`block ${CODE}`}>
+                        {`llama-server -m <model.gguf> -c 32768 --reasoning off --cors-origins ${origin}`}
+                      </code>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span>This site&apos;s address:</span>
+                        <code className="min-w-0 break-all rounded-md bg-sunken px-3 py-2 text-small">{origin}</code>
+                        <button type="button" className={BUTTON} onClick={() => void copyOrigin()}>
+                          {copied ? "Copied" : "Copy"}
+                        </button>
+                      </span>
+                    </li>
+                    <li>
+                      Always set <code className={CODE}>--cors-origins</code>: without it llama-server lets any website
+                      you visit use your model and read its replies.
+                    </li>
+                    <li>Then Connect, using the port llama-server prints when it starts.</li>
                   </ol>
                 ) : (
                   <p>
@@ -606,7 +643,7 @@ function ModelSelect({
       >
         {models.map((m) => (
           <option key={m} value={m}>
-            {m}
+            {modelLabel(m)}
           </option>
         ))}
       </select>

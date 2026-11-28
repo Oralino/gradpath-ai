@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { LiveStrip, stripSignOut, takePanelCleared } from "@/components/LivePanel";
 import { MonitorIcon } from "@/components/icons";
 import { primaryButton, textButton } from "@/components/buttonStyles";
-import { SERVER_NAMES } from "@/lib/localModels";
+import { modelLabel, SERVER_NAMES } from "@/lib/localModels";
 import { openDialog, takeStripFocus, useProviderSession } from "@/lib/providerSession";
 import { useLiveSession } from "@/lib/liveSession";
 import { useProviderRoute } from "@/lib/useProviderRoute";
@@ -77,8 +77,8 @@ function LocalStrip() {
   }, [count, active]);
   if (!active || active.choice === "claude") return null;
   const name = SERVER_NAMES[active.choice];
-  const models =
-    active.fast === active.smart ? active.fast : `fast ${active.fast}, smart ${active.smart}`;
+  const fast = modelLabel(active.fast);
+  const models = active.fast === active.smart ? fast : `fast ${fast}, smart ${modelLabel(active.smart)}`;
   const signedAs = live.login ? `, signed in as @${live.login}` : "";
   return (
     <div

@@ -117,8 +117,8 @@ describe("the options", () => {
     fireEvent.change(screen.getByLabelText("Anthropic API key"), { target: { value: "sk-ant-typed" } });
     fireEvent.click(radio(/Ollama on this computer/));
     fireEvent.change(address(), { target: { value: "http://localhost:9999" } });
-    fireEvent.click(radio(/LM Studio on this computer/));
-    expect(address().value).toBe("http://localhost:1234/v1");
+    fireEvent.click(radio(/llama\.cpp on this computer/));
+    expect(address().value).toBe("http://localhost:9931/v1");
     fireEvent.click(radio(/Ollama on this computer/));
     expect(address().value).toBe("http://localhost:9999");
     fireEvent.click(radio(/Claude \(your API key\)/));
@@ -141,8 +141,20 @@ describe("the options", () => {
     fireEvent.change(address(), { target: { value: "http://localhost:1" } });
     fireEvent.click(screen.getByRole("button", { name: "Use the default" }));
     expect(address().value).toBe("http://localhost:11434");
-    fireEvent.click(radio(/LM Studio on this computer/));
-    expect(screen.getByText(/ending in \/v1/)).toBeTruthy();
+    fireEvent.click(radio(/llama\.cpp on this computer/));
+    expect(screen.getByText(/llama-server's address on this computer, ending in \/v1\. Default http:\/\/localhost:9931\/v1\./)).toBeTruthy();
+  });
+
+  test("LM Studio is not offered (its client is kept for later)", () => {
+    render(<Harness />);
+    open();
+    expect(screen.queryByRole("radio", { name: /LM Studio/ })).toBeNull();
+    expect(screen.getAllByRole("radio").map((r) => (r as HTMLInputElement).value)).toEqual([
+      "claude",
+      "ollama",
+      "llamacpp",
+      "browser",
+    ]);
   });
 });
 
@@ -194,9 +206,9 @@ describe("Connect", () => {
     await connect([]);
     expect(screen.getByText(/Connected, but Ollama has no models installed\./)).toBeTruthy();
     expect(useModel().disabled).toBe(true);
-    fireEvent.click(radio(/LM Studio on this computer/));
+    fireEvent.click(radio(/llama\.cpp on this computer/));
     await connect([]);
-    expect(screen.getByText(/Connected, but LM Studio has no models downloaded\./)).toBeTruthy();
+    expect(screen.getByText(/Connected, but llama-server listed no model\./)).toBeTruthy();
   });
 
   test("can't reach: an alert with the checklist, setup help opens, focus stays on Connect", async () => {
@@ -211,13 +223,34 @@ describe("Connect", () => {
     await waitFor(() => expect(document.activeElement).toBe(connectButton()));
   });
 
-  test("something answered that is not the server: its own line, with the /v1 hint for LM Studio", async () => {
+  test("something answered that is not the server: its own line, with the /v1 hint for llama.cpp", async () => {
     openOllama();
-    fireEvent.click(radio(/LM Studio on this computer/));
+    fireEvent.click(radio(/llama\.cpp on this computer/));
     listModels.mockRejectedValueOnce(new LocalModelError("not_server"));
     fireEvent.click(connectButton());
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Something answered at localhost:1234/v1, but not like LM Studio. Check the address; LM Studio's ends in /v1.");
+    expect(alert.textContent).toContain("Something answered at localhost:9931/v1, but not like llama.cpp. Check the address; llama.cpp's ends in /v1.");
+  });
+
+  test("llama.cpp: the menu shows a model file's name, not its folders, but keeps the full name as the value", async () => {
+    openOllama();
+    fireEvent.click(radio(/llama\.cpp on this computer/));
+    const path = "H:/Models/Some Folder/Qwen2.5-7B-Instruct-Q4_K_M.gguf";
+    await connect([path]);
+    expect(listModels).toHaveBeenCalledWith("llamacpp", "http://localhost:9931/v1", expect.any(AbortSignal));
+    const select = screen.getByLabelText("Model") as HTMLSelectElement;
+    expect(select.options[0].value).toBe(path);
+    expect(select.options[0].textContent).toBe("Qwen2.5-7B-Instruct-Q4_K_M.gguf");
+    expect(dialog()?.textContent).not.toContain("Some Folder");
+  });
+
+  test("llama.cpp setup help: the start command with this site, and the warning to always set --cors-origins", () => {
+    openOllama();
+    fireEvent.click(radio(/llama\.cpp on this computer/));
+    const origin = window.location.origin;
+    expect(screen.getByText(`llama-server -m <model.gguf> -c 32768 --reasoning off --cors-origins ${origin}`)).toBeTruthy();
+    expect(screen.getByText(/without it llama-server lets any website you visit use your model and read its replies/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copy" })).toBeTruthy();
   });
 
   test("the setup help names this site's address for OLLAMA_ORIGINS", () => {

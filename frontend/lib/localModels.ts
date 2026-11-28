@@ -1,7 +1,8 @@
 // Browser clients for a model server on the visitor's own computer (T-029 step 3; always-hard:
 // untrusted model output, where visitor data goes). Ollama's native API (/api/tags, /api/chat with
-// `format` = the JSON schema) and LM Studio's OpenAI-compatible API (/v1/models,
-// /v1/chat/completions with response_format json_schema). Used by components/ProviderPicker.tsx
+// `format` = the JSON schema) and the OpenAI-compatible API of llama.cpp's llama-server and LM
+// Studio (/v1/models, /v1/chat/completions with response_format json_schema). LM Studio is kept
+// but not offered in the picker (owner decision 2026-11-28; see PICKER_SERVERS). Used by components/ProviderPicker.tsx
 // (Connect: list the models) and lib/relayRun.ts (answer each relay prompt).
 //
 // Rules: only this computer (owner decision: localhost, 127.0.0.1, [::1], any port), so a
@@ -9,21 +10,31 @@
 // or referrer go with the request; every failure becomes a fixed LocalModelError (never the
 // server's own text); the reply text is untrusted and only ever posted back to GradPath's server,
 // which validates it. Docs (2026-11-28): docs.ollama.com/api/chat, docs.ollama.com/api/tags,
-// lmstudio.ai/docs/developer/openai-compat/structured-output.
+// lmstudio.ai/docs/developer/openai-compat/structured-output; llama-server checked on the owner's
+// build 12835 (2026-11-28): /v1/models ids are the model file's path, json_schema is enforced,
+// chat_template_kwargs is accepted.
 
 import type { RelayMessage } from "@/lib/types";
 
-export type LocalServer = "ollama" | "lmstudio";
+export type LocalServer = "ollama" | "llamacpp" | "lmstudio";
 
-export const SERVER_NAMES: Record<LocalServer, string> = { ollama: "Ollama", lmstudio: "LM Studio" };
+/** The servers the picker offers, in order. LM Studio's client stays for later (owner decision). */
+export const PICKER_SERVERS: readonly LocalServer[] = ["ollama", "llamacpp"];
+
+export const SERVER_NAMES: Record<LocalServer, string> = {
+  ollama: "Ollama",
+  llamacpp: "llama.cpp",
+  lmstudio: "LM Studio",
+};
 export const DEFAULT_ADDRESS: Record<LocalServer, string> = {
   ollama: "http://localhost:11434",
+  llamacpp: "http://localhost:9931/v1",
   lmstudio: "http://localhost:1234/v1",
 };
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 export const MAX_MODELS = 200; // names shown in the picker's menus
-const MAX_NAME = 200;
+export const MAX_NAME = 1_000; // llama-server names a model by its file's full path
 // One call, under the server's 420 s reply timeout (RELAY_REPLY_TIMEOUT_S), which also covers the
 // time a prompt waits behind another (the page answers one at a time, so no extra VRAM).
 export const CHAT_TIMEOUT_MS = 400_000;
@@ -34,6 +45,9 @@ export const OLLAMA_NUM_CTX = 16_384;
 // time on qwen38-27b-iq4xs, and the 27B ran past CHAT_TIMEOUT_MS on a plan's first call. Models
 // without a thinking mode accept `think: false` (checked on llama3.1:8b, 2026-11-28).
 export const OLLAMA_THINK = false;
+// llama-server's per-request switch for the same thing (the Qwen3 chat template reads it); the
+// setup help also says to start the server with --reasoning off.
+export const LLAMACPP_NO_THINKING = { enable_thinking: false };
 
 export type LocalErrorKind =
   | "unreachable" // network error: not running, wrong port, origin not allowed, Chrome permission denied
@@ -58,7 +72,7 @@ export class LocalModelError extends Error {
 export type AddressCheck = { ok: true; base: string } | { ok: false; error: "malformed" | "not_local" };
 
 /** Check a typed server address before any request: http(s), this computer only, no credentials,
- * query or fragment. Returns the base URL without a trailing slash (LM Studio's keeps its /v1).
+ * query or fragment. Returns the base URL without a trailing slash (an OpenAI-style one keeps its /v1).
  * Called by the picker on Connect and by the store when a remembered address is loaded. */
 export function checkAddress(raw: string): AddressCheck {
   let url: URL;
@@ -127,11 +141,21 @@ async function call(url: string, init: RequestInit, timeoutMs: number, signal?: 
   }
 }
 
+/** A model name as the page shows it: llama-server names a model by its file's full path, which
+ * would put the visitor's folders on screen, so a `.gguf` path shows its file name only. Other
+ * names (Ollama's `hf.co/user/model:tag`) are shown whole. The full name is still what is sent. */
+export function modelLabel(name: string): string {
+  if (!/\.gguf$/i.test(name)) return name;
+  const parts = name.split(/[\\/]/);
+  return parts[parts.length - 1] || name;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// Embedding models can't chat (LM Studio lists them with the chat models), so they are left out.
+// Embedding models can't chat (LM Studio and Ollama list them with the chat models), so they are
+// left out.
 // Matched as a separate word ("nomic-embed-text", "text-embedding-...") so a chat model whose name
 // merely contains the letters, like "embedded-systems", stays listed.
 const EMBEDDING = /(^|[^a-z])embed(ding)?([^a-z]|$)/i;
@@ -171,7 +195,7 @@ export async function listModels(server: LocalServer, base: string, signal?: Abo
 }
 
 /** One chat completion on the visitor's model; returns the reply text (untrusted). With a JSON
- * schema the server is asked to follow it (Ollama `format`, LM Studio `response_format`); the
+ * schema the server is asked to follow it (Ollama `format`, else `response_format`); the
  * GradPath server still validates the reply. Called by lib/relayRun.ts for each relay prompt. */
 export async function chat(
   server: LocalServer,
@@ -198,6 +222,7 @@ export async function chat(
     return content;
   }
   const payload: Record<string, unknown> = { model, messages: msgs, stream: false };
+  if (server === "llamacpp") payload.chat_template_kwargs = LLAMACPP_NO_THINKING;
   if (schema) {
     payload.response_format = { type: "json_schema", json_schema: { name: "reply", strict: true, schema } };
   }

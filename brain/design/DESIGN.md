@@ -708,7 +708,7 @@ key, or from a model running on this computer." (`text-small text-ink-muted`).
 | | (*) Ollama on this computer                    <- border-ink      |   |
 | |     Free. Runs on your machine; slower, quality depends on model. |   |
 | +-------------------------------------------------------------------+   |
-| | (o) LM Studio on this computer                                    |   |
+| | (o) llama.cpp on this computer                                    |   |
 | |     Free. Runs on your machine; slower, quality depends on model. |   |
 | +-------------------------------------------------------------------+   |
 | | (-) Model in your browser          [Coming soon]  <- neutral badge|   |
@@ -741,8 +741,8 @@ key, or from a model running on this computer." (`text-small text-ink-muted`).
 - **Local block:** address field (Field pattern, `type="text" inputMode="url"`, `autoComplete="off"`,
   `spellCheck={false}`, `autoCapitalize="none"`), Connect as a secondary button beside it (`h-11
   sm:h-10`, `shrink-0`; the row wraps below 340px). Help: Ollama "Ollama's address on this computer.
-  Default http://localhost:11434."; LM Studio "LM Studio's address on this computer, ending in /v1.
-  Use the port LM Studio prints when its server starts (often 1234 or 1235)." A "Use the default"
+  Default http://localhost:11434."; llama.cpp "llama-server's address on this computer, ending in
+  /v1. Default http://localhost:9931/v1." A "Use the default"
   text button appears when the value differs from the default. Primary button "Use this model".
 - **Address check** (on Connect, before any request): http or https, host `localhost`, `127.0.0.1`
   or `[::1]`, any port. Errors in the Field error pattern: "Only a server on this computer works
@@ -790,12 +790,23 @@ key, or from a model running on this computer." (`text-small text-ink-muted`).
   button (text becomes "Copied" for 2 s, status "Address copied"). Windows: Settings, search
   "environment variables", "Edit environment variables for your account", New. macOS: `launchctl
   setenv OLLAMA_ORIGINS "<origin>"`. 3. Start Ollama again, then Connect.
-- LM Studio: start the server with CORS on: `lms server start --cors`, or turn on "Enable CORS" in
+- llama.cpp, an `<ol>`: 1. Start llama-server with the model, a long enough context, thinking off
+  and this site allowed: `llama-server -m <model.gguf> -c 32768 --reasoning off --cors-origins
+  <origin>` (the current origin filled in), then the origin in the sunken block with "Copy" as for
+  Ollama. 2. "Always set `--cors-origins`: without it llama-server lets any website you visit use
+  your model and read its replies." (the default `*` reflects any origin). 3. "Then Connect, using
+  the port llama-server prints when it starts."
+- Model names: llama-server names a model by its file's full path, so the menus, the strip and
+  "Waiting for {model}" show only the file name of a `.gguf` path (no folders on screen); the full
+  name is still what is sent. Other names are shown whole.
+- LM Studio (owner decision 2026-11-28: not offered in the picker; its page client and the
+  server-side `LLM_PROVIDER=lmstudio` stay for later; a remembered LM Studio choice falls back to
+  the default): start the server with CORS on: `lms server start --cors`, or turn on "Enable CORS" in
   the server settings. Then Connect with the port it prints.
 - Both: "Chrome asks once whether this site may access apps and services on your device: choose
   Allow. If you chose Block, use the site settings icon left of the address bar to allow it."
 - Commands are inline code (`bg-sunken font-mono`, wrapping). Main session checks each step against
-  the current Ollama and LM Studio docs before shipping.
+  the current Ollama and llama.cpp docs before shipping.
 
 **Collapsed strip** (inline at the top of the form after setup; LiveStrip style, `rounded-md
 border-l-4 border-info bg-info-bg p-3 text-small`, `flex flex-wrap items-start gap-x-3 gap-y-1`):
@@ -863,9 +874,9 @@ mode" opens the dialog with the field error already shown.
 |---|---|---|
 | Connecting | under the address row | meta line (Chrome prompt hint above), Connect "Connecting...", Cancel shown; 60 s then "Can't reach" |
 | Connected | status line | positive line "Connected to {server}: N models."; selects appear |
-| No models | status line | caution line, triangle: Ollama "Connected, but Ollama has no models installed. Install one (for example `ollama pull llama3.1:8b`), then Connect again."; LM Studio "Connected, but LM Studio has no models downloaded. Download one in LM Studio, then Connect again." |
+| No models | status line | caution line, triangle: Ollama "Connected, but Ollama has no models installed. Install one (for example `ollama pull llama3.1:8b`), then Connect again."; llama.cpp "Connected, but llama-server listed no model. Start it with -m and a model file, then Connect again." |
 | Can't reach | stopped line in the dialog (`role="alert"`) | "Can't reach {server} at {address}. The browser can't tell why, so check:" + `<ul>`: it is running; the address and port are right; it allows this site (Setup help); you chose Allow when Chrome asked about apps on this device. Setup help opens; focus stays on Connect |
-| Something answered, not the server | stopped line | "Something answered at {address}, but not like {server}. Check the address{; LM Studio's ends in /v1}." |
+| Something answered, not the server | stopped line | "Something answered at {address}, but not like {server}. Check the address{; llama.cpp's ends in /v1}." |
 | Address not local / malformed | field error | texts above; focus the field |
 | Cancelled | status line | "Connection cancelled." (meta) |
 | Run: model didn't answer in time | result slot, stopped panel | headline "Your model run stopped", server text, "What you can do: try a smaller model or try again." |

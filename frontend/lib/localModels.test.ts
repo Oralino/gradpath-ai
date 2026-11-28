@@ -5,6 +5,8 @@ import {
   listModels,
   LocalModelError,
   MAX_MODELS,
+  MAX_NAME,
+  modelLabel,
   OLLAMA_NUM_CTX,
   shortAddress,
 } from "@/lib/localModels";
@@ -104,13 +106,29 @@ describe("listModels", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:1235/v1/models");
   });
 
+  test("llama.cpp reads /v1/models ids, which are the model file's path", async () => {
+    const path = "H:/AI Models/lmstudio-community/Qwen2.5-7B-Instruct-GGUF/Qwen2.5-7B-Instruct-Q4_K_M.gguf";
+    const fetchMock = stubFetch(async () =>
+      jsonResponse(200, { object: "list", data: [{ id: path, object: "model" }], models: [{ name: path }] }),
+    );
+    expect(await listModels("llamacpp", "http://localhost:9931/v1")).toEqual([path]);
+    expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:9931/v1/models");
+  });
+
+  test("modelLabel shows a .gguf path's file name and other names whole", () => {
+    expect(modelLabel("H:/AI Models/x/Qwen2.5-7B-Instruct-Q4_K_M.gguf")).toBe("Qwen2.5-7B-Instruct-Q4_K_M.gguf");
+    expect(modelLabel("C:\\Users\\someone\\models\\m.GGUF")).toBe("m.GGUF");
+    expect(modelLabel("hf.co/user/model:Q4_K_M")).toBe("hf.co/user/model:Q4_K_M");
+    expect(modelLabel("llama3.1:8b")).toBe("llama3.1:8b");
+  });
+
   test("an empty list means connected with no models", async () => {
     stubFetch(async () => jsonResponse(200, { models: [] }));
     expect(await listModels("ollama", "http://localhost:11434")).toEqual([]);
   });
 
   test("skips bad entries, de-duplicates and caps the list", async () => {
-    const models = [{ name: 5 }, { name: "" }, { name: "a" }, { name: "a" }, { name: "x".repeat(201) }, "b", null];
+    const models = [{ name: 5 }, { name: "" }, { name: "a" }, { name: "a" }, { name: "x".repeat(MAX_NAME + 1) }, "b", null];
     for (let i = 0; i < MAX_MODELS + 10; i += 1) models.push({ name: `m${i}` });
     stubFetch(async () => jsonResponse(200, { models }));
     const listed = await listModels("ollama", "http://localhost:11434");
@@ -193,6 +211,34 @@ describe("chat", () => {
     const body = JSON.parse(String(init.body));
     expect(body.response_format).toEqual({ type: "json_schema", json_schema: { name: "reply", strict: true, schema } });
     expect(body.stream).toBe(false);
+  });
+
+  test("llama.cpp sends response_format json_schema and turns thinking off per request", async () => {
+    const fetchMock = stubFetch(async () => jsonResponse(200, { choices: [{ message: { content: '{"a":"y"}' } }] }));
+    const text = await chat("llamacpp", "http://localhost:9931/v1", "H:/m/q.gguf", messages, schema);
+    expect(text).toBe('{"a":"y"}');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:9931/v1/chat/completions");
+    expect(init.credentials).toBe("omit");
+    expect(init.redirect).toBe("error");
+    const body = JSON.parse(String(init.body));
+    expect(body.model).toBe("H:/m/q.gguf");
+    expect(body.response_format).toEqual({ type: "json_schema", json_schema: { name: "reply", strict: true, schema } });
+    expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
+  });
+
+  test("llama.cpp plain prompts still turn thinking off and send no response_format", async () => {
+    const fetchMock = stubFetch(async () => jsonResponse(200, { choices: [{ message: { content: "hi" } }] }));
+    expect(await chat("llamacpp", "http://localhost:9931/v1", "m.gguf", messages, null)).toBe("hi");
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
+    expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
+    expect(body).not.toHaveProperty("response_format");
+  });
+
+  test("LM Studio gets no llama.cpp template switch", async () => {
+    const fetchMock = stubFetch(async () => jsonResponse(200, { choices: [{ message: { content: "ok" } }] }));
+    await chat("lmstudio", "http://localhost:1235/v1", "m", messages, null);
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).not.toHaveProperty("chat_template_kwargs");
   });
 
   test("only role and content are sent", async () => {

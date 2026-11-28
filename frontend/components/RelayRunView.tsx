@@ -12,7 +12,7 @@ import { CheckIcon, InfoIcon } from "@/components/icons";
 import { isModeError, ModeErrorPanel } from "@/components/ModeErrorPanel";
 import { StatusPanel } from "@/components/StatusPanel";
 import { formatElapsed } from "@/lib/formatElapsed";
-import { SERVER_NAMES } from "@/lib/localModels";
+import { modelLabel, SERVER_NAMES } from "@/lib/localModels";
 import { BUSY_HEADING, DEFAULT_STAGES, stageLabel } from "@/lib/plan";
 import {
   describeStep,
@@ -76,7 +76,7 @@ function ModelWait({ model, since }: { model: string; since: number }) {
   const seconds = Math.max(0, Math.floor((now - since) / 1000));
   return (
     <p className="text-meta tabular-nums text-ink-muted">
-      Waiting for {model} {formatElapsed(seconds)}
+      Waiting for {modelLabel(model)} {formatElapsed(seconds)}
     </p>
   );
 }

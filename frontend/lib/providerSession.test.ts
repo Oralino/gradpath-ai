@@ -42,7 +42,7 @@ describe("remember and forget", () => {
       choice: "ollama",
       oneModel: false,
       ollama: { address: "http://127.0.0.1:11500", fast: "a:7b", smart: "b:14b" },
-      lmstudio: { address: "http://localhost:1234/v1", fast: "", smart: "" },
+      llamacpp: { address: "http://localhost:9931/v1", fast: "", smart: "" },
     });
     expect(window.localStorage.length).toBe(1);
   });
@@ -50,19 +50,38 @@ describe("remember and forget", () => {
   test("a reload preselects the remembered choice and names; the connection itself is not remembered", () => {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ choice: "lmstudio", oneModel: false, lmstudio: { address: "http://localhost:1235/v1", fast: "f", smart: "s" } }),
+      JSON.stringify({ choice: "llamacpp", oneModel: false, llamacpp: { address: "http://localhost:8080/v1", fast: "f", smart: "s" } }),
     );
     const s = state();
-    expect(s.choice).toBe("lmstudio");
+    expect(s.choice).toBe("llamacpp");
     expect(s.oneModel).toBe(false);
-    expect(s.servers.lmstudio.address).toBe("http://localhost:1235/v1");
-    expect(s.servers.lmstudio.connectedBase).toBeNull();
+    expect(s.servers.llamacpp.address).toBe("http://localhost:8080/v1");
+    expect(s.servers.llamacpp.connectedBase).toBeNull();
     expect(s.active).toBeNull();
     // Connect: the remembered name is kept when the list has it, else the first listed.
-    setConnection("lmstudio", "http://localhost:1235/v1", ["x", "f", "y"]);
-    const after = state().servers.lmstudio;
+    setConnection("llamacpp", "http://localhost:8080/v1", ["x", "f", "y"]);
+    const after = state().servers.llamacpp;
     expect(after.fast).toBe("f");
     expect(after.smart).toBe("x");
+  });
+
+  test("a remembered LM Studio choice (no longer offered) falls back to the default; its entry is dropped", () => {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ choice: "lmstudio", lmstudio: { address: "http://localhost:1235/v1", fast: "f", smart: "f" } }),
+    );
+    const s = state();
+    expect(s.choice).toBe("claude");
+    expect(s.servers.lmstudio.address).toBe("http://localhost:1234/v1");
+    expect(s.servers.lmstudio.fast).toBe("");
+    setConnection("ollama", "http://localhost:11434", ["a"]);
+    confirmLocal("ollama");
+    expect(Object.keys(JSON.parse(window.localStorage.getItem(STORAGE_KEY) as string)).sort()).toEqual([
+      "choice",
+      "llamacpp",
+      "ollama",
+      "oneModel",
+    ]);
   });
 
   test("forget clears storage and resets addresses and connections, leaving the radio and the setup in force", () => {
@@ -87,14 +106,14 @@ describe("remember and forget", () => {
     window.localStorage.setItem(STORAGE_KEY, "{not json");
     expect(state().choice).toBe("claude");
     resetProviderForTests();
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ choice: "evil", oneModel: "yes", ollama: 5, lmstudio: { address: 7, fast: {} } }));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ choice: "evil", oneModel: "yes", ollama: 5, llamacpp: { address: 7, fast: {} } }));
     const s = state();
     expect(s.choice).toBe("claude");
     expect(s.oneModel).toBe(true);
-    expect(s.servers.lmstudio.address).toBe("http://localhost:1234/v1");
-    expect(s.servers.lmstudio.fast).toBe("");
+    expect(s.servers.llamacpp.address).toBe("http://localhost:9931/v1");
+    expect(s.servers.llamacpp.fast).toBe("");
     resetProviderForTests();
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ choice: "ollama", ollama: { address: "x".repeat(400), fast: "n".repeat(300), smart: "ok" } }));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ choice: "ollama", ollama: { address: "x".repeat(400), fast: "n".repeat(1_100), smart: "ok" } }));
     const capped = state().servers.ollama;
     expect(capped.address).toBe("http://localhost:11434");
     expect(capped.fast).toBe("");
@@ -116,11 +135,11 @@ describe("what is in force", () => {
   });
 
   test("two models: smart is kept apart when oneModel is off", () => {
-    setConnection("lmstudio", "http://localhost:1234/v1", ["a", "b"]);
+    setConnection("llamacpp", "http://localhost:9931/v1", ["a", "b"]);
     setOneModel(false);
-    setModel("lmstudio", "smart", "b");
-    confirmLocal("lmstudio");
-    expect(relayModels()).toMatchObject({ server: "lmstudio", fast: "a", smart: "b" });
+    setModel("llamacpp", "smart", "b");
+    confirmLocal("llamacpp");
+    expect(relayModels()).toMatchObject({ server: "llamacpp", fast: "a", smart: "b" });
   });
 
   test("confirming needs a connection and a chosen model; editing the address drops the connection", () => {
@@ -135,7 +154,7 @@ describe("what is in force", () => {
 
   test("the radio switch keeps what was typed for the other options", () => {
     setAddress("ollama", "http://localhost:9999");
-    setChoice("lmstudio");
+    setChoice("llamacpp");
     setChoice("ollama");
     expect(state().servers.ollama.address).toBe("http://localhost:9999");
   });
