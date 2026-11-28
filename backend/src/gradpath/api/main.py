@@ -24,6 +24,7 @@ from gradpath.api.assist import router as assist_router
 from gradpath.api.auth import router as auth_router
 from gradpath.api.career import router as career_router
 from gradpath.api.chat import router as chat_router
+from gradpath.api.debug import router as debug_router
 from gradpath.api.demo import router as demo_router
 from gradpath.api.jobs import router as jobs_router
 from gradpath.api.live import router as live_router
@@ -62,11 +63,25 @@ SITE_SHAPE = re.compile(
 )
 
 
+def _strong_secret(value: str) -> bool:
+    """32+ printable ASCII characters, no spaces: the shape `check_live_settings` asks of
+    SESSION_SECRET and PROXY_SHARED_SECRET (Render's Generate button makes such a value)."""
+    return len(value) >= MIN_SESSION_SECRET_CHARS and all(33 <= ord(c) <= 126 for c in value)
+
+
 def check_live_settings(settings: Settings) -> None:
     """Refuse to start live mode unless every model call must use the visitor's key (the
     provider is the Anthropic API, no server key is set: owner rule, no key the owner pays for)
     and GitHub sign-in guards it (T-026: client id and secret, a 32+ character session secret, an
-    https site URL). Called by `lifespan`; the message names settings, never values."""
+    https site URL). A set PROXY_SHARED_SECRET must be strong in every mode (T-020 step 4: a weak
+    one would let callers pick their rate-limit bucket). Called by `lifespan`; the message names
+    settings, never values."""
+    proxy = settings.proxy_shared_secret
+    if proxy is not None and not _strong_secret(proxy.get_secret_value()):
+        raise RuntimeError(
+            f"PROXY_SHARED_SECRET, when set, needs {MIN_SESSION_SECRET_CHARS}+ printable ASCII "
+            "characters"
+        )
     if settings.app_mode != "live":
         return
     if settings.llm_provider != "anthropic_api":
@@ -79,7 +94,7 @@ def check_live_settings(settings: Settings) -> None:
     if client_secret is None or not client_secret.get_secret_value().strip():
         raise RuntimeError("APP_MODE=live needs GITHUB_CLIENT_SECRET (the OAuth App's secret)")
     secret = "" if settings.session_secret is None else settings.session_secret.get_secret_value()
-    if len(secret) < MIN_SESSION_SECRET_CHARS or not all(33 <= ord(c) <= 126 for c in secret):
+    if not _strong_secret(secret):
         raise RuntimeError(
             f"APP_MODE=live needs SESSION_SECRET of {MIN_SESSION_SECRET_CHARS}+ printable ASCII "
             "characters"
@@ -416,6 +431,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
     app.include_router(search_router)
     app.include_router(live_router)
     app.include_router(auth_router)
+    app.include_router(debug_router)
 
     @app.get("/api/health", tags=["meta"], response_model=Health)
     def health(request: Request) -> Health:

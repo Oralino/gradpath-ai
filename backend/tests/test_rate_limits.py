@@ -304,6 +304,9 @@ def _with(**update):
         (_with(public_site_url="http://site.example"), "PUBLIC_SITE_URL"),
         (_with(public_site_url="https://site.example/"), "PUBLIC_SITE_URL"),
         (_with(public_site_url="https://site.example/path"), "PUBLIC_SITE_URL"),
+        (_with(proxy_shared_secret=SecretStr("short-secret")), "PROXY_SHARED_SECRET"),
+        (_with(proxy_shared_secret=SecretStr("")), "PROXY_SHARED_SECRET"),
+        (_with(proxy_shared_secret=SecretStr("spaces in it " + "p" * 30)), "PROXY_SHARED_SECRET"),
     ],
 )
 def test_live_refuses_to_start_without_github_sign_in_settings(monkeypatch, settings, names):

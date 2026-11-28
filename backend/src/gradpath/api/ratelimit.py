@@ -11,7 +11,9 @@ Own code, no dependency: a few dozen lines with a fake clock for tests (CLAUDE.m
 limits). Over a limit the route answers 429 with a fixed message and `Retry-After`.
 """
 
+import hmac
 import ipaddress
+import logging
 import threading
 import time
 from collections import OrderedDict, deque
@@ -22,12 +24,16 @@ from fastapi import HTTPException, Request
 
 from gradpath.config import Settings, get_settings
 
+log = logging.getLogger(__name__)
 # "Your network": limits are per IP, and one IP can be a whole household, office or campus.
 LIMITED = (
     "Too many requests from your network (this can include other people on the same Wi-Fi). "
     "Try again later."
 )
 MAX_TRACKED = 10_000
+# Set by the site's server (frontend/proxy.ts, T-020 step 4); the names must match there.
+CLIENT_IP_HEADER = "x-gradpath-client-ip"
+PROXY_SECRET_HEADER = "x-gradpath-proxy-secret"
 MINUTE, HOUR, DAY = 60.0, 3600.0, 86_400.0
 
 
@@ -128,11 +134,46 @@ class Limiter:
 LIMITER = Limiter()
 
 
+def from_site(request: Request, settings: Settings) -> bool:
+    """True when the request carries PROXY_SHARED_SECRET in exactly one PROXY_SECRET_HEADER, i.e.
+    it came through the site's own server. Used by `client_ip` and the debug page; compared in
+    constant time, so a wrong guess learns nothing. Unset or empty secret: always False."""
+    expected = settings.proxy_shared_secret
+    secret = "" if expected is None else expected.get_secret_value()
+    if not secret:
+        return False
+    given = request.headers.getlist(PROXY_SECRET_HEADER)
+    if len(given) != 1:
+        return False
+    return hmac.compare_digest(given[0].encode(), secret.encode())
+
+
+_warned_site_address = False
+
+
+def _warn_unusable_site_address() -> None:
+    """Log once per process (no values) that the site sent the right secret but no usable
+    address, so `client_ip` fell back to the hops rule; repeated it would flood the log."""
+    global _warned_site_address
+    if not _warned_site_address:
+        _warned_site_address = True
+        log.warning("client address: the site's secret matched but its address was unusable")
+
+
 def client_ip(request: Request, settings: Settings) -> str:
-    """The caller, as a rate-limit key. With TRUSTED_PROXY_HOPS = n > 0 (behind n proxies that
-    each append to X-Forwarded-For), the n-th entry from the right: entries further left are
-    client-written and could be forged. Falls back to the connection address. Normalised by
-    `client_key`, so one IPv6 network can't pose as many clients."""
+    """The caller, as a rate-limit key. A request from the site's server (`from_site`) is keyed by
+    the visitor address that server measured (CLIENT_IP_HEADER, T-020 step 4). Otherwise, with
+    TRUSTED_PROXY_HOPS = n > 0 (behind n proxies that each append to X-Forwarded-For), the n-th
+    entry from the right: entries further left are client-written and could be forged. Falls back
+    to the connection address. Normalised by `client_key`, so one IPv6 network can't pose as many
+    clients. Called by `charge`, `ensure_room` and the debug page."""
+    if from_site(request, settings):
+        values = request.headers.getlist(CLIENT_IP_HEADER)
+        if len(values) == 1:
+            key = client_key(values[0])
+            if key is not None:
+                return key
+        _warn_unusable_site_address()
     hops = settings.trusted_proxy_hops
     if hops > 0:
         lines = request.headers.getlist("x-forwarded-for")

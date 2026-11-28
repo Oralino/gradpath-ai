@@ -105,6 +105,13 @@ class Settings(BaseSettings):
     # Proxies in front of the API that append to X-Forwarded-For (Render: set in Milestone 8).
     # 0 = use the connection address; never trust the client-written left end of the header.
     trusted_proxy_hops: int = Field(default=0, ge=0, le=5)
+    # T-020 step 4: the site's own server (frontend/proxy.ts on Vercel) sends the visitor's
+    # address in X-GradPath-Client-IP together with this secret in X-GradPath-Proxy-Secret; the API
+    # believes that address only when the secret matches. Unset = never believed. Set in Render and
+    # Vercel's server settings only (never a NEXT_PUBLIC_ name), 32+ printable characters.
+    proxy_shared_secret: SecretStr | None = None
+    # Temporary measuring page GET /api/debug/forwarded (T-020 step 4): 404 unless true.
+    debug_forwarded: bool = False
     # Browser origins allowed to POST (T-018 step 8, CSRF defence in depth): comma-separated, exact
     # scheme://host[:port]. Requests with no Origin header (curl, CLIs) are unaffected. There is
     # no CORS middleware: the browser only calls its own origin, through Next's /api proxy.
