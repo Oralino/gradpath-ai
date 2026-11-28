@@ -130,6 +130,8 @@ From guide 09, narrowed to this app. Run before each release; the project's rele
 - [ ] Concurrency, size, revision and time limits in place.
 - [ ] Secret scan: diff, logs, `demo_runs/`, commit messages; no `.env` tracked.
 - [ ] `uvx pip-audit` clean (once adopted).
+      Trivy (free image CVE scan, locally or as a CI job) was also recommended to the owner:
+      decide it with `pip-audit` and `npm audit` in T-020 step 5.
 - [ ] From Milestone 6: model text rendered as text; links `http(s)` only.
 - [ ] From Milestone 7: auth on model routes, per-IP limits, CORS allow-list, visitor key never
       logged or traced, demo mode works with no keys.
