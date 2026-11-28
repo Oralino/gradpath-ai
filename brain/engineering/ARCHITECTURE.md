@@ -150,8 +150,15 @@ from the rightmost `X-Forwarded-For` entry, which Vercel overwrites with the add
 temporary `GET /api/debug/forwarded` (404 unless `DEBUG_FORWARDED=true`) shows a caller their own
 chain, for measuring the deployed setup.
 
+**Browser protections (T-020 step 5):** every page gets `X-Frame-Options: DENY`,
+`X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin` from
+`next.config.ts` `headers()`; every API reply gets the same three from `SecurityHeaders`
+(outermost ASGI middleware), because `headers()`, and response headers set in `proxy.ts`, don't
+reach replies from the external `/api` rewrite (measured with `next start`). HSTS comes from
+Vercel. No Content-Security-Policy yet.
+
 **Site only (T-020 step 4, owner decision "origin cloaking"):** once `PROXY_SHARED_SECRET` is set,
-`SiteOnly` (outermost ASGI middleware, `api/main.py`) answers 403 `site_only` to every request
+`SiteOnly` (ASGI middleware right inside `SecurityHeaders`, `api/main.py`) answers 403 `site_only` to every request
 without the matching secret, except `GET`/`HEAD /api/health` (Render's health check calls the
 API directly). So the Render URL is useless on its own: no API, no `/docs`, `/redoc` or
 `/openapi.json` (the site forwards only `/api/*`, so those are unreachable on the deployed site;

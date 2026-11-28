@@ -160,7 +160,13 @@ Step 5 (2026-11-28), checks on the deployed site (in progress):
   findings (125 distinct). Not adopted now: the free tier offers only `latest` (version tags need
   a paid plan: zero-cost rule), so the project would move to Python 3.15 and jump with every new
   release, and the Dockerfile and CI checks rely on a shell. Recorded as the preferred future
-  "minimal base image" option, as its own ticket.
+  "minimal base image" option, as its own ticket. (Owner asked whether we'd use both: yes, a
+  minimal base and a scanner are complementary; Trivy would stay for our own Python packages.)
+- Security headers (owner: the simple three now, Content-Security-Policy later): set in
+  `next.config.ts` for pages. Measured with `next build` + `next start`: `headers()` and response
+  headers set in `proxy.ts` both miss replies from the external `/api` rewrite, so the API adds
+  them itself (`SecurityHeaders` in `api/main.py`, outermost, also on the guards' own 403s;
+  tests in `test_proxy_secret.py`). Backend 939 passed; frontend 319 passed, lint, typecheck.
 
 Step 4 (2026-11-28), shared-secret client address, before deploy:
 - Files: `api/ratelimit.py` (`from_site`, `client_ip`), `api/debug.py` (new), `api/main.py`
