@@ -1004,7 +1004,8 @@ itself moved into a modal dialog, see the picker section):
    work on that screen.
 17. **Time copy for local runs. Decided: as recommended.** The server's limits are fixed settings
    (`config.py`): a plan's time budget is `RELAY_TIME_BUDGET_S` 900 s (15 min) and no relay run
-   lasts past 900 + 180 s (18 min); one model call may take up to 180 s. The running view says "It
+   lasts past 900 + 420 s (22 min); one model call may take up to 400 s (the server waits 420 s for
+   a reply, raised from 180 s in T-029 step 3). The running view says "It
    stops by itself after 15 minutes."; no "Taking longer than usual" (local speed varies too much
    for one threshold).
 18. **Switching to local while a Claude key is held. Decided: A.** (A) keep the key in tab memory,

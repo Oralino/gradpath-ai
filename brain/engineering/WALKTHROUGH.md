@@ -121,7 +121,7 @@ routing quality are measured, not assumed.
   of the reply, validates it with the same Pydantic schema as for Claude, retries once, then lets
   the existing labelled fallback take over. Relay errors are `ConnectionError` / `TimeoutError`
   subclasses, so the fallback labels them like an unreachable model.
-- **Decision: every wait ends.** A reply timeout (180 s), the browser going quiet for 90 s (a closed
+- **Decision: every wait ends.** A reply timeout (420 s since step 3: it counts the time a prompt waits behind another), the browser going quiet for 90 s (a closed
   tab), and a run deadline. Otherwise one closed tab could hold a server thread for good.
 - **Decision: a separate run store and slot.** Two relay runs on the server and one per user, apart
   from the Claude run slot: a slow model on someone's laptop must never block a Claude run.

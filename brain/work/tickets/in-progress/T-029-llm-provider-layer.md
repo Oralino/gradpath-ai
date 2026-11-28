@@ -18,7 +18,8 @@ the browser; it has no server and no Claude option).
 Step 2 build decisions (lead, 2026-11-28): relay runs in their own `RunStore` (2 slots, 1 per
 user, apart from the Claude slot); kinds `ask`, `job`, `plan` on one poll route; the server
 validates every structured reply (one retry, then the labelled fallback); bounded waits (reply
-180 s, idle 90 s, run deadline = relay budget 900 s + 180 s, 40 prompts, 4 waiting); a cancel
+180 s (420 s since step 3, see Verification), idle 90 s, run deadline = relay budget 900 s +
+the reply timeout, 40 prompts, 4 waiting); a cancel
 route; an Ask routed to the workflow is charged as a plan only then. Resume import stays on
 Claude.
 
@@ -102,11 +103,22 @@ Design notes still to settle while building:
     `api/limits.py` (`RELAY`), `api/ratelimit.py` (`relay` bucket), `api/main.py`,
     `providers/factory.py` (`relay=`), `config.py` (`RELAY_*`), `tests/test_relay.py`,
     `tests/test_api_relay.py`, `tests/test_demo.py`
+  - Step 3 (frontend): `lib/localModels.ts`, `lib/relayRun.ts`, `lib/providerSession.ts`,
+    `lib/useRelayRun.ts`, `lib/useProviderRoute.ts`, `components/ProviderPicker.tsx`,
+    `components/ProviderSetup.tsx`, `components/RelayRunView.tsx` (new); `lib/api.ts` (relay
+    calls; 409 shows its fixed text), `lib/types.ts`, `components/LivePanel.tsx` (split into
+    `useLiveForm` and pieces), `Assistant.tsx`, `JobAnalysisView.tsx`, `PlanView.tsx`,
+    `ResumeImport.tsx`, `ModeBadge.tsx`, `ModeNote.tsx`, `icons.tsx`, `app/globals.css`,
+    `vitest.setup.ts`; tests for each new module and the screens. Docs: `DESIGN.md` (picker),
+    ARCHITECTURE, SECURITY, WALKTHROUGH.
 - Commits (hash, message):
   - `eed1291` feat: add Ollama and LM Studio as local-mode chat models (T-029)
   - `d9979bc` docs: record the Ollama and LM Studio smoke runs (T-029)
   - `d5fbb49` feat: add the browser relay chat model and relay run routes (T-029)
   - `4342797` docs: record the browser relay design, threats and real run (T-029)
+  - `33ffb97` docs: design the model provider picker dialog (T-029)
+  - `f57b872` feat: add the model provider picker and browser clients for Ollama and LM Studio (T-029)
+  - `46a3a9b` fix: turn off Ollama thinking so large models answer within the call limit (T-029)
 
 ## Verification
 - Step 1 (2026-11-28): 947 tests pass, ruff clean; the API still imports with the new libraries
@@ -124,5 +136,43 @@ Design notes still to settle while building:
   (`llama3.1:8b`): complete, no fallback, 5 prompts in 242 s (18 requirements, 10 roadmap items,
   10 questions). The first attempt ended in the labelled fallback because that script stopped
   polling during a 133 s generation: the page must poll on its own timer (step 3).
-- Left for step 3: each poll resends the full text of every waiting prompt (tens of KB a
+- Left for later: each poll resends the full text of every waiting prompt (tens of KB a
   second while a slow prompt waits); fine on Vercel's free bandwidth, but a cursor could cut it.
+- Step 3 (2026-11-28): frontend 436 tests, lint, typecheck and build clean (qa-checker).
+  code-reviewer: fixed Stop doing nothing while a run was starting (and a start abandoned on
+  unmount leaving an orphan run that held the visitor's one slot: the start is no longer aborted,
+  a stale one is deleted when it answers), pagehide now reports the end (a page restored from the
+  back/forward cache no longer shows a dead run), `redirect: "error"` on local requests (a redirect
+  could carry the prompt off the computer), a failed reply post retried twice, an old relay result
+  cleared on a validation error, stale comments. Real runs through the page (local mode, API on
+  :8001 with tracing off, dev site on :3001, sample inputs) on Ollama:
+  - `llama3.1:8b`: Analyse a job 70 s (21 requirements: 8 covered, 6 weak, 5 not covered, 2
+    eligibility); Ask answered via the knowledge base (partial); Plan in about 2 min, finished with
+    open issues (one revision; the check flagged 90 h of roadmap against 48 available). A second
+    plan took one model call: the model marked all 12 requirements as eligibility, so nothing was
+    left to study (model quality, not a client fault). Stop: the page ended at once and the API
+    got `DELETE` 204. The page checked in about once a second throughout.
+  - `qwen38-27b-iq4xs`: the first attempt ended in the labelled partial result: the first call ran
+    past the 170 s client limit. Cause: the model's hidden thinking pass (measured on a small
+    structured prompt: 9.1 s with thinking, 4.5 s without; `think: false` is accepted by
+    `llama3.1:8b` too). Decision (lead): send `think: false` to Ollama. Retry: complete,
+    "Checked" with no blocking issues, 5 model calls in under 5 minutes, specific gap reasons.
+  - LM Studio `qwen3.8-27b@iq3_xxs` (CORS turned on with `lms server start --cors --port 1235`
+    for the test, off again after; RAM cleared first, only that model loaded, 17.3 GB free):
+    Connect listed 4 models (one an embedding model, which can't chat: filter it). The plan
+    reached step 5 in 6 min, then ended in the labelled partial result
+    (`dependency_unavailable`): the roadmap and interview-question stages run in parallel, the
+    page answers one prompt at a time, and the server's 180 s reply timer starts when a prompt is
+    created, so the second prompt used up its time waiting behind the first. Fix (owner,
+    2026-11-28): the page keeps answering one prompt at a time (parallel calls would share the
+    GPU and may need more memory), and the limits go up: `RELAY_REPLY_TIMEOUT_S` 180 -> 420 s,
+    the page's per-call limit 170 -> 400 s. Rejected for now: starting the reply timer when the
+    page takes a prompt (exact, but a new route in an always-hard area). **Known limit** (review):
+    two parallel stages only succeed if both calls together finish within 420 s; if slow models
+    still hit it, that timer change is the next step. Measured why LM Studio was slower than
+    Ollama: same speed per token, but its Qwen model always writes hidden reasoning first (287
+    characters on a tiny prompt; `/no_think` in the prompt did not stop it) and its
+    OpenAI-compatible API has no switch like Ollama's `think: false`. Embedding models are now
+    left out of the model menu.
+  - Seen once, not reproduced: the run view's elapsed timer stuck at 0:25 while the server said
+    108 s (the per-call "Waiting for" timer kept counting).

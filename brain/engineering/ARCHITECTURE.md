@@ -118,7 +118,7 @@ worker thread waits for the reply. Every relay request is a background run
 user); the browser polls `GET /api/relay/runs/{id}` about once a second for progress and waiting
 prompts and posts each answer to `POST /api/relay/runs/{id}/replies`. The server strips a
 `<think>` block, validates structured replies (one retry, then the labelled fallback) and bounds
-every wait (`RELAY_REPLY_TIMEOUT_S` 180, `RELAY_IDLE_TIMEOUT_S` 90 (background tabs slow timers to about one a minute), `RELAY_TIME_BUDGET_S` 900).
+every wait (`RELAY_REPLY_TIMEOUT_S` 420, `RELAY_IDLE_TIMEOUT_S` 90 (background tabs slow timers to about one a minute), `RELAY_TIME_BUDGET_S` 900).
 Live mode needs the GitHub sign-in and no key. The browser must keep polling while its model
 works (a generation can take minutes; 90 s without a poll stops the run); `DELETE /api/relay/runs/{id}` stops a run at once. Polling, not WebSockets: Vercel's `/api` rewrite
 carries no WebSockets and caps a request at 120 s. Threats and limits: SECURITY.md, "Browser
