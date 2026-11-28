@@ -144,6 +144,13 @@ Step 5 (2026-11-28), checks on the deployed site (in progress):
   of the HIGH, only `zlib1g` and `libzstd1` have a fixed version, the rest none yet (most in
   tools the API never runs: util-linux, login, systemd-homed).
 - Retrieval eval on the deployed index: unchanged (EVALUATION.md, 2026-11-28).
+- Owner account checks (2026-11-28, read in the browser, names and switches only): Qdrant had one
+  key shared by the PC and Render; the owner made `render-api` (global read/write: read-only
+  can't update the budget and cache; collection-scoped not tried) and put it in Render; after a
+  restart a new search on the site worked and the stored count rose (the new key writes), and
+  the PC's key still reads. GitHub: Secret Protection, push protection, dependency graph and
+  Dependabot alerts on (AI scan features left off: paid credits). OAuth App callback exact; it
+  has no token-expiry setting (a GitHub App option), so T-026 and SECURITY.md were corrected.
 - **Trivy fix (owner chose option A plus a CI job, after asking what others do):** the runtime
   stage installs Debian's security updates and removes the base image's `pip`; CI's `docker` job
   runs Trivy 0.76.2 (pinned by digest) with two gates: fixable HIGH/CRITICAL, and any CRITICAL.

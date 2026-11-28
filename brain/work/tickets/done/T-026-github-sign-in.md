@@ -67,7 +67,7 @@ Design (lead):
   API version header removed; "Signed in" shown only after `/api/auth/me` confirms it (frontend).
   Not taken, recorded as known limits: sign-out deletes the cookie but a copied cookie stays valid
   for its day (blocking by numeric id, or a new SESSION_SECRET, cuts it off); the GitHub token is
-  not revoked (the OAuth App's expiring tokens die in 8 hours; no token is kept); `__Host-` cookie
+  not revoked (no token is kept; correction 2026-11-28: an OAuth App's tokens don't expire, the 8-hour expiry is a GitHub App option, so the token stays valid at GitHub until the visitor revokes it; it carries no scopes); `__Host-` cookie
   prefix (would break testing live mode over http on localhost); a weak-but-long SESSION_SECRET
   passes the start check (Render's Generate makes a random one).
 - Deployed (2026-11-27): CI green on `09e8744` (backend, frontend, docker); Render live on it with

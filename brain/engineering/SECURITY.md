@@ -55,7 +55,7 @@ session cookie; the rows below say how each threat applies to it.
 | Threat | Status | Rule for Milestone 7 |
 |---|---|---|
 | Brute force, password spraying, credential stuffing | ✅ | No passwords at all since T-026 (the T-018 passcode and its per-IP lock are gone): GitHub does the authentication. The session cookie is HMAC-SHA256 signed with a 32+ character `SESSION_SECRET` (constant-time compare), so guessing one is hopeless and a forged cookie locks nobody out. Sign-in routes have a per-IP limit (10/min, 50/day). |
-| Session hijacking, session fixation, login CSRF | ✅ | T-026: `gp_session` is HttpOnly, Secure, SameSite=Lax (Strict would drop the cookie on GitHub's redirect back), 1 day, signed with a purpose so the sign-in cookie can't pass as it; a new value at every sign-in (no fixation: the server never accepts an unsigned id). Login CSRF: a random `state` in a signed 10-minute cookie must match the callback (constant time), plus PKCE. No open redirect: every redirect is built from `PUBLIC_SITE_URL`. Known limits: sign-out deletes the browser's cookie but a copied cookie stays valid for its day (block the numeric id, or change `SESSION_SECRET` to sign everyone out); the GitHub token is never stored and expires in 8 hours (not revoked). |
+| Session hijacking, session fixation, login CSRF | ✅ | T-026: `gp_session` is HttpOnly, Secure, SameSite=Lax (Strict would drop the cookie on GitHub's redirect back), 1 day, signed with a purpose so the sign-in cookie can't pass as it; a new value at every sign-in (no fixation: the server never accepts an unsigned id). Login CSRF: a random `state` in a signed 10-minute cookie must match the callback (constant time), plus PKCE. No open redirect: every redirect is built from `PUBLIC_SITE_URL`. Known limits: sign-out deletes the browser's cookie but a copied cookie stays valid for its day (block the numeric id, or change `SESSION_SECRET` to sign everyone out); the GitHub token is never stored or logged and carries no scopes (public profile only), but is not revoked and doesn't expire (an OAuth App has no expiry setting; the 8-hour expiry is a GitHub App option, checked 2026-11-28); the visitor can revoke it under GitHub → Settings → Applications. |
 | Privilege escalation, broken access control | 🕒 7 | One role (visitor). Settings that cost money (revision limit, model choice) come only from server settings, never from the request: already true for `max_revisions` (`api/career.py`). |
 | IDOR / BOLA | ✅ | Live mode (T-018 step 5): each run is bound to the key that started it (HMAC owner tag; another key gets the same 404 as an unknown id). Run ids (T-016): random uuid4, validated, not listable, the same 404 for unknown/expired/malformed; a run record never holds the posting or profile; the result (profile-derived reasoning) is kept in memory for 15 min after the run, at most 20 runs. Anyone holding a run id can read that result until it expires. Guide 02 says unguessable ids aren't access control: done for live mode (above); local mode stays unbound (one user). |
 
@@ -135,9 +135,14 @@ From guide 09, narrowed to this app. Run before each release; the project's rele
 - [ ] From Milestone 6: model text rendered as text; links `http(s)` only.
 - [ ] From Milestone 7: auth on model routes, per-IP limits, CORS allow-list, visitor key never
       logged or traced, demo mode works with no keys.
-- [ ] From Milestone 8: HTTPS only, security headers, `/docs` decision, separate dev and prod keys.
-- [ ] GitHub sign-in (T-026): the OAuth App's callback is exactly
-      `PUBLIC_SITE_URL/api/auth/github/callback`; "Expire user access tokens" on; the client
+- [x] From Milestone 8 (checked 2026-11-28): HTTPS only (308 + HSTS), the three basic security
+      headers (CSP still open), `/docs` unreachable on the deployed site, separate dev and prod
+      keys (Voyage: `gradpath-server` on Render; Qdrant: `render-api` on Render, the PC keeps its
+      own key). GitHub secret scanning, push protection, dependency graph and Dependabot alerts
+      turned on by the owner.
+- [x] GitHub sign-in (T-026, checked 2026-11-28): the OAuth App's callback is exactly
+      `PUBLIC_SITE_URL/api/auth/github/callback` (no token-expiry option exists for an OAuth App:
+      see the session row above); the client
       secret and `SESSION_SECRET` only in Render's dashboard; a real sign-in through the deployed
       site sets `gp_session` (Vercel's rewrite passes the redirects and both Set-Cookie headers);
       Render's logs show no code, state, login or id (`RedactAuthQuery`); `LIVE_PASSCODE` deleted.
