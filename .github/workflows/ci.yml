@@ -7,6 +7,12 @@ on:
   push:
   pull_request:
     branches: [main]
+  # Weekly (Mondays 06:00 UTC, owner decision T-020 step 5): rebuild and rescan even when nothing is
+  # pushed, so a new Debian fix or a new CRITICAL finding shows up within a week. GitHub runs
+  # scheduled workflows from the default branch (main) only. Also startable by hand.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -50,6 +56,83 @@ jobs:
 
       - name: Tests
         run: uv run pytest -q
+
+  # The API image Render will run (T-020 step 2b): build it, check what is inside, and start it in
+  # demo mode with no keys. Builds only; nothing is pushed to a registry.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the API image
+        run: docker build -f backend/Dockerfile -t gradpath-api:ci .
+
+      - name: Image holds no secrets or local data, and runs as a normal user
+        run: |
+          docker run --rm gradpath-api:ci sh -c '
+            set -e
+            for p in /app/.env /app/private /app/backend/data /app/backend/tests /app/frontend /bin/uv; do
+              if [ -e "$p" ]; then echo "unexpected in image: $p"; exit 1; fi
+            done
+            if [ "$(id -u)" = "0" ]; then echo "runs as root"; exit 1; fi
+            # As the normal user some folders are unreadable, so find exits 1; only its output counts.
+            found=$(find / -xdev -name ".env*" -not -path "/proc/*" 2>/dev/null || true)
+            if [ -n "$found" ]; then echo "env files in image: $found"; exit 1; fi
+            if grep -rlE "sk-ant-[A-Za-z0-9_-]{8}|lsv2_[a-z]{2}_[A-Za-z0-9]{8}" /app/backend/src /app/demo_runs /app/knowledge_base; then
+              echo "key-like strings in /app"; exit 1
+            fi
+            echo "clean, uid $(id -u)"'
+
+      - name: Image leaves out the local, eval and ingest groups (T-025)
+        run: >-
+          docker run --rm gradpath-api:ci python -c
+          "import importlib.util as u;
+          extra = [m for m in ('claude_agent_sdk', 'fastembed', 'onnxruntime', 'bs4', 'pypdf') if u.find_spec(m)];
+          assert not extra, extra; print('runtime set only')"
+
+      - name: Tokenizer loads with no network (baked in at build time)
+        run: >-
+          docker run --rm --network none gradpath-api:ci python -c
+          "import voyageai; from gradpath.config import Settings;
+          print(len(voyageai.Client(api_key='placeholder').tokenize(['offline check'], model=Settings().embed_model)[0].ids), 'tokens')"
+
+      - name: API starts in demo mode with no keys and answers /api/health
+        run: |
+          docker run -d --name api -p 8000:8000 gradpath-api:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/api/health; then echo; break; fi
+            if [ "$(docker inspect -f '{{.State.Running}}' api)" != "true" ]; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/api/health || { docker logs api; exit 1; }
+          echo
+          docker stats --no-stream api
+          docker logs api
+
+      - name: Image size
+        run: docker image ls gradpath-api:ci
+
+      # Known vulnerabilities in the image (T-020 step 5). Trivy runs from its official image,
+      # pinned by tag and digest, and downloads its vulnerability database fresh. Two gates:
+      #   1. any HIGH or CRITICAL finding that has a fix fails the build (rebuilding picks up
+      #      Debian's fixes: the Dockerfile installs them);
+      #   2. any CRITICAL finding at all fails it, fixed or not, so a new one can't slip through
+      #      --ignore-unfixed; an accepted one goes in .trivyignore with a reason and an expiry.
+      # Unfixed HIGH findings are reported, not failed on: SECURITY.md records why.
+      - name: Vulnerability scan (Trivy)
+        run: |
+          trivy() {
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache \
+              -v "$PWD:/src:ro" -w /src \
+              aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb \
+              image --quiet --scanners vuln "$@" gradpath-api:ci
+          }
+          trivy --severity HIGH,CRITICAL --format table
+          trivy --skip-db-update --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1
+          trivy --skip-db-update --severity CRITICAL --exit-code 1
 
   frontend:
     runs-on: ubuntu-latest

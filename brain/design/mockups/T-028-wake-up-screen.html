@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GradPath: waking-up screen mock-up (T-028)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: #D6D2CA; color: #1C1B19;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  .intro { font-size: 14px; margin: 0 0 24px; max-width: 60rem; line-height: 1.5; }
+  .grid { display: flex; flex-wrap: wrap; gap: 24px; }
+  figure { margin: 0; width: 360px; }
+  figcaption { font-size: 14px; font-weight: 600; margin-bottom: 8px; line-height: 1.4; }
+  figcaption span { font-weight: 400; display: block; font-size: 13px; }
+
+  /* Token values from DESIGN.md (light / dark) */
+  .light {
+    --paper: #FAF8F4; --surface: #FFFFFF; --ink: #1C1B19; --muted: #5C5A55;
+    --line: #8A857B; --rule: #E2DDD3; --link: #0F5C66;
+  }
+  .dark {
+    --paper: #161513; --surface: #1F1E1B; --ink: #ECE8E1; --muted: #A8A39A;
+    --line: #77726A; --rule: #2E2C28; --link: #6FC3CB;
+  }
+
+  /* One phone-sized frame = the full-page cover (fixed inset-0 bg-paper flex flex-col) */
+  .frame {
+    width: 360px; height: 480px; background: var(--paper); color: var(--ink);
+    border: 1px solid #8A857B; border-radius: 6px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .wordmark {                      /* h-14 px-4 text-label */
+    height: 56px; flex: none; padding: 0 16px; display: flex; align-items: center;
+    font-size: 14px; font-weight: 600; line-height: 1.4;
+  }
+  .content {                       /* m-auto flex flex-col items-center gap-6 px-4 text-center pb-14 */
+    margin: auto; display: flex; flex-direction: column; align-items: center;
+    gap: 24px; padding: 0 16px 56px; text-align: center;
+  }
+  .cells { width: 160px; height: auto; display: block; }
+  .edge { stroke: var(--rule); stroke-width: 1.5; stroke-linecap: round; }
+  .node { fill: var(--paper); stroke: var(--line); stroke-width: 1.5; }
+  .fire { fill: var(--link); opacity: 0; }
+  .texts { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .title { font-size: 22px; font-weight: 600; line-height: 1.3; margin: 0; }      /* text-title */
+  .timer {                                                                       /* text-heading tabular-nums */
+    font-size: 18px; font-weight: 600; line-height: 1.4; color: var(--muted);
+    font-variant-numeric: tabular-nums; margin: 0;
+  }
+  .small { font-size: 14px; line-height: 1.5; color: var(--muted); margin: 0; max-width: 20rem; }
+  .small a { color: var(--link); text-decoration: underline; text-underline-offset: 4px; }
+  .small a svg { width: 12px; height: 12px; vertical-align: -1px; margin-left: 2px; }
+  .btn {                           /* secondary button, h-11 at 375px, w-full */
+    height: 44px; width: 100%; max-width: 20rem; padding: 0 16px;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 6px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .btn:hover { border-color: var(--ink); }
+  a:focus-visible, .btn:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  /* The signal: one cell lit at a time, opacity only, 2.8s loop (motion-safe:animate-fire) */
+  @keyframes fire {
+    0% { opacity: 0; } 8% { opacity: 1; } 30% { opacity: 0; } 100% { opacity: 0; }
+  }
+  .anim .fire { animation: fire 2.8s ease-in-out infinite; }
+  .still .fire.centre { opacity: 1; }          /* reduced motion: centre cell lit, nothing moves */
+  /* .asleep: all fill circles stay at opacity 0 */
+
+  /* Panels A-C honour the real setting too; D always shows the still frame */
+  @media (prefers-reduced-motion: reduce) {
+    .anim .fire { animation: none; }
+    .anim .fire.centre { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<h1>Waking-up screen (T-028): mock-up for the owner</h1>
+<p class="intro">Each frame is a 360 by 480 px phone-sized view of the full-page cover. The timers in
+A to D count up from 0:00 on page load; E and F are frozen at 3:00. The real screen also fades in
+over 150 ms and out over 300 ms, which this mock-up doesn't show. Recommended: with the wordmark (A, C).</p>
+
+<div class="grid">
+  <figure>
+    <figcaption>A. Waking, wordmark shown<span>Light theme, animated</span></figcaption>
+    <div class="frame light">
+      <div class="wordmark">GradPath</div>
+      <div class="content">
+        <div class="cells-slot" data-mode="anim"></div>
+        <div class="texts">
+          <p class="title">Waking up AI braincells...</p>
+          <p class="timer" data-count>0:00</p>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption>B. Waking, no wordmark<span>Light theme, animated</span></figcaption>
+    <div class="frame light">
+      <div class="content">
+        <div class="cells-slot" data-mode="anim"></div>
+        <div class="texts">
+          <p class="title">Waking up AI braincells...</p>
+          <p class="timer" data-count>0:00</p>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption>C. Waking, dark theme<span>Animated, with the wordmark (recommended)</span></figcaption>
+    <div class="frame dark">
+      <div class="wordmark">GradPath</div>
+      <div class="content">
+        <div class="cells-slot" data-mode="anim"></div>
+        <div class="texts">
+          <p class="title">Waking up AI braincells...</p>
+          <p class="timer" data-count>0:00</p>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption>D. Reduced motion<span>Still drawing, centre cell lit; the timer still counts</span></figcaption>
+    <div class="frame light">
+      <div class="wordmark">GradPath</div>
+      <div class="content">
+        <div class="cells-slot" data-mode="still"></div>
+        <div class="texts">
+          <p class="title">Waking up AI braincells...</p>
+          <p class="timer" data-count>0:00</p>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption>E. Stopped, light<span>No answer after 3 minutes; all cells asleep</span></figcaption>
+    <div class="frame light">
+      <div class="wordmark">GradPath</div>
+      <div class="content">
+        <div class="cells-slot" data-mode="asleep"></div>
+        <div class="texts">
+          <p class="title" tabindex="-1">The braincells didn't wake up.</p>
+          <p class="timer">3:00</p>
+          <p class="small">The backend might be down. Please
+            <a href="https://github.com/Oralino/gradpath-ai/issues" target="_blank"
+               rel="noopener noreferrer">let the owner know<span class="ext"></span><span
+               class="sr-only"> (opens in new tab)</span></a>.</p>
+        </div>
+        <button class="btn" type="button">Try again</button>
+      </div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption>F. Stopped, dark<span>No answer after 3 minutes; all cells asleep</span></figcaption>
+    <div class="frame dark">
+      <div class="wordmark">GradPath</div>
+      <div class="content">
+        <div class="cells-slot" data-mode="asleep"></div>
+        <div class="texts">
+          <p class="title" tabindex="-1">The braincells didn't wake up.</p>
+          <p class="timer">3:00</p>
+          <p class="small">The backend might be down. Please
+            <a href="https://github.com/Oralino/gradpath-ai/issues" target="_blank"
+               rel="noopener noreferrer">let the owner know<span class="ext"></span><span
+               class="sr-only"> (opens in new tab)</span></a>.</p>
+        </div>
+        <button class="btn" type="button">Try again</button>
+      </div>
+    </div>
+  </figure>
+</div>
+
+<script>
+  // Builds the seven-cell drawing (DESIGN.md "Server waking up") into each slot.
+  var nodes = [[14,40],[38,18],[44,54],[66,32],[86,12],[92,52],[108,30]];
+  var edges = [[1,2],[1,3],[2,4],[3,4],[2,5],[4,5],[4,6],[5,7],[6,7]];
+  // Firing order 1,2,4,5,7,6,3 at 0.4 s steps -> delay per node (1-based)
+  var delay = {1:0, 2:0.4, 4:0.8, 5:1.2, 7:1.6, 6:2.0, 3:2.4};
+  function drawing(mode) {
+    var s = '<svg class="cells ' + mode + '" viewBox="0 0 120 72" aria-hidden="true" focusable="false">';
+    edges.forEach(function (e) {
+      var a = nodes[e[0]-1], b = nodes[e[1]-1];
+      s += '<line class="edge" x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"/>';
+    });
+    nodes.forEach(function (n, i) {
+      var id = i + 1;
+      s += '<circle class="node" cx="'+n[0]+'" cy="'+n[1]+'" r="4"/>';
+      s += '<circle class="fire' + (id === 4 ? ' centre' : '') + '" cx="'+n[0]+'" cy="'+n[1]+
+           '" r="4" style="animation-delay:' + delay[id] + 's"/>';
+    });
+    return s + '</svg>';
+  }
+  document.querySelectorAll('.cells-slot').forEach(function (slot) {
+    slot.outerHTML = drawing(slot.getAttribute('data-mode'));
+  });
+
+  // External-link glyph after "let the owner know"
+  var ext = '<svg viewBox="0 0 12 12" aria-hidden="true" focusable="false" fill="none" ' +
+            'stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M5 2H2v8h8V7"/><path d="M7 2h3v3"/><path d="M10 2L5.5 6.5"/></svg>';
+  document.querySelectorAll('.ext').forEach(function (el) { el.outerHTML = ext; });
+
+  // Elapsed timer, m:ss, counting from page load (the real one counts from the health check start)
+  var start = Date.now();
+  var timers = document.querySelectorAll('[data-count]');
+  function tick() {
+    var t = Math.floor((Date.now() - start) / 1000);
+    var text = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+    timers.forEach(function (el) { el.textContent = text; });
+  }
+  tick();
+  setInterval(tick, 1000);
+</script>
+</body>
+</html>

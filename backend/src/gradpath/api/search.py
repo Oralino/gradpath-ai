@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, StringConstraints
 
 from gradpath.api import limits
 from gradpath.api.ratelimit import limit
+from gradpath.config import get_settings
 from gradpath.rag.sources import SourceSearch, search_sources
 from gradpath.retrieval import RetrievalService
 
@@ -28,9 +29,10 @@ class SearchRequest(BaseModel):
 
 
 def get_search_retrieval(request: Request) -> RetrievalService:
-    """The shared retrieval service, or 503 when this server runs without one."""
+    """The shared retrieval service, or 503 when this server runs without one or public search is
+    switched off (SEARCH_ENABLED=false; live mode keeps retrieval for its model routes)."""
     retrieval = getattr(request.app.state, "retrieval", None)
-    if retrieval is None:
+    if retrieval is None or not get_settings().search_enabled:
         raise HTTPException(status_code=503, detail=SEARCH_OFF)
     return retrieval
 

@@ -1,58 +1,71 @@
 "use client";
 
-// Live mode entry (DESIGN.md "Live mode panel", decisions 10-12; always-hard area). LivePanel
+// Live mode entry (DESIGN.md "Live mode panel"; T-018, T-026; always-hard area). LivePanel
 // replaces the submit row on Ask/Job/Plan (and sits inside the resume import on Profile) while the
-// server is in live mode and this tab has no key and token; LiveStrip is what shows once both are
-// held. The passcode and key live ONLY in this panel's input state: they go to api.liveCheck, then
-// the token and key go to lib/liveSession.ts and the inputs are emptied. Never put them in a URL,
-// storage, a log, an error text or a prop. Not a <form> (no submit event, fewer password-manager
-// prompts); Enter in either field runs "Use live mode". With a remembered token (after a reload)
-// only the key is asked and checked locally: the first real request verifies it (the token is
-// bound to the key it was issued with, so another key comes back as a 401 passcode_required).
+// server is in live mode and this tab isn't both signed in with GitHub and holding a key;
+// LiveStrip is what shows once both hold. Signing in is a full-page link to
+// /api/auth/github/login (the server keeps the session in an HttpOnly cookie). The key lives ONLY
+// in this panel's input state: it goes to api.liveCheck, then to lib/liveSession.ts, and the input
+// is emptied. Never put it in a URL, storage, a log, an error text or a prop. Not a <form> (no
+// submit event, fewer password-manager prompts); Enter in the key field runs "Use live mode".
 
 import { useEffect, useRef, useState } from "react";
 import { OctagonIcon, KeyIcon } from "@/components/icons";
-import { primaryButton, textButton } from "@/components/buttonStyles";
+import { primaryButton, secondaryButton, textButton } from "@/components/buttonStyles";
 import { api, ApiError } from "@/lib/api";
 import {
   clearAll,
+  clearKey,
   clearRefusal,
-  clearToken,
   liveState,
   setKey as setLiveKey,
-  setToken,
   useLiveSession,
 } from "@/lib/liveSession";
 import { RetryAfter } from "@/components/RetryAfter";
 import { useCountdown } from "@/lib/useCountdown";
 
 export const KEY_PREFIX = "sk-ant-";
+export const SIGNIN_URL = "/api/auth/github/login";
 const MSG_KEY_FORMAT = "This doesn't look like an Anthropic API key: they start with sk-ant-.";
-const MSG_PASSCODE_EMPTY = "Enter the passcode.";
-const MSG_PASSCODE_CHARS = "A passcode uses only letters, digits and keyboard symbols, with no spaces.";
 // Header values must be printable ASCII: anything else makes fetch throw before sending.
 const HEADER_SAFE = /^[!-~]+$/;
-const MSG_PASSCODE_WRONG = "That passcode didn't work. Check it with the person who gave it to you.";
-const MSG_PASSCODE_BOUND = "The remembered passcode no longer works with this key (it works only with the key first used with it, until the server restarts). Enter the passcode again.";
 const MSG_KEY_REFUSED = "Anthropic refused this API key. Check that it is active and has credit.";
+const MSG_SIGNIN_ENDED = "Your GitHub sign-in has ended. Sign in again to use live mode.";
+const MSG_SIGNIN_UNAVAILABLE = "GitHub sign-in isn't available on this server right now.";
+const MSG_SIGNOUT_FAILED = "Signed out in this tab, but the server didn't confirm it. Reload the page to check.";
+const PRIVACY_LINE =
+  "We keep only your GitHub username and id, in a cookie that expires after a day. Nothing is logged.";
 const INPUT = "h-11 min-w-0 flex-1 rounded-md border bg-surface px-3 text-body sm:h-10";
 const SHOW_BUTTON =
   "inline-flex h-11 items-center justify-center rounded-md border border-line bg-surface px-4 text-label text-ink transition-colors duration-150 hover:bg-sunken sm:h-10";
 
 // One-shot hand-offs between the panel and the strip, which never exist together. They hold no
-// secret: only "move focus here once".
+// secret: only "move focus here once" and what to announce.
 let stripFocusPending = false;
-let panelClearedPending = false;
+let panelClearedPending: string | null = null;
 
-type Field = "passcode" | "key";
 interface Outcome {
+  status: number | null; // a model request's refusal is always a 401
   code: string | null;
   message: string;
   retryAfter?: number | null;
 }
 
-/** The collapsed state: key held (DESIGN.md, "Key set"). Used by Assistant, JobAnalysisView, PlanView. */
+// POST /api/auth/logout; true when the server confirmed (the cookie is HttpOnly, so only the
+// server can clear it). Callers then forget the key and sign-in here either way (clearAll).
+async function logout(): Promise<boolean> {
+  try {
+    await api.logout();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The collapsed state: signed in and key held (DESIGN.md, "Key set"). Used by Assistant,
+ * JobAnalysisView, PlanView and ResumeImport. */
 export function LiveStrip() {
+  const live = useLiveSession();
   const ref = useRef<HTMLDivElement>(null);
   const [announce, setAnnounce] = useState("");
   useEffect(() => {
@@ -71,19 +84,31 @@ export function LiveStrip() {
       <p className="flex min-w-0 flex-1 items-start gap-2">
         <KeyIcon size={16} />
         <span>
-          Live mode on. Your key is in this tab&apos;s memory only and clears on reload; the passcode is remembered
-          for this tab for up to 12 hours.
+          Live mode on{live.login ? `, signed in as @${live.login}` : ""}. Your key is in this tab&apos;s memory
+          only and clears on reload; the GitHub sign-in lasts a day.
         </span>
       </p>
       <button
         type="button"
         className={textButton}
         onClick={() => {
-          panelClearedPending = true;
-          clearAll();
+          panelClearedPending = "Key cleared";
+          clearKey();
         }}
       >
-        Clear key and passcode
+        Clear key
+      </button>
+      <button
+        type="button"
+        className={textButton}
+        onClick={() => {
+          void logout().then((ok) => {
+            panelClearedPending = ok ? "Signed out" : MSG_SIGNOUT_FAILED;
+            clearAll();
+          });
+        }}
+      >
+        Sign out
       </button>
       <span role="status" className="sr-only">
         {announce}
@@ -100,69 +125,65 @@ export function LivePanel({
   examplesHref?: string;
 }) {
   const live = useLiveSession();
-  const [passcode, setPasscode] = useState("");
   const [key, setKey] = useState("");
-  const [showPasscode, setShowPasscode] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const [local, setLocal] = useState<{ passcode?: string; key?: string }>({});
+  const [localError, setLocalError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   // The last answer of this panel's own check; while null, a refusal recorded by lib/api.ts (a
   // model request's 401) is what the panel explains.
   const [own, setOwn] = useState<Outcome | null>(null);
   const [attempted, setAttempted] = useState(false); // once this panel has checked, a stale refusal is history
-  const [focusField, setFocusField] = useState<{ field: Field; n: number } | null>(null);
+  const [focusTarget, setFocusTarget] = useState<{ target: "signin" | "key"; n: number } | null>(null);
   const [announce, setAnnounce] = useState("");
-  const lockWait = useCountdown();
+  const [signOutNote, setSignOutNote] = useState<string | null>(null);
+  const wait = useCountdown();
 
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const passcodeRef = useRef<HTMLInputElement>(null);
+  const signInRef = useRef<HTMLAnchorElement>(null);
   const keyRef = useRef<HTMLInputElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const keyOnly = live.hasToken; // a remembered passcode: ask for the key only
-  const outcome: Outcome | null = own ?? (attempted ? null : live.refusal);
-  const fromRefusal = own === null && !attempted && live.refusal !== null;
+  const signedIn = live.signedIn;
+  const outcome: Outcome | null =
+    own ?? (attempted || live.refusal === null ? null : { status: 401, ...live.refusal });
 
-  // What each field shows: local checks first, then the server's answer by code.
-  let passcodeError = local.passcode ?? null;
-  let keyError = local.key ?? null;
+  // What the panel shows: the local check first, then the server's answer by code.
+  let keyError = localError;
+  let signInLine: string | null = null;
   let stoppedLine: string | null = null;
-  if (outcome && !passcodeError && !keyError) {
-    if (outcome.code === "passcode_required") {
-      passcodeError = fromRefusal ? MSG_PASSCODE_BOUND : MSG_PASSCODE_WRONG;
-    } else if (outcome.code === "key_refused") {
-      keyError = MSG_KEY_REFUSED;
-    } else if (outcome.code === "key_required") {
-      keyError = outcome.message;
-    } else {
-      stoppedLine = outcome.message;
-    }
+  if (outcome && !keyError) {
+    if (outcome.code === "signin_required") signInLine = MSG_SIGNIN_ENDED;
+    else if (outcome.code === "key_refused") keyError = MSG_KEY_REFUSED;
+    else if (outcome.status === 401 && outcome.code?.startsWith("key_")) keyError = outcome.message;
+    else stoppedLine = outcome.message;
   }
 
-  // Focus the field a refusal or a failed check points at.
+  // Focus the control a refusal or a failed check points at.
   useEffect(() => {
-    if (focusField?.field === "passcode") passcodeRef.current?.focus();
-    else if (focusField?.field === "key") keyRef.current?.focus();
-  }, [focusField]);
+    if (focusTarget?.target === "signin") signInRef.current?.focus();
+    else if (focusTarget?.target === "key") keyRef.current?.focus();
+  }, [focusTarget]);
 
-  // After "Clear key and passcode": focus the heading and say so.
+  // After "Clear key" or "Sign out" in the strip: focus the heading and say so.
   useEffect(() => {
-    if (!panelClearedPending) return;
-    panelClearedPending = false;
+    if (panelClearedPending === null) return;
+    const said = panelClearedPending;
+    panelClearedPending = null;
     headingRef.current?.focus();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAnnounce("Key cleared");
+    setAnnounce(said);
   }, []);
 
-  // A model request's 401 reopened this panel: focus the field it is about.
+  // A model request's 401 reopened this panel: focus the control it is about.
   const refusalCode = live.refusal?.code ?? null;
   useEffect(() => {
     // Read the store, not this render: a refusal the previous page's panel already cleared on
     // unmount must not pull focus here.
     if (refusalCode === null || liveState().refusal === null) return;
-    const field: Field = refusalCode === "passcode_required" ? "passcode" : "key";
+    const target = refusalCode === "signin_required" || !liveState().signedIn ? "signin" : "key";
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setFocusField((f) => ({ field, n: (f?.n ?? 0) + 1 }));
+    setFocusTarget((f) => ({ target, n: (f?.n ?? 0) + 1 }));
   }, [refusalCode]);
 
   // On unmount: stop a pending check, and forget the refusal this panel explained, so another
@@ -175,50 +196,43 @@ export function LivePanel({
     [],
   );
 
-  function focus(field: Field) {
-    setFocusField((f) => ({ field, n: (f?.n ?? 0) + 1 }));
+  function focus(target: "signin" | "key") {
+    setFocusTarget((f) => ({ target, n: (f?.n ?? 0) + 1 }));
   }
 
-  // "Use live mode": local checks, then (with no remembered token) one POST /api/live/check. On
-  // success the inputs are emptied and the token and key go to lib/liveSession.ts.
+  // "Use live mode": the local shape check, then one POST /api/live/check. On success the input
+  // is emptied and the key goes to lib/liveSession.ts (the screen then swaps in the strip).
   async function submitLive() {
-    if (checking) return;
+    if (checking || !signedIn) return;
     const trimmedKey = key.trim();
-    const trimmedPasscode = passcode.trim();
-    const errors: { passcode?: string; key?: string } = {};
-    if (!keyOnly && trimmedPasscode === "") errors.passcode = MSG_PASSCODE_EMPTY;
-    else if (!keyOnly && !HEADER_SAFE.test(trimmedPasscode)) errors.passcode = MSG_PASSCODE_CHARS;
-    if (!trimmedKey.startsWith(KEY_PREFIX) || !HEADER_SAFE.test(trimmedKey)) errors.key = MSG_KEY_FORMAT;
-    setLocal(errors);
-    setShowPasscode(false);
     setShowKey(false);
-    if (errors.passcode || errors.key) {
-      focus(errors.passcode ? "passcode" : "key");
+    if (!trimmedKey.startsWith(KEY_PREFIX) || !HEADER_SAFE.test(trimmedKey)) {
+      setLocalError(MSG_KEY_FORMAT);
+      focus("key");
       return;
     }
-    if (keyOnly) {
-      finish(trimmedKey);
-      return;
-    }
+    setLocalError(null);
     const controller = new AbortController();
     controllerRef.current = controller;
     setOwn(null);
     setAttempted(true);
     setChecking(true);
     try {
-      const result = await api.liveCheck(trimmedPasscode, trimmedKey, controller.signal);
+      await api.liveCheck(trimmedKey, controller.signal);
       if (controller.signal.aborted) return;
-      setToken(result.token, result.expires_at);
-      finish(trimmedKey);
+      setKey("");
+      setOwn(null);
+      stripFocusPending = true;
+      setLiveKey(trimmedKey);
     } catch (caught) {
       if (controller.signal.aborted) return;
       const error =
         caught instanceof ApiError ? caught : new ApiError("server", null, "Something went wrong on the server.");
-      setOwn({ code: error.code, message: error.message, retryAfter: error.retryAfter });
-      if (error.code === "passcode_locked") lockWait.start(error.retryAfter);
+      setOwn({ status: error.status, code: error.code, message: error.message, retryAfter: error.retryAfter });
+      if (error.retryAfter !== null) wait.start(error.retryAfter);
       if (error.code === "key_refused") setKey("");
-      if (error.code === "passcode_required") focus("passcode");
-      else if (error.code === "key_required" || error.code === "key_refused") focus("key");
+      if (error.code === "signin_required") focus("signin");
+      else if (error.status === 401 && error.code?.startsWith("key_")) focus("key");
     } finally {
       if (controllerRef.current === controller) {
         controllerRef.current = null;
@@ -227,14 +241,16 @@ export function LivePanel({
     }
   }
 
-  // Empty the inputs, then hand the key to memory; the screen swaps this panel for the strip.
-  function finish(value: string) {
+  async function onSignOut() {
+    setSigningOut(true);
     setKey("");
-    setPasscode("");
-    setLocal({});
     setOwn(null);
-    stripFocusPending = true;
-    setLiveKey(value);
+    const ok = await logout();
+    clearAll();
+    setSigningOut(false);
+    setSignOutNote(ok ? null : MSG_SIGNOUT_FAILED);
+    setAnnounce(ok ? "Signed out" : "");
+    headingRef.current?.focus();
   }
 
   function onEnter(e: React.KeyboardEvent) {
@@ -243,8 +259,8 @@ export function LivePanel({
     void submitLive();
   }
 
-  const describedPasscode = ["live-passcode-help", passcodeError ? "live-passcode-error" : ""].filter(Boolean).join(" ");
   const describedKey = ["live-key-help", keyError ? "live-key-error" : ""].filter(Boolean).join(" ");
+  const waiting = wait.remaining !== null && wait.remaining > 0;
 
   return (
     <div
@@ -261,61 +277,45 @@ export function LivePanel({
         calls than an answer.
       </p>
 
-      {keyOnly ? (
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small">
-          <span>Passcode remembered for this tab.</span>
-          <button
-            type="button"
-            className={textButton}
-            onClick={() => {
-              clearToken();
-              focus("passcode");
-            }}
-          >
-            Use a different passcode
-          </button>
-        </p>
-      ) : (
-        <div className="space-y-1">
-          <label htmlFor="live-passcode" className="text-label">
-            Passcode
-          </label>
-          <div className="flex gap-2">
-            <input
-              id="live-passcode"
-              ref={passcodeRef}
-              type={showPasscode ? "text" : "password"}
-              autoComplete="off"
-              spellCheck={false}
-              autoCapitalize="none"
-              autoCorrect="off"
-              value={passcode}
-              onChange={(e) => setPasscode(e.target.value)}
-              onKeyDown={onEnter}
-              aria-invalid={passcodeError ? true : undefined}
-              aria-describedby={describedPasscode}
-              className={`${INPUT} ${passcodeError ? "border-stopped" : "border-line"}`}
-            />
+      <div className="space-y-1">
+        {signedIn ? (
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small">
+            <span>Signed in as @{live.login}</span>
             <button
               type="button"
-              className={SHOW_BUTTON}
-              aria-label={showPasscode ? "Hide passcode" : "Show passcode"}
-              onClick={() => setShowPasscode((v) => !v)}
+              className={textButton}
+              disabled={signingOut}
+              onClick={() => void onSignOut()}
             >
-              {showPasscode ? "Hide" : "Show"}
+              {signingOut ? "Signing out..." : "Sign out"}
             </button>
-          </div>
-          <p id="live-passcode-help" className="text-meta text-ink-muted">
-            From the site owner.
           </p>
-          {passcodeError && (
-            <p id="live-passcode-error" className="flex items-center gap-1 text-meta text-stopped">
-              <OctagonIcon size={14} />
-              {passcodeError}
+        ) : live.signIn === "unavailable" ? (
+          <p className="text-small">{MSG_SIGNIN_UNAVAILABLE}</p>
+        ) : (
+          <>
+            <a
+              ref={signInRef}
+              href={SIGNIN_URL}
+              className={`${secondaryButton} w-full no-underline sm:w-auto`}
+              aria-describedby="live-signin-help"
+            >
+              Sign in with GitHub
+            </a>
+            <p id="live-signin-help" className="text-meta text-ink-muted">
+              Your GitHub account must be at least 30 days old.
             </p>
-          )}
-        </div>
-      )}
+          </>
+        )}
+        {signInLine && !signedIn && (
+          <p role="alert" className="flex items-center gap-1 text-meta text-stopped">
+            <OctagonIcon size={14} />
+            {signInLine}
+          </p>
+        )}
+        {signOutNote && !signedIn && <p className="text-meta text-ink-muted">{signOutNote}</p>}
+        <p className="text-meta text-ink-muted">{PRIVACY_LINE}</p>
+      </div>
 
       <div className="space-y-1">
         <label htmlFor="live-key" className="text-label">
@@ -331,15 +331,17 @@ export function LivePanel({
             autoCapitalize="none"
             autoCorrect="off"
             value={key}
+            disabled={!signedIn}
             onChange={(e) => setKey(e.target.value)}
             onKeyDown={onEnter}
             aria-invalid={keyError ? true : undefined}
             aria-describedby={describedKey}
-            className={`${INPUT} ${keyError ? "border-stopped" : "border-line"}`}
+            className={`${INPUT} ${keyError ? "border-stopped" : "border-line"} disabled:opacity-50`}
           />
           <button
             type="button"
-            className={SHOW_BUTTON}
+            className={`${SHOW_BUTTON} disabled:opacity-50`}
+            disabled={!signedIn}
             aria-label={showKey ? "Hide API key" : "Show API key"}
             onClick={() => setShowKey((v) => !v)}
           >
@@ -347,8 +349,9 @@ export function LivePanel({
           </button>
         </div>
         <p id="live-key-help" className="text-meta text-ink-muted">
-          Sent to the GradPath server with each request, which passes it to Anthropic for that request only. Never
-          stored, logged or shown back. Kept in this tab&apos;s memory: reloading or closing the page clears it.
+          {signedIn ? "" : "Sign in with GitHub first. "}Sent to the GradPath server with each request, which passes it
+          to Anthropic for that request only. Never stored, logged or shown back. Kept in this tab&apos;s memory:
+          reloading or closing the page clears it.
         </p>
         {keyError && (
           <p id="live-key-error" className="flex items-center gap-1 text-meta text-stopped">
@@ -363,8 +366,8 @@ export function LivePanel({
           <OctagonIcon size={16} />
           <div>
             <p>{stoppedLine}</p>
-            {outcome?.code === "passcode_locked" && (
-              <RetryAfter retryAfter={outcome.retryAfter ?? null} remaining={lockWait.remaining} action="try again" />
+            {outcome?.retryAfter != null && (
+              <RetryAfter retryAfter={outcome.retryAfter} remaining={wait.remaining} action="try again" />
             )}
           </div>
         </div>
@@ -374,7 +377,7 @@ export function LivePanel({
         <button
           type="button"
           className={`${primaryButton} w-full sm:w-auto`}
-          disabled={checking || (lockWait.remaining !== null && lockWait.remaining > 0)}
+          disabled={!signedIn || checking || waiting}
           onClick={() => void submitLive()}
         >
           {checking ? "Checking..." : "Use live mode"}

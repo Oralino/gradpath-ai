@@ -978,22 +978,61 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Likely question:** *"Doesn't this make debugging harder?"* The location and message are enough
   to fix a request; the value is the one thing the client already has.
 
-## Passcode and per-IP limits (`api/ratelimit.py`, `api/deps.check_passcode`, T-018 step 7)
-- **What it is:** the gate in front of live mode and the meter on everything that costs something.
-  Live routes need a shared passcode (owner decision) before the visitor's key is even looked at;
-  every route that calls Voyage or a model counts requests per IP; source search also has a global
-  daily cap.
+## Per-IP and per-user limits (`api/ratelimit.py`, T-018 step 7, T-026)
+- **What it is:** the meter on everything that costs something. Every route that calls Voyage or a
+  model counts requests per IP, model and workflow routes count again per signed-in GitHub user
+  (T-026), and source search also has a global daily cap. (Until T-026 this section also covered
+  the shared live passcode and its 5-guess lock; GitHub sign-in replaced both.)
 - **Decision: own sliding windows, in memory.** A few dozen lines with a fake clock for tests.
   Rejected: a rate-limit library (a dependency for something this small) and Redis (infrastructure
   that can cost money). Trade-off: per process, so one worker, and a restart resets the counts.
-- **Decision: the passcode is checked before the key, and failures lock the IP.** Five wrong
-  guesses in 15 minutes and that IP gets 429 even with the right passcode; the compare is
-  constant-time and the guess is never logged (guide 02: brute force).
+- **Decision (T-026): per-user limits on top of per-IP ones.** A whole office shares one IP, and
+  one person can hop between networks: counting both means neither trick hands anyone more than
+  their share. The user check runs first and nothing is counted when a request is refused.
 - **Decision: a global cap on search.** Per-IP limits don't stop many IPs; 1,000 searches a day
   in total protects the owner's non-refreshing Voyage tokens whatever happens.
 - **Decision: which address is the client.** Behind a proxy every request looks the same, but the
   left end of `X-Forwarded-For` is written by the client and can be forged. With
   `TRUSTED_PROXY_HOPS=n` we take the n-th entry from the right (the one our own proxy added).
+- **Decision (T-020 step 4): the site vouches for the visitor, signed with a shared secret.** On
+  the deployed site a request goes browser -> Vercel -> Render -> the API, and the Render URL is
+  public, so counting hops alone lets anyone who calls Render directly write the entry we would
+  trust, and get a fresh limit every time. We copied the standard answer (AWS documents it for
+  CloudFront: the proxy adds a secret header the origin requires): `frontend/proxy.ts` runs on
+  Vercel's server for every `/api` request, drops any copy of our two headers a browser sent,
+  and adds the visitor's address (the rightmost `X-Forwarded-For` entry, which Vercel overwrites
+  with the address it saw) and `PROXY_SHARED_SECRET`. The API believes that address only when the
+  secret matches (`hmac.compare_digest`, exactly one header); otherwise the hops rule and then the
+  connection address decide. Rejected: hops only (forgeable via the public Render URL); an IP
+  allow-list of Vercel's servers (no fixed outgoing addresses on the free plan); a private
+  network (Vercel and Render are separate companies); refusing every direct call to Render (a
+  separate decision; today a direct caller simply gets its own real address).
+- **Likely question:** *"Can a visitor steal the secret from the site?"* No. It is a server
+  setting with no `NEXT_PUBLIC_` prefix, used only in `proxy.ts`, which never ships to the
+  browser; it is sent only as a request header from Vercel to Render over HTTPS and never set on
+  a response. A build with a dummy secret had no trace of it in `.next/`. If it ever leaks, a new
+  value in both dashboards cuts the old one off at once.
+- **What the measurement showed (2026-11-28):** through the site, Render received the browser's
+  own `X-Forwarded-For` first (a forged `6.6.6.6` arrived as is), then Vercel's server, Render's
+  Cloudflare and Render's internal proxy. So counting hops could never have found the visitor
+  safely; the shared secret was needed. `proxy.ts` itself sees Vercel's overwritten value: the
+  API got the real visitor address even with forged headers.
+- **Decision (owner, after reading what others do): block direct calls ("origin cloaking").**
+  Three options for callers who skip the site: keep them in one shared bucket (A), give each
+  their own limit by counting Render's proxies, `TRUSTED_PROXY_HOPS=3` (B), or refuse them (C).
+  B was dropped: hop counts are known to break silently when a provider changes its chain, and
+  Render doesn't document its chain. C is the standard (AWS documents it for CloudFront): the
+  origin refuses requests without the proxy's secret. `SiteOnly` answers 403 to everything but
+  the health check once the secret is set. Trade-off accepted: all traffic now goes through
+  Vercel, whose free plan pauses the site if usage runs over; and a secret mismatch between the
+  two dashboards takes the site down until fixed (fails closed).
+- **Likely question:** *"Why is the health check open?"* Render's health check calls the API
+  directly, without the site's secret; blocking it would make Render think the service is down
+  and restart it. It shows only what the page footer shows (mode, sources date).
+- **Gotcha:** on `next dev` / `next start` nothing rewrites `X-Forwarded-For`, so locally the
+  "visitor address" is whatever the caller wrote. That's harmless there (no secret is set locally,
+  so the API ignores it) but it means the design depends on Vercel's overwrite, which is why the
+  deployed chain is measured with a forged header.
 - **Decision (review): one IPv6 network is one client.** A home or server usually owns a whole /64,
   so counting each IPv6 address separately would hand an attacker billions of fresh limits; keys
   are the /64 network (IPv4-mapped addresses become IPv4), and only counting creates an entry.
@@ -1003,14 +1042,9 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Gotchas:** limits are off in local mode, so evals and the owner's runs aren't throttled. Polling
   has its own generous bucket (the Plan page polls every 2 s). `/api/assist` charges the workflow
   bucket when it starts a run, so it can't be used to skip that limit, and checks that quota before
-  its routing call. Search allows 2 a minute per client because Voyage allows 3 in total. Known and
-  accepted: concurrent wrong guesses can slightly exceed 5 before the lock (negligible against a
-  16+ character passcode).
-- **Likely questions:**
-  - *"Why not accounts?"* Owner decision: one shared passcode is enough for a portfolio demo, with
-    no passwords to store or reset (multi-user accounts are in "Later").
-  - *"What if the passcode leaks?"* Change `LIVE_PASSCODE` and restart; visitors pay with their own
-    keys, so a leak costs the owner at most the capped Voyage searches.
+  its routing call. Search allows 2 a minute per client because Voyage allows 3 in total.
+- **Likely question:** *"Why not a rate-limit service?"* One process, one instance, a few dozen
+  lines: a service would add an account and a secret for nothing the free tier needs.
 
 ## Cross-site requests: no CORS, an Origin check (`api/main.py` `OriginCheck`, T-018 step 8)
 - **What it is:** the answer to "can another website make a visitor's browser use our API?" No:
@@ -1028,60 +1062,111 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   has nothing to ride on. The Origin check is the third layer.
 - **Gotcha:** the deployed frontend's address must be added to `ALLOWED_ORIGINS` (Milestone 8), or
   every POST from the real site gets 403. Locally the default covers `localhost:3000`.
-- **Likely question:** *"Why not CSRF tokens?"* They protect cookie sessions; we have none. Our
-  credentials (passcode, key) are custom headers, which a cross-site form can't set.
+- **Likely question:** *"Why not CSRF tokens now that there is a session cookie (T-026)?"* The
+  cookie is SameSite=Lax, so browsers don't send it on a cross-site POST; every model route also
+  needs the visitor's key in a custom header, which a cross-site form can't set; and the Origin
+  check refuses foreign POSTs first. Three layers, none of them a token to manage.
 
-## Live check and session token (`api/live.py`, `api/deps.check_passcode`, T-018 step 9)
-- **What it is:** the "Use live mode" button's backend. It answers "are this passcode and this key
-  good?" once, up front, and hands back a token so the visitor doesn't retype the passcode after a
-  reload.
-- **Decision: check before the first real request** (owner decision 12). Errors show in the panel
-  at once, and a made-up key no longer spends a Voyage search before failing. The key test is
-  Anthropic's models list, which costs nothing.
-- **Decision: a signed token, not a stored passcode** (owner decision 11). The owner wanted the
-  passcode to survive a reload; keeping the passcode in the browser would put a shared secret at
-  rest. The token is an HMAC over its expiry, the passcode and a hash of the key, with a secret
-  that exists only in the server process. It expires in 12 hours, can't be stretched, and dies on
-  a restart or a passcode change. Rejected: a server-side session table (state to keep and expire;
-  the HMAC needs none).
-- **Decision: the token is bound to the key.** A stolen token is useless without the key, which
-  only lives in the visitor's tab. Side effect: the token also proves the key, so after a reload
-  re-entering the same key needs no new check; a different key fails as "passcode needed" and the
-  passcode field returns.
-- **Gotcha:** a token sent with another key counts as a wrong passcode towards the 5-guess lock,
-  so five mismatched keys after a reload lock that IP for 15 minutes. Accepted: a real visitor
-  enters the passcode again after the first refusal (the panel asks for it).
-- **Likely question:** *"Why not a JWT library?"* One HMAC over three fields with
-  `hmac.compare_digest` is the whole job; a JWT library adds algorithm choices to get wrong.
+## Sign in with GitHub (`api/auth.py`, `api/deps.require_session`, T-026)
+- **What it is:** the gate in front of live mode. A visitor signs in with GitHub once a day, then
+  uses their own Anthropic key. It replaced a shared passcode that the owner had to send to every
+  tester (owner decision 2026-11-27). The gate exists because live mode spends the owner's Voyage
+  key on embeddings, even though the model runs on the visitor's key.
+- **How it flows:** the button links to `/api/auth/github/login`, which sends the browser to GitHub
+  with a random `state` and a PKCE challenge (both remembered in a signed 10-minute cookie). GitHub
+  sends the browser back to `/api/auth/github/callback` with a one-time `code`; the server checks
+  the state, swaps the code for a token (with the client secret and the PKCE verifier), reads the
+  visitor's public profile once, forgets the token, and sets `gp_session`. Every outcome lands on
+  the home page as `/?signin=ok|too_new|blocked|denied|failed`.
+- **Decision: no database.** The session cookie is the data plus an HMAC signature: `{exp, id,
+  login}` signed with `SESSION_SECRET`. The server can check it without storing anything, which
+  fits Render's free tier (memory and disk are wiped on restart). Trade-off: a cookie can't be
+  revoked one by one; it dies after a day, by blocking the user's id, or by changing the secret
+  (everyone signs in again).
+- **Decision: GitHub, not our own accounts.** No passwords to store, reset or leak, no email
+  addresses; GitHub already fights fake accounts. The 30-day account age (owner decision) stops
+  freshly made throwaway accounts; the block list handles anyone who misbehaves.
+- **Decision: an OAuth App with no scopes.** The server only needs to know who someone is, so it
+  asks for no permissions; GitHub's consent page shows exactly that. Rejected: a GitHub App (more
+  setup for the same result).
+- **Decision: PKCE and `state`, both.** `state` stops login CSRF (someone signing you in as them);
+  PKCE makes a leaked `code` useless without the verifier, which never leaves our server.
+- **Gotchas:** `SameSite=Lax`, not Strict: GitHub's redirect back is a cross-site navigation, and
+  Strict would drop the sign-in cookie on it. The callback's code and state sit in the URL, and
+  uvicorn's access log prints URLs, so `RedactAuthQuery` hides the query on `/api/auth/` lines (a
+  test caught this). `/api/live/check` checks the session before the model limit counts, so
+  anonymous callers can't spend a shared network's limit (review finding).
+- **Likely questions:**
+  - *"Why not a JWT library?"* One HMAC over a small JSON body with `hmac.compare_digest` is the
+    whole job; a JWT library adds algorithm choices to get wrong.
+  - *"What if someone copies a session cookie?"* It's HttpOnly (scripts can't read it) and only
+    sent over HTTPS; a copy works for at most a day and only with that person's own Anthropic key.
+  - *"What does GradPath learn about me?"* Your GitHub id, username and account creation date, once.
+    Only the id and username stay, inside your own cookie; nothing is logged.
+
+## Live check (`api/live.py`, T-018 step 9, T-026)
+- **What it is:** the "Use live mode" button's backend: "is this key good?", checked once, up front,
+  with Anthropic's free models list. Errors show in the panel at once instead of after a search.
+- **Decision (T-026): it issues nothing.** Until T-026 it returned a token standing in for the
+  passcode; the session cookie now proves the sign-in, so the check only checks the key.
 
 ## Frontend live session and shared server info (`lib/liveSession.ts`, `lib/serverInfo.tsx`, `lib/api.ts`, T-018 step 9)
 - **What it is:** the browser half of live mode, and the one place every screen learns the server's
-  mode. Screens never touch the key or the token; they call `useLiveSession()` (which says only
-  whether each is held) and `useServerInfo()`.
+  mode. Screens never touch the key; they call `useLiveSession()` (which says only whether a key
+  is held and who is signed in) and `useServerInfo()`.
 - **Decision: the key in module memory only.** Not localStorage or sessionStorage, not React state
   that outlives the panel, not the URL: a reload or a closed tab drops it, which is the promise the
-  panel's copy makes. The token is the only thing at rest, in sessionStorage (one tab, gone when the
-  tab closes), with an in-memory copy so a browser that blocks storage still works until reload.
+  panel's copy makes. The GitHub session is an HttpOnly cookie the frontend never reads; the
+  signed-in login comes from `/api/auth/me` (T-026; the T-018 token in sessionStorage is gone).
 - **Decision: credentials on model routes only.** `post`/`get` add the headers only when the call
   asks for them (`auth = true`); health, recordings and search never carry the key, so it goes
   nowhere it isn't needed. Tests check every route both ways.
-- **Decision: the api client reacts to 401s itself.** One place maps `passcode_required` to "drop
-  the token" and `key_refused` / `key_required` to "drop the key", and remembers the server's fixed
+- **Decision: the api client reacts to 401s itself.** One place maps `signin_required` to "show
+  the sign-in button again" and `key_refused` / `key_required` to "drop the key", and remembers the server's fixed
   text, so every screen's panel reopens with the right message without each screen parsing errors.
 - **Decision: one health request, shared.** A React context in the layout; an unknown `app_mode`
   reads as demo (fail closed): no screen offers a model call the server won't make.
 - **Gotcha:** `useSyncExternalStore` needs the same snapshot object while nothing changed, or React
-  re-renders forever; the snapshot is rebuilt only when a value changes (a token can also expire
-  between renders, which the next render notices).
+  re-renders forever; the snapshot is rebuilt only when a value changes.
 - **Likely question:** *"Can a script on the page read the key?"* Yes, any script running in the
   page could, which is why the site loads no third-party scripts and renders all server text as
   React children (no raw HTML). Memory-only storage protects against the key outliving the tab, not
   against XSS; the XSS defence is the rendering rules in DESIGN.md "Security rules".
 
+## The waking-up screen (`components/WakeScreen.tsx`, `lib/serverInfo.tsx`, T-028)
+- **What it is:** the free API host (Render) sleeps after 15 minutes without visitors; the first
+  request then waits for it to start (measured: 43 s). Instead of a page that silently hangs, a
+  full-page screen shows "Waking up AI braincells..." with a small animated drawing of nerve cells
+  and an elapsed timer, then fades away when the server answers.
+- **How it connects:** the site already made one shared health check per page load
+  (`ServerInfoProvider`); that check now keeps retrying through a cold start and reports a
+  `waking` flag after 2 s. `WakeScreen` wraps the whole site in `app/layout.tsx` and reads the flag.
+- **Decision: show it only when needed.** A fast answer (the usual case) never shows it; once
+  shown it stays at least 0.8 s so a just-late answer doesn't flicker. Rejected: always showing a
+  splash (slows every visit).
+- **Decision: retry, don't just wait.** Each attempt waits up to 60 s (Render holds the first
+  request until the host is up, so a shorter cut-off would drop a request about to succeed;
+  Vercel allows 120 s), 3 s between attempts, 3 minutes in all; then a stopped state with "Try
+  again" and a link to the repo's GitHub issues (owner decisions: no email on the site, no
+  "continue anyway" since nothing works without the API).
+- **Decision: the owner's words.** "Waking up AI braincells..." exactly, after the owner rejected
+  a longer explanatory sentence; the design (seven cells, one lit at a time, calm single accent)
+  was drafted by design-advisor, shown as a mock-up, and approved.
+- **Accessibility:** the site behind the cover is `inert` (no Tab or screen-reader access to
+  hidden controls); a polite live region says "Waking up AI braincells" once, then once a minute,
+  then "Server ready", never every second; reduced motion gets a still drawing; the stopped
+  headline takes focus.
+- **Likely question:** *"Why not keep the server awake with a ping?"* That would need a scheduled
+  job pinging the API every few minutes and burns the free plan's 750 instance hours a month; the
+  owner's zero-cost rule favours an honest wait screen over gaming the free tier.
+- **Gotcha:** the tests drive it on fake timers including animation frames: the cover mounts on a
+  frame scheduled after React commits, so each clock jump is followed by a short extra step.
+
 ## Demo and live screens (`components/LivePanel.tsx`, `RecordedExamples.tsx`, `SourceSearch.tsx`, `ModeBadge.tsx`, T-018 step 9)
 - **What it is:** what each mode looks like to a visitor. The header badge says which mode the
   server is in; each model screen has one mode-note line; demo replaces the forms with recorded
-  runs; live adds an inline panel where the visitor brings a passcode and their own key; `/search`
+  runs; live adds an inline panel where the visitor signs in with GitHub and brings their own key
+  (T-026; a passcode until then); `/search`
   works in every mode with no model.
 - **Decision: recordings use the screens' own result components** (owner decision 8). A visitor on
   "Analyse a job" sees a real job analysis, rendered by the same code as a live one. The only
@@ -1097,13 +1182,12 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Decision: screens stay quiet on a 401.** The api client already told the live session what to
   forget and why; the panel reopens and says it in the right field. A screen showing its own error
   panel too would say the same thing twice, in the wrong place.
-- **Gotchas:** after a reload only the key is asked (the token remembers the passcode) and nothing
-  is checked until the first real request, because the check endpoint needs the passcode; the token
-  is bound to the key, so a different key comes back as "passcode needed". The live session is
-  shared by every page, so a refusal is forgotten when the panel that explained it unmounts.
+- **Gotchas:** after a reload the GitHub sign-in survives (a cookie, for a day) but the key must be
+  typed again (memory only). The live session is shared by every page, so a refusal is forgotten
+  when the panel that explained it unmounts.
 - **Likely questions:**
   - *"How do you test that the key is never stored?"* The panel tests fill the key, succeed, then
-    assert it is in neither storage nor the page's HTML, and that only the token is stored.
+    assert it is in neither storage nor the page's HTML.
   - *"Why does demo still call the API?"* For the recordings and the search: no model runs, and
     demo starts with no keys at all (a release check).
 
@@ -1133,6 +1217,149 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   - *"Isn't using a model to grade a model circular?"* Partly, which is why the facts and refusals
     are scored in code and the judge only answers a narrow question (does this passage state this
     claim?), with its negative verdicts checked by reading.
+
+## Copying the index to Qdrant Cloud (`ingestion/copy_index.py`, `index.publish_points`, T-020 step 1)
+- **What it is:** how the deployed site gets its knowledge base. The script reads every point
+  (vector and payload) from the local index and publishes them to Qdrant Cloud.
+- **Decision: copy, don't re-embed.** Re-running ingest against the cloud would embed 1,592 chunks
+  again with Voyage, spending free tokens that never refresh, and could fetch pages that have
+  changed since the evaluated index. Copying moves exactly the index the evals measured, at no cost.
+- **Decision: one publish path for ingest and copy.** `publish_points` (taken out of
+  `rebuild_index`) builds a new physical collection, then switches the alias to it, so the
+  deployed index is never half-built and a failed copy leaves the old one serving.
+- **Decision: a separate setting for the target** (`QDRANT_CLOUD_URL`, https only). Reusing
+  `QDRANT_URL` in `.env` would quietly point every local run at the cloud.
+- **Gotcha:** Qdrant Cloud suspends a free cluster unused for a week and deletes it about three
+  weeks later; this script is also the free way to rebuild it.
+- **Likely question:** *"How do you know the copy is right?"* It checks the point ids match
+  exactly and compares payloads and vectors on about 20 spread-out samples before saying done;
+  then the retrieval eval runs against the cloud and must match the local numbers.
+
+## The API as a Docker image (`backend/Dockerfile`, `.dockerignore`, CI `docker` job, T-020 step 2b)
+- **What it is:** the recipe for a sealed package of the API (an *image*): Python, the exact
+  libraries from `uv.lock`, our code and the two data files it reads. Render runs the image as a
+  *container*; CI builds the same image on every push, and the owner can run it with Docker Desktop.
+  It replaces "install Python, run `uv sync`, start uvicorn" on each machine with one file.
+- **Decision: two stages.** The first stage (`builder`) has uv and does the installing; the second
+  copies only the finished environment. The shipped image has no uv and no build leftovers: smaller
+  and less to attack. Rejected: one stage (simpler, but ships the installer).
+- **Decision: dependencies before code.** `pyproject.toml` and `uv.lock` are copied and installed
+  first, then `backend/src`. Docker caches each step, so a code-only change reuses the slow
+  dependency layer and rebuilds in seconds.
+- **Decision: the build context is the repo root, behind an allowlist.** The API reads
+  `demo_runs/` and `knowledge_base/index_info.json`, which live outside `backend/`. The root
+  `.dockerignore` starts with `*` (send nothing) and names the five paths the image needs, so
+  `.env`, `private/` and the local index can't leak into the image, even if someone adds a new
+  secret file later. Rejected: a blocklist (`.env`, `private/`...), which fails open when a new file
+  appears.
+- **Decision: secrets only at run time.** No key appears in the Dockerfile or as a build argument
+  (build arguments stay readable in the image history). Render injects keys as environment
+  variables when the container starts; locally they'd be `-e` flags.
+- **Decision: the tokenizer is downloaded while building.** The Voyage client fetches its
+  tokenizer from the Hugging Face Hub the first time it embeds anything. Render's free tier
+  restarts often and loses files written at run time, so every cold start would download it again,
+  and a Hub outage would break search. The build fetches it into the image, and
+  `HF_HUB_OFFLINE=1` makes the running container read only that copy. CI proves it by tokenizing
+  with networking switched off (`--network none`).
+- **Decision: install only what the server runs (T-025).** `pyproject.toml` splits the libraries:
+  `[project] dependencies` is what the API imports; dependency groups hold the rest: `local`
+  (`claude-agent-sdk`, which bundles the whole Claude Code program, for `LLM_PROVIDER=claude_code`),
+  `eval` (fastembed and onnxruntime, for the retrieval experiments) and `ingest` (the HTML cleaner
+  and splitter, for building the index). `uv sync` on a PC installs every group
+  (`default-groups`); the image runs `uv sync --no-default-groups`. The Claude Code provider imports
+  the SDK inside its call, not at the top of the file, because the API imports the providers
+  module at every start. Rejected: a lighter base image such as UBI 9, Alpine or distroless. The
+  base was about 130 MB of 1.27 GB, UBI 9 and distroless don't ship our pinned Python 3.13, and
+  Alpine lacks wheels for several of our libraries.
+- **Gotcha (T-025):** tests and CI install every group, so a new top-level import of a left-out
+  library would pass the tests and fail only on Render. `tests/test_runtime_deps.py` imports the
+  app with those modules blocked, and the CI `docker` job checks they aren't in the image.
+- **Decision: a normal user, one worker.** The container runs as uid 10001, not root, so a
+  compromised app can't rewrite the image's files; only `logs/` is writable. One uvicorn worker,
+  because background plan runs live in the process's memory (`workflows/runs.py`).
+- **Gotchas:** the project is installed *editable*, so `config.py` stays at
+  `/app/backend/src/gradpath/` and its `REPO_ROOT` (three folders up) is `/app`, the same layout as
+  the repo; a non-editable install would move it into `site-packages` and break every
+  `REPO_ROOT` path. `.gitattributes` keeps the Dockerfile LF on Windows checkouts, because CRLF
+  line endings break `RUN` lines. Base images are pinned by tag *and* digest, so a re-tagged image
+  can't change the build silently.
+- **Likely questions:**
+  - *"Why Docker if uv already pins every package?"* uv pins the Python libraries; the image also
+    pins the operating system, the Python build and the start command, and Render runs exactly
+    what CI tested.
+  - *"How do you know no secret is in the image?"* The context is an allowlist, keys only arrive
+    at run time, and CI fails if `.env`, `private/` or the local data are inside or if the
+    container runs as root.
+  - *"Why not Docker for the frontend?"* Vercel builds and serves Next.js itself; a container
+    would add work and lose Vercel's preview deployments.
+  - *"Why didn't you pick a smaller base image?"* The base wasn't the problem: unused libraries
+    were. Measured before choosing: dropping the dev-only groups cut the image far more than any
+    base swap could, and kept the same Debian and Python build CI already tests.
+
+## Vulnerability scanning of the image (Trivy in CI, `backend/Dockerfile`, T-020 step 5)
+- **What it is:** Trivy (free, open source) lists known vulnerabilities (CVEs) in everything inside
+  the API image: Debian's system packages and every Python package. CI scans the image it just
+  built on every push.
+- **What the first scan found:** 0 CRITICAL; 55 HIGH, all in the Debian base packages, but really
+  15 distinct flaws (one util-linux flaw is reported once per util-linux package). Two had a
+  fixed version Debian had already published (zlib, zstd). A newer Trivy then also found HIGH
+  findings in `urllib3` and `msgpack` copies bundled inside the base image's own `pip`; our app's
+  `urllib3` was already fixed.
+- **Decision: install Debian's security updates when building, and drop `pip`.** One `RUN` in the
+  runtime stage: `apt-get upgrade`, remove the apt lists, `pip uninstall pip`. After it: 0
+  fixable HIGH/CRITICAL. Rejected: bumping the pinned base image (fixed zlib but not zstd, and
+  brought the pip findings along); doing nothing. What others do (owner asked): Docker's old
+  advice was to avoid `apt-get upgrade`; the best-known counter-argument (pythonspeed) is that
+  skipping security updates is the worse practice, and Docker now stresses rebuilding often. We
+  install the updates and rebuild on every push. Removing `pip` follows the general multi-stage
+  rule: ship only what runs.
+- **Decision: two gates, not `--ignore-unfixed` alone.** Fail on any HIGH or CRITICAL that has a
+  fix (we can always act on those), and fail on any CRITICAL at all, because sources warn that
+  `--ignore-unfixed` alone would let a future unfixed CRITICAL pass silently. An accepted one goes
+  in `.trivyignore` with a reason and an expiry date.
+- **Likely question:** *"Why are there still 53 HIGH findings?"* They are 13 distinct flaws that
+  Debian hasn't published a fix for yet, so nothing can be installed to remove them; none is
+  reachable by the API (mount tools, login, QUIC, SQLite FTS5). The next build after Debian's fix
+  picks it up, and CI stops a build that leaves a fixable one. A minimal base image without those
+  packages is a later option.
+- **Gotcha:** fixes arrive only when the image is rebuilt (a push). The image also grew 42 MB
+  (602 MB): updated packages sit in a new layer on top of the old ones.
+
+## Protecting the owner's Voyage key on the deployed site (`retrieval/budget.py`, `retrieval/query_cache.py`, `retrieval/guarded.py`, T-020 step 2)
+- **What it is:** every question the deployed server turns into a vector is paid with the
+  owner's Voyage key, whose free tokens never refresh. `GuardedEmbeddings` sits in front of the
+  Voyage client (only outside local mode): it answers repeated questions from a cache, and for
+  new ones spends from a budget before calling Voyage.
+- **Decision: the budget lives in Qdrant, not in memory.** Render's free tier restarts the
+  server often, and the old in-memory daily cap (T-018) started from zero after every restart.
+  Two counters (today, all time) sit in a small collection with no vectors. Rejected: a file
+  (Render's disk is wiped on restart) and a new database service (one more account and secret).
+- **Decision: count at the embedding layer, not at the search route.** In live mode the RAG
+  answer and the workflow embed questions with the owner's key too, even though the model call
+  uses the visitor's key. Guarding the embeddings covers every paid path in one place.
+- **Decision: spend first, refund on failure.** The count is reserved under a lock before Voyage
+  is called, so parallel requests can't overshoot the cap; if the call fails (a full free-tier
+  window, Voyage's 429), the reservation is given back, so refused requests can't burn the day's
+  searches.
+- **Decision: the cache stores a hash, not the question.** The key is a hash of the model name
+  and the question with case and spacing folded, so "What is REST?" and "what is  rest?" share one
+  vector; the text itself is never stored, keeping the rule that queries are never logged. A cache
+  failure only means no caching; a budget failure refuses the search (fail closed).
+- **Decision: a valid session token passes a locked network.** Limits are per IP, and a whole
+  household or campus can share one. The passcode lock exists to stop guessing; a token proves an
+  earlier correct passcode and can't be guessed, so it's checked before the lock. Passcodes, even
+  right ones, still wait out the lock. (Superseded by T-026: the passcode, its token and its lock
+  are gone; see "Sign in with GitHub".)
+- **Gotcha:** LangChain's `QdrantVectorStore` checks the collection at startup by embedding a
+  probe text, a real Voyage call on every restart outside the budget. Our searches always pass
+  vectors, so the check is turned off (`validate_collection_config=False`).
+- **Likely questions:**
+  - *"Why not a CAPTCHA?"* A third-party script on every page, and the budget caps the damage
+    anyway. Owner decision in T-020.
+  - *"What happens when the budget runs out?"* Search answers 503 with a fixed message; the
+    recorded examples keep working. `SEARCH_ENABLED=false` does the same on purpose.
+  - *"Is the hash of a question private?"* Mostly: common questions could be confirmed by hashing
+    a guess, but nothing links an entry to a visitor, and no text is stored.
 
 ## One topic of a job is a question, not a plan (`router/rules.py`, `router/route.py`, T-021)
 - **What happened:** with a posting and profile attached, "How should I prepare for the PostgreSQL

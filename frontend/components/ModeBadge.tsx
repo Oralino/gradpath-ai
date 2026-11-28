@@ -2,7 +2,7 @@
 
 // Header indicator for the server's mode (DESIGN.md, "Header (decision 7)"). Used by SiteHeader.
 // Non-interactive text, no aria-live. Shows nothing while health loads or failed, so there is no
-// flash of a wrong mode. "Live" splits on whether this tab holds a key (lib/liveSession.ts).
+// flash of a wrong mode. "Live" splits on whether this tab is signed in with GitHub and holds a key (lib/liveSession.ts).
 
 import { ClockIcon, InfoIcon, KeyIcon } from "@/components/icons";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -21,7 +21,7 @@ export function ModeBadge() {
       </StatusBadge>
     );
   }
-  return live.hasKey && live.hasToken ? (
+  return live.hasKey && live.signedIn ? (
     <StatusBadge tone="info" icon={<KeyIcon />}>
       Live: your key
     </StatusBadge>

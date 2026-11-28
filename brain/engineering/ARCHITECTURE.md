@@ -118,44 +118,85 @@ file scanned for contact details, keys and local paths before it is written.
 and `get_answer_model` / `get_extraction_model` pass it to `get_chat_model(api_key=...)`; every
 API route builds its models through these two dependencies. A refused key answers 401, the
 visitor's own rate limit 429, both with fixed text and logged by type only. Background runs carry
-an owner tag (HMAC of the key with a per-process secret): polling with another key gets the same
-404 as an unknown id. The key lives in the request and, for a background run, in its worker thread
+an owner tag (HMAC of the GitHub id and the key with a per-process secret, T-026): polling as
+another user or with another key gets the same 404 as an unknown id. The key lives in the request and, for a background run, in its worker thread
 until the run ends; nothing stores, logs, traces or returns it.
 
-**Passcode and per-IP limits (T-018 step 7):** live routes need `LIVE_PASSCODE` (16+ characters)
-in the `X-GradPath-Passcode` header, compared in constant time before the visitor key; 5 wrong
-guesses from one IP in 15 minutes lock that IP (429). `api/ratelimit.py` keeps in-memory sliding
-windows per client, off in local mode: search 2/min and 60/day (plus 1,000/day in total), model routes
+**Sign in with GitHub (T-026; replaced the T-018 passcode):** live routes need a GitHub sign-in
+before the visitor key. `api/auth.py` runs a GitHub OAuth App web flow with PKCE and no scopes:
+`GET /api/auth/github/login` puts a fresh `state` and PKCE verifier in a signed cookie (`gp_oauth`,
+10 minutes) and redirects to GitHub; `GET /api/auth/github/callback` checks the state, exchanges the
+code (client secret + verifier), reads the public `id`, `login` and `created_at` once, drops the
+GitHub token, refuses accounts younger than `GITHUB_MIN_ACCOUNT_AGE_DAYS` (30) or listed in
+`GITHUB_BLOCKED_USERS`, and sets `gp_session` (HMAC-signed `{exp, id, login}`, HttpOnly, Secure,
+SameSite=Lax, 1 day). Every outcome redirects to `PUBLIC_SITE_URL/?signin=<code>`. No database:
+the signature is the proof. `GET /api/auth/me` tells the live panel who is signed in; `POST
+/api/auth/logout` clears the cookie. `deps.require_session` checks the cookie on every live route
+(401 `signin_required`). Live refuses to start without `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
+`SESSION_SECRET` (32+ characters) and an https `PUBLIC_SITE_URL`. Uvicorn's access log hides the
+query string of `/api/auth/` requests (the callback's code and state).
+
+**Rate limits (T-018 step 7, T-026):** `api/ratelimit.py` keeps in-memory sliding windows per
+client, off in local mode: search 2/min and 60/day (plus 1,000/day in total), model routes
 6/min and 60/day, workflow runs 3/hour and 10/day (also charged when `/api/assist` starts one), run
-polling 60/min. Over a limit: 429 with `Retry-After`. The client is the connection address, or
-with `TRUSTED_PROXY_HOPS=n` the n-th `X-Forwarded-For` entry from the right, normalised (IPv6 by
-/64 network, ports dropped). Request bodies over 256 KB get 413 before FastAPI reads them
+polling 60/min, sign-in 10/min and 50/day. Model, workflow and poll limits apply per IP and again
+per signed-in GitHub user (`gh:<id>`). Over a limit: 429 with `Retry-After`. The client is, in
+order: the address the site's own server vouches for (`X-GradPath-Client-IP`, believed only with a
+matching `X-GradPath-Proxy-Secret` = `PROXY_SHARED_SECRET`, T-020 step 4); else with
+`TRUSTED_PROXY_HOPS=n` the n-th `X-Forwarded-For` entry from the right; else the connection
+address. Normalised (IPv6 by /64 network, ports dropped). The site side is `frontend/proxy.ts`
+(Next.js Proxy, server only): it drops any copy of the two headers a browser sent and adds them
+from the rightmost `X-Forwarded-For` entry, which Vercel overwrites with the address it saw. The
+temporary `GET /api/debug/forwarded` (404 unless `DEBUG_FORWARDED=true`) shows a caller their own
+chain, for measuring the deployed setup.
+
+**Browser protections (T-020 step 5):** every page gets `X-Frame-Options: DENY`,
+`X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin` from
+`next.config.ts` `headers()`; every API reply gets the same three from `SecurityHeaders`
+(outermost ASGI middleware), because `headers()`, and response headers set in `proxy.ts`, don't
+reach replies from the external `/api` rewrite (measured with `next start`). HSTS comes from
+Vercel. No Content-Security-Policy yet (T-030, after the provider layer T-029).
+
+**Site only (T-020 step 4, owner decision "origin cloaking"):** once `PROXY_SHARED_SECRET` is set,
+`SiteOnly` (ASGI middleware right inside `SecurityHeaders`, `api/main.py`) answers 403 `site_only` to every request
+without the matching secret, except `GET /api/health` (Render's health check calls the
+API directly). So the Render URL is useless on its own: no API, no `/docs`, `/redoc` or
+`/openapi.json` (the site forwards only `/api/*`, so those are unreachable on the deployed site;
+they stay available locally). Unset (local, CI, the Docker smoke test): no effect. Measured chain
+(2026-11-28): through the site, Render receives `X-Forwarded-For` = [whatever the browser sent,
+or Vercel's view of the visitor, then Vercel's outgoing server, Render's Cloudflare, Render's
+internal proxy]; Vercel forwards the browser's own `X-Forwarded-For` on an external rewrite, so
+no hop count is safe through the site, while `proxy.ts` sees Vercel's overwritten value. Request bodies over 256 KB get 413 before FastAPI reads them
 (`BodySizeLimit`). In memory and per process: deploy with one worker.
 
 **Cross-site requests (T-018 step 8):** no CORS middleware: the browser only calls its own origin
 and Next's `/api` rewrite proxies to the API server-side, so cross-origin reads stay blocked.
-`OriginCheck` (outermost ASGI middleware) answers 403 to a POST whose `Origin` header is present
+`OriginCheck` (ASGI middleware, right inside `SiteOnly`) answers 403 to a POST whose `Origin` header is present
 and not in `ALLOWED_ORIGINS`; requests with no `Origin` (curl, CLIs) pass.
 
-**Live check and session token (T-018 step 9):** `POST /api/live/check` (`api/live.py`, live mode
-only; demo 403, local 404) takes the passcode and key as headers, checks the passcode (counted
-towards the lock), the key's shape, then the key itself with one free Anthropic call (listing
-models), and returns `{token, expires_at}`. The token is `<expiry>.<HMAC>` over the expiry, the
-passcode and a SHA-256 of the key, with a per-process secret: it replaces the passcode header on
-later requests (`X-GradPath-Token`) for 12 hours, only together with the same key, and a restart or
-a new `LIVE_PASSCODE` voids every token. A token sent with a different key counts as a wrong
-passcode; a token sent with no key at all gets 401 `key_required` and does not count. Every error body is `{detail, code}`; the codes (`api/main.py` `error_codes`) let the
-frontend tell a wrong passcode from a refused key from a rate limit without matching text, and
-`/api/health` reports `search_enabled`.
+**Live check (T-018 step 9, T-026):** `POST /api/live/check` (`api/live.py`, live mode only;
+demo 403, local 404) needs the GitHub session first (checked before the model limit counts, so an
+anonymous caller spends nothing), then checks the key's shape and the key itself with one free
+Anthropic call (listing models), and returns `{ok: true}`; it issues nothing (the session token
+of T-018 was removed with the passcode). Every error body is `{detail, code}`; the codes
+(`api/main.py` `error_codes`) let the frontend tell signed-out from a refused key from a rate limit
+without matching text, and `/api/health` reports `search_enabled`.
+
+**Cold start (T-028):** Render's free host sleeps after 15 idle minutes; a measured wake took 43 s
+(2026-11-28). `lib/serverInfo.tsx` retries the health check (60 s per attempt, under Vercel's 120 s;
+3 s apart) for up to 3 minutes; after 2 s without an answer it reports `waking`, and
+`components/WakeScreen.tsx` covers the site ("Waking up AI braincells...", an elapsed timer, the
+site behind it `inert`) until the answer, or shows a stopped state with "Try again" and a link to
+the repo's issues. A fast answer shows nothing.
 
 **Frontend modes (T-018 step 9):** `lib/serverInfo.tsx` makes one `/api/health` request per page
 load and shares `mode` (an unknown value reads as demo), `searchEnabled` and `sourcesAsOf` with the
 header, footer and screens. `lib/liveSession.ts` holds the visitor's key in module memory only and
-the session token in sessionStorage (with an in-memory copy, so live mode still works when storage
-is blocked). `lib/api.ts` adds the token and key headers to the model routes only (never to health,
+the signed-in GitHub login (from `/api/auth/me`; the session itself is an HttpOnly cookie the
+frontend never reads). `lib/api.ts` adds the key header to the model routes only (never to health,
 recordings or search), parses `code` and `Retry-After`, and on a 401 tells the live session what to
-forget (`passcode_required` drops the token, `key_refused` / `key_required` the key) and why, so
-the live panel reopens with the right message.
+forget (`signin_required` the sign-in, `key_refused` / `key_required` the key) and why, so the live
+panel reopens with the right message. `SignInNotice` shows the `?signin=` outcome once.
 
 **Source search (T-018 step 4):** `POST /api/search {query}` (`rag/sources.py`, `api/search.py`) is
 the retrieval half of RAG for visitors without a key: one Voyage request, the top passages (at most
@@ -177,8 +218,30 @@ Deployed site:
   keys needed.
 - **Live mode:** the visitor pastes an Anthropic key. It travels over HTTPS with each request, lives
   only in memory for that request, and is never stored, logged, traced or returned. Query embeddings
-  use the owner's Voyage key with a per-IP rate limit, and live routes need a shared passcode in a
-  header (owner decision 2026-11-20, T-018).
+  use the owner's Voyage key with per-IP and per-user rate limits, and live routes need a GitHub
+  sign-in (owner decision 2026-11-27, T-026; a shared passcode until then).
+- **Voyage protections (T-020 step 2):** outside local mode, `get_retrieval_service` wraps the
+  query embeddings in `GuardedEmbeddings` (`retrieval/guarded.py`): a persistent query cache
+  first (`retrieval/query_cache.py`, Qdrant collection `gradpath_query_cache_<model>`, keyed by a
+  hash, no query text), then for misses a persistent budget (`retrieval/budget.py`, collection
+  `gradpath_usage`: `EMBED_BUDGET_DAILY` 300 per UTC day, `EMBED_BUDGET_TOTAL` 20,000 in all),
+  spent before Voyage is called and refunded if the call fails; spent budget answers 503.
+  `SEARCH_ENABLED=false` turns public search off. The vector store skips its startup collection
+  check, which would embed a probe text with Voyage on every restart.
+- **Container (T-020 step 2b):** the API ships as a Docker image built from `backend/Dockerfile`
+  with the repo root as context (`docker build -f backend/Dockerfile .`). Two stages: uv installs
+  the `uv.lock` pins of the runtime set only (`--no-default-groups`: the `local`, `eval` and
+  `ingest` dependency groups stay out, T-025) and pre-downloads the Voyage tokenizer; the runtime stage holds Python, the
+  environment, `backend/src`, `demo_runs/` and `knowledge_base/index_info.json`, runs as a non-root
+  user with `HF_HUB_OFFLINE=1`, and starts one uvicorn worker on `$PORT`. The root `.dockerignore`
+  is an allowlist, so `.env`, `private/` and the local index never enter the build. Keys and
+  `QDRANT_URL` come from the host's environment at run time. The runtime stage installs Debian's
+  security updates at build time (`apt-get upgrade`) and removes the base image's `pip` (never
+  used at run time; its bundled libraries carried fixed HIGH findings), T-020 step 5. CI's `docker`
+  job builds the image, checks its contents, starts it in demo mode with no keys, and scans it
+  with Trivy (fails on any fixable HIGH/CRITICAL and on any CRITICAL). Known limit: the offline setting
+  covers the Voyage tokenizer only; fastembed's BM25 and reranker models (eval-only today) are
+  not in the image and would need the network if the API ever used them.
 
 ## Tracing
 Built in Milestone 2 (`tracing.py`, ticket T-002). One function, `configure_tracing(settings)`, decides

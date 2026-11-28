@@ -1,0 +1,13 @@
+# Build context for backend/Dockerfile (T-020 step 2b). An allowlist: everything is left out except
+# what is named below, so .env, private/, backend/data/ (local Qdrant), logs and any new file are
+# never sent to the image builder unless someone adds them here on purpose.
+*
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/src/
+!demo_runs/*.json
+!knowledge_base/index_info.json
+
+# Even inside allowed folders: no bytecode caches.
+**/__pycache__
+**/*.pyc

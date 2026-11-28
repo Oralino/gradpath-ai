@@ -7,15 +7,17 @@ import logging
 import os
 import threading
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 from langchain_core.callbacks import AsyncCallbackManagerForLLMRun, CallbackManagerForLLMRun
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.runnables import Runnable, RunnableLambda
 from pydantic import BaseModel
+
+if TYPE_CHECKING:  # the SDK itself is imported only when a Claude Code call runs (T-025)
+    from claude_agent_sdk import ClaudeAgentOptions, ResultMessage
 
 QueryFn = Callable[..., Any]
 log = logging.getLogger(__name__)
@@ -52,8 +54,8 @@ class ChatClaudeCode(BaseChatModel):
     max_turns: int = 3
     effort: str | None = None
     timeout_s: float = 300.0
-    # Injected in tests so no real Claude Code process is started.
-    query_fn: QueryFn = query
+    # Injected in tests so no real Claude Code process is started; None means the SDK's `query`.
+    query_fn: QueryFn | None = None
 
     @property
     def _llm_type(self) -> str:
@@ -70,6 +72,15 @@ class ChatClaudeCode(BaseChatModel):
         run_manager: AsyncCallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> ChatResult:
+        # Imported here, not at the top: the SDK bundles the Claude Code program (~360 MB) and
+        # only local mode uses it, so the deployed image leaves it out (T-025, `local` group).
+        try:
+            from claude_agent_sdk import ClaudeAgentOptions
+        except ModuleNotFoundError as exc:  # e.g. LLM_PROVIDER=claude_code inside the image
+            raise ClaudeCodeError(
+                "LLM_PROVIDER=claude_code needs the `local` dependency group (uv sync)"
+            ) from exc
+
         system, prompt = render_messages(messages)
         options = ClaudeAgentOptions(
             model=self.model,
@@ -108,14 +119,16 @@ class ChatClaudeCode(BaseChatModel):
             }
         return ChatResult(generations=[ChatGeneration(message=message)])
 
-    async def _run(self, prompt: str, options: ClaudeAgentOptions) -> ResultMessage:
+    async def _run(self, prompt: str, options: "ClaudeAgentOptions") -> "ResultMessage":
         """Drain the SDK's message stream and return its final `ResultMessage`.
 
         The stream is always closed (also on timeout/cancellation), so the SDK can shut down its
         Claude Code subprocess instead of leaving it running.
         """
+        from claude_agent_sdk import ResultMessage, query
+
         final: ResultMessage | None = None
-        stream = self.query_fn(prompt=prompt, options=options)
+        stream = (self.query_fn or query)(prompt=prompt, options=options)
         try:
             async for msg in stream:
                 if isinstance(msg, ResultMessage):

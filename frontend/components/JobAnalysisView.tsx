@@ -77,7 +77,7 @@ export function JobAnalysisView() {
   const ready = info.status === "ready";
   const demo = ready && info.mode === "demo";
   const liveMode = ready && info.mode === "live";
-  const liveReady = session.hasKey && session.hasToken;
+  const liveReady = session.hasKey && session.signedIn;
   const slot = useRecordings("job", { enabled: ready, autoShow: demo });
   const recording = slot.one.status === "ready" ? slot.one.recording : null;
   const [posting, setPosting] = useState("");

@@ -1,14 +1,19 @@
-"""Per-IP rate limits and the live-mode passcode's brute-force lock (T-018 step 7, always-hard).
+"""Per-IP and per-GitHub-user rate limits (T-018 step 7, T-026; always-hard).
 
-Each limited route names a bucket (search, model, workflow, poll); a bucket has per-IP sliding
-windows and, for search, a global daily cap that protects the owner's non-refreshing Voyage tokens
-against many IPs. Limits are off in local mode (the owner's machine). Everything is in memory,
-per process (deploy with one worker), and bounded: at most MAX_TRACKED clients, oldest dropped.
+Each limited route names a bucket (search, model, workflow, poll, auth); a bucket has per-IP
+sliding windows, per-user windows for signed-in visitors (`PER_USER`), and may have a site-wide
+cap (`GLOBAL`). The live passcode and its brute-force lock were removed with T-026. The owner's
+Voyage tokens are protected across IPs by the persistent embedding budget instead
+(`retrieval/budget.py`, T-020 step 2), which survives restarts. Limits are off in local mode
+(the owner's machine). Everything is in memory, per process (deploy with one worker), and
+bounded: at most MAX_TRACKED clients, oldest dropped.
 Own code, no dependency: a few dozen lines with a fake clock for tests (CLAUDE.md: own code for
 limits). Over a limit the route answers 429 with a fixed message and `Retry-After`.
 """
 
+import hmac
 import ipaddress
+import logging
 import threading
 import time
 from collections import OrderedDict, deque
@@ -19,9 +24,16 @@ from fastapi import HTTPException, Request
 
 from gradpath.config import Settings, get_settings
 
-LIMITED = "Too many requests from your connection. Try again later."
-LOCKED = "Too many wrong passcodes. Try again in 15 minutes."
+log = logging.getLogger(__name__)
+# "Your network": limits are per IP, and one IP can be a whole household, office or campus.
+LIMITED = (
+    "Too many requests from your network (this can include other people on the same Wi-Fi). "
+    "Try again later."
+)
 MAX_TRACKED = 10_000
+# Set by the site's server (frontend/proxy.ts, T-020 step 4); the names must match there.
+CLIENT_IP_HEADER = "x-gradpath-client-ip"
+PROXY_SECRET_HEADER = "x-gradpath-proxy-secret"
 MINUTE, HOUR, DAY = 60.0, 3600.0, 86_400.0
 
 
@@ -40,9 +52,18 @@ PER_IP: dict[str, tuple[Window, ...]] = {
     "model": (Window(6, MINUTE), Window(60, DAY)),
     "workflow": (Window(3, HOUR), Window(10, DAY)),
     "poll": (Window(60, MINUTE),),
+    # Sign in with GitHub (T-026): each callback makes two GitHub calls.
+    "auth": (Window(10, MINUTE), Window(50, DAY)),
 }
-GLOBAL: dict[str, tuple[Window, ...]] = {"search": (Window(1000, DAY),)}
-PASSCODE_FAILURES = Window(5, 15 * MINUTE)
+# The same limits again per signed-in GitHub user (T-026), on top of the per-IP ones: a shared
+# network can't hand one person more than their share, and one person can't use several networks
+# to get more. Set by `deps.require_session` (request.state.github_id).
+PER_USER: dict[str, tuple[Window, ...]] = {
+    bucket: PER_IP[bucket] for bucket in ("model", "workflow", "poll")
+}
+# Site-wide caps kept in memory. Search's daily cap moved to `retrieval/budget.py` (T-020 step 2):
+# stored in Qdrant, so a restart doesn't reset it, and it counts every server-paid embedding.
+GLOBAL: dict[str, tuple[Window, ...]] = {}
 
 
 class Limiter:
@@ -113,11 +134,46 @@ class Limiter:
 LIMITER = Limiter()
 
 
+def from_site(request: Request, settings: Settings) -> bool:
+    """True when the request carries PROXY_SHARED_SECRET in exactly one PROXY_SECRET_HEADER, i.e.
+    it came through the site's own server. Used by `client_ip` and the debug page; compared in
+    constant time, so a wrong guess learns nothing. Unset or empty secret: always False."""
+    expected = settings.proxy_shared_secret
+    secret = "" if expected is None else expected.get_secret_value()
+    if not secret:
+        return False
+    given = request.headers.getlist(PROXY_SECRET_HEADER)
+    if len(given) != 1:
+        return False
+    return hmac.compare_digest(given[0].encode(), secret.encode())
+
+
+_warned_site_address = False
+
+
+def _warn_unusable_site_address() -> None:
+    """Log once per process (no values) that the site sent the right secret but no usable
+    address, so `client_ip` fell back to the hops rule; repeated it would flood the log."""
+    global _warned_site_address
+    if not _warned_site_address:
+        _warned_site_address = True
+        log.warning("client address: the site's secret matched but its address was unusable")
+
+
 def client_ip(request: Request, settings: Settings) -> str:
-    """The caller, as a rate-limit key. With TRUSTED_PROXY_HOPS = n > 0 (behind n proxies that
-    each append to X-Forwarded-For), the n-th entry from the right: entries further left are
-    client-written and could be forged. Falls back to the connection address. Normalised by
-    `client_key`, so one IPv6 network can't pose as many clients."""
+    """The caller, as a rate-limit key. A request from the site's server (`from_site`) is keyed by
+    the visitor address that server measured (CLIENT_IP_HEADER, T-020 step 4). Otherwise, with
+    TRUSTED_PROXY_HOPS = n > 0 (behind n proxies that each append to X-Forwarded-For), the n-th
+    entry from the right: entries further left are client-written and could be forged. Falls back
+    to the connection address. Normalised by `client_key`, so one IPv6 network can't pose as many
+    clients. Called by `charge`, `ensure_room` and the debug page."""
+    if from_site(request, settings):
+        values = request.headers.getlist(CLIENT_IP_HEADER)
+        if len(values) == 1:
+            key = client_key(values[0])
+            if key is not None:
+                return key
+        _warn_unusable_site_address()
     hops = settings.trusted_proxy_hops
     if hops > 0:
         lines = request.headers.getlist("x-forwarded-for")
@@ -157,9 +213,19 @@ def _too_many(wait: float, detail: str = LIMITED) -> HTTPException:
     )
 
 
+def _user_key(bucket: str, request: Request) -> tuple[str, str] | None:
+    """The per-user counter for a signed-in visitor (`request.state.github_id`), if the bucket
+    has per-user limits."""
+    github_id = getattr(request.state, "github_id", None)
+    if bucket not in PER_USER or not isinstance(github_id, int):
+        return None
+    return (bucket, f"gh:{github_id}")
+
+
 def charge(bucket: str, request: Request) -> None:
-    """Count this request against `bucket` for the caller's IP (and the bucket's global cap), or
-    raise 429. Off in local mode. Used by `limit` and by `/api/assist` when it starts a run."""
+    """Count this request against `bucket` for the caller's IP, the signed-in GitHub user (if
+    any) and the bucket's global cap, or raise 429 having counted nothing new. Off in local
+    mode. Used by `limit` and by `/api/assist` when it starts a run."""
     settings = get_settings()
     if settings.app_mode == "local":
         return
@@ -167,9 +233,16 @@ def charge(bucket: str, request: Request) -> None:
         wait = LIMITER.wait_time((bucket, "*"), GLOBAL[bucket])
         if wait:
             raise _too_many(wait)
+    user = _user_key(bucket, request)
+    if user is not None:
+        wait = LIMITER.wait_time(user, PER_USER[bucket])
+        if wait:
+            raise _too_many(wait)
     wait = LIMITER.hit((bucket, client_ip(request, settings)), PER_IP[bucket])
     if wait:
         raise _too_many(wait)
+    if user is not None:
+        LIMITER.hit(user, PER_USER[bucket])
     if bucket in GLOBAL:
         LIMITER.hit((bucket, "*"), GLOBAL[bucket])
 
@@ -181,27 +254,19 @@ def ensure_room(bucket: str, request: Request) -> None:
     if settings.app_mode == "local":
         return
     wait = LIMITER.wait_time((bucket, client_ip(request, settings)), PER_IP[bucket])
+    user = _user_key(bucket, request)
+    if user is not None:
+        wait = max(wait, LIMITER.wait_time(user, PER_USER[bucket]))
     if wait:
         raise _too_many(wait)
 
 
 def limit(bucket: str) -> Callable[[Request], None]:
     """A route dependency for `charge(bucket)` (route-level, so it runs after the router's mode,
-    passcode and key guard)."""
+    sign-in and key guard, which sets the GitHub user for the per-user limits)."""
 
     def dependency(request: Request) -> None:
         charge(bucket, request)
 
     dependency.__name__ = f"limit_{bucket}"
     return dependency
-
-
-def check_passcode_lock(request: Request, settings: Settings) -> None:
-    """429 if this IP has failed the passcode too often lately (called before checking it)."""
-    wait = LIMITER.wait_time(("passcode", client_ip(request, settings)), (PASSCODE_FAILURES,))
-    if wait:
-        raise _too_many(wait, LOCKED)
-
-
-def record_passcode_failure(request: Request, settings: Settings) -> None:
-    LIMITER.hit(("passcode", client_ip(request, settings)), (PASSCODE_FAILURES,))

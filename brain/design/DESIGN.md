@@ -264,6 +264,83 @@ Progress view replaces the form's submit area; inputs stay visible, read-only.
   a time on this server. Try again in a few minutes." One "Try again" button; no automatic retries.
 - Recordings skip the progress view; see "Demo and live modes".
 
+### Server waking up (T-028): approved 2026-11-28
+The free API host sleeps when idle and takes about a minute to wake. When the shared health check
+has not answered within ~2 s, a full-page screen covers the site until it does. A fast answer shows
+nothing. Timings (2 s, per-attempt timeout, 3 min limit) are the lead's; this section is the look.
+```
++--------------------------------------------------------------+
+| GradPath                                    (wordmark only)  |
+|                                                              |
+|                  o---o                                       |
+|                 /  \ |\    o      <- seven ink-line nodes,   |
+|                o    (o)--o          one teal at a time        |
+|                 \   /   \|                                    |
+|                  o-----o                                     |
+|                                                              |
+|              Waking up AI braincells...                      |
+|                        0:24                                  |
++--------------------------------------------------------------+
+```
+- **Cover**: `fixed inset-0 z-50 bg-paper flex flex-col`. It covers the header and footer too (the
+  owner asked for a full page); the only chrome kept is the wordmark "GradPath" as plain text (not a
+  link) in the header's position (`mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 h-14 flex
+  items-center text-label`), so the page does not feel like a different site. No theme toggle: the
+  theme is already applied before first paint. Content block: `m-auto flex flex-col items-center
+  gap-6 px-4 text-center`, optically raised a little with `pb-14` (the wordmark row's height).
+- **Drawing** (inline SVG, `aria-hidden`, `w-40 h-auto`, viewBox `0 0 120 72`): a small sketch of
+  seven nerve cells, like a margin drawing in the notebook. Nodes at (14,40) (38,18) (44,54) (66,32)
+  (86,12) (92,52) (108,30), `r=4`, `fill: var(--color-paper)`, `stroke: var(--color-line)`,
+  `stroke-width: 1.5`. Edges, drawn first: 1-2, 1-3, 2-4, 3-4, 2-5, 4-5, 4-6, 5-7, 6-7, `stroke:
+  var(--color-rule)` widened to `stroke-width: 1.5`, `stroke-linecap: round`. Rule is decorative here,
+  so its low contrast is fine. No glow, blur, gradient or drop shadow.
+- **What moves**: one signal firing through the cells. Each node has a second circle on top (same
+  position, `r=4`, `fill: var(--color-link)`) whose opacity runs keyframes `fire`: 0% 0, 8% 1, 30% 0,
+  100% 0, `2.8s ease-in-out infinite`, opacity only. Firing order 1, 2, 4, 5, 7, 6, 3, with
+  `animation-delay` 0, 0.4, 0.8 ... 2.4 s, so exactly one cell lights at a time and the loop never
+  stalls. Token: `--animate-fire` with its `@keyframes` in the `@theme` block, used as
+  `motion-safe:animate-fire`. Teal on paper is 7.2:1 / 9.0:1, so the lit cell reads in both themes.
+- **Reduced motion**: nothing animates (the `motion-safe:` rule). The fill circles default to
+  opacity 0 except node 4 (the centre), shown at opacity 1: a still drawing with one lit cell. The
+  timer still counts (a text update, not motion).
+- **Copy**: "Waking up AI braincells..." exactly (owner), `text-title text-ink`, the three dots
+  static. Timer under it: `text-heading text-ink-muted tabular-nums`, format `m:ss` like the other
+  timers ("0:07", "1:05"; ink-muted on paper 6.5:1 / 7.3:1). It counts from when the health check
+  started, not from when the screen appeared, so it is honest about the wait. No other text, no
+  progress bar, no "almost there".
+- **Appear**: fades in over 150ms (`motion-safe:transition-opacity duration-150`); reduced motion
+  appears at once.
+- **Fade-out**: when health answers, the live region says "Server ready" and the cover goes opacity
+  1 to 0 over 300ms (`motion-safe:transition-opacity duration-300 ease-out`), then unmounts. The
+  site underneath is already rendered and simply shows through; nothing else animates in. Reduced
+  motion: removed at once. If the cover has been up less than ~800 ms, keep it until 800 ms so it
+  never flickers.
+- **Screen readers and keyboard**: while the cover is up, the app root behind it gets `inert` (so
+  Tab and the virtual cursor cannot reach hidden controls). The cover is not a dialog and holds no
+  focusable element while waking, so focus stays on the document: no trap, browser controls still
+  work. The cover's own text is a `<p>`, not an `h1` (the page keeps its own `h1`). The timer sits
+  outside any live region. Announcements go through the layout's polite live region: "Waking up AI
+  braincells" once when the cover appears, "Still waking up, 1 minute" (2, 3 ...) each 60 s, "Server
+  ready" when it clears. After the fade, focus is not moved: the next Tab reaches the skip link, as
+  on any page load.
+- **Stopped** (no answer by the limit): the drawing stops, every fill circle at opacity 0 (all cells
+  hollow, "asleep"); the timer stops at its last value. Copy (owner, 2026-11-28):
+  - Line 1, `text-title text-ink`, `tabindex="-1"`, receives focus: "The braincells didn't wake up."
+  - Line 2, `text-small text-ink-muted max-w-xs`: "The backend might be down. Please [let the owner
+    know]." The link goes to the public issues page `https://github.com/Oralino/gradpath-ai/issues`
+    (no email or personal contact), styled `text-link underline underline-offset-4`, `target="_blank"
+    rel="noopener noreferrer"`, with the external-link icon and the visually hidden "(opens in new
+    tab)" like citations. Teal on paper 7.2:1 / 9.0:1.
+  - Button: Secondary button "Try again" (`h-11 sm:h-10 w-full sm:w-auto`). It restarts the check at
+    once, the timer from 0:00 and the waking state immediately (no 2 s grace). Live region: "The
+    braincells didn't wake up. The backend might be down."
+  - No "continue anyway" way out (owner decision 2026-11-28): no screen works without the API.
+  - The app stays `inert` behind the cover, so the Tab stops are the link and "Try again". That is
+    not a trap: browser controls are still reachable.
+- **Wordmark** (owner, 2026-11-28, after the mock-up `mockups/T-028-wake-up-screen.html`): shown.
+- **Contrast**: every pair is an existing token pair (ink on paper 16.2:1 / 14.9:1, ink-muted on paper
+  6.5:1 / 7.3:1, button border `line` on paper 3.5:1 / 3.8:1).
+
 ### Screens
 Header on every page: wordmark "GradPath" (`text-label`, ink, no logo), nav "Ask", "Analyse a job",
 "Plan", "Profile" (+ "Search sources" from Milestone 7) (current page `aria-current="page"`,
@@ -619,7 +696,9 @@ re-sends by itself. The api client must tell the 401 and 429 cases apart (Known 
 
 ### Motion
 - Hover and colour changes `transition-colors duration-150`. Disclosure chevron 150ms.
-- The running stage dot pulses (`motion-safe:animate-pulse`). Nothing else moves: results appear
+- The running stage dot pulses (`motion-safe:animate-pulse`), and the waking-up screen's cells fire
+  in turn with its fade in and out (see "Server waking up"; feedback for a real wait, shown only
+  after 2 s, so not "animation on page load"). Nothing else moves: results appear
   without entrance animation; smooth scroll for in-page links only under `motion-safe`.
 - `prefers-reduced-motion`: every animation is `motion-safe:` only, so it switches off as a whole.
 

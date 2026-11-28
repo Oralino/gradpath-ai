@@ -1,4 +1,5 @@
-"""Per-IP limits and the live passcode (T-018 step 7, always-hard area): fake clock, no network."""
+"""Per-IP and per-GitHub-user limits and the live sign-in guard (T-018 step 7, T-026; always-hard
+area): fake clock, no network."""
 
 import logging
 
@@ -6,12 +7,23 @@ import pytest
 from conftest import plain
 from fastapi import Request
 from fastapi.testclient import TestClient
-from test_visitor_key import KEY_A, LIVE, PASS, PASSCODE, spy_answer
+from pydantic import SecretStr
+from test_visitor_key import (
+    GITHUB_ID,
+    KEY_A,
+    LIVE,
+    LOGIN,
+    PASS,
+    SESSION_SECRET,
+    session_for,
+    spy_answer,
+)
 
 from gradpath.api import deps, ratelimit
-from gradpath.api.deps import KEY_HEADER, PASSCODE_HEADER, PASSCODE_NEEDED
+from gradpath.api.auth import SESSION_COOKIE
+from gradpath.api.deps import KEY_HEADER
 from gradpath.api.main import check_live_settings, create_app
-from gradpath.api.ratelimit import LIMITED, LOCKED, Limiter, Window, client_ip
+from gradpath.api.ratelimit import LIMITED, Limiter, Window, client_ip
 from gradpath.config import Settings
 from gradpath.providers import factory
 
@@ -185,63 +197,133 @@ def live_client(monkeypatch, kb_service, **extra) -> TestClient:
     return TestClient(app)
 
 
-def chat(c: TestClient, n: int = 1, passcode: str | None = PASSCODE):
+def chat(c: TestClient, n: int = 1, cookie: str | None = PASS["Cookie"]):
     headers = {KEY_HEADER: KEY_A, **ip(n)}
-    if passcode is not None:
-        headers[PASSCODE_HEADER] = passcode
+    if cookie is not None:
+        headers["Cookie"] = cookie
     return c.post("/api/chat", json={"question": "What is an index?"}, headers=headers)
 
 
 def test_model_routes_are_limited_per_ip_in_live_mode(kb_service, monkeypatch, clock):
     c = live_client(monkeypatch, kb_service)
-    assert [chat(c).status_code for _ in range(7)] == [200] * 6 + [429]
-    assert chat(c, n=2).status_code == 200
+    other_user = f"{SESSION_COOKIE}={session_for(GITHUB_ID + 1, 'other-user')}"
+    assert [chat(c).status_code for _ in range(6)] == [200] * 6
+    assert chat(c, cookie=other_user).status_code == 429  # same network, another user: shared
+    assert chat(c, n=2, cookie=other_user).status_code == 200
 
 
-# --- the passcode -----------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("given", [None, "", "wrong-passcode-" + "p" * 20, PASSCODE + "x"])
-def test_live_needs_the_right_passcode_before_the_key(kb_service, monkeypatch, clock, given):
+def test_model_routes_are_also_limited_per_github_user(kb_service, monkeypatch, clock):
+    """T-026: one person can't get more by switching networks."""
     c = live_client(monkeypatch, kb_service)
-    resp = chat(c, passcode=given)
-    assert (resp.status_code, plain(resp.json())) == (401, {"detail": PASSCODE_NEEDED})
+    assert [chat(c, n=k).status_code for k in range(1, 7)] == [200] * 6
+    resp = chat(c, n=7)
+    assert resp.status_code == 429 and int(resp.headers["Retry-After"]) >= 1
+    assert (
+        chat(c, n=7, cookie=f"{SESSION_COOKIE}={session_for(GITHUB_ID + 1, 'b')}").status_code
+        == 200
+    )
+    clock.now += 61
+    assert chat(c, n=7).status_code == 200
 
 
-def test_repeated_wrong_passcodes_lock_the_ip(kb_service, monkeypatch, clock):
+# --- the GitHub sign-in (T-026; replaced the passcode and its lock) --------------------------
+
+
+def _forged() -> str:
+    body, _ = session_for().split(".")
+    return f"{SESSION_COOKIE}={body}.{'0' * 64}"
+
+
+@pytest.mark.parametrize(
+    "cookie",
+    [None, f"{SESSION_COOKIE}=", f"{SESSION_COOKIE}=garbage", "other=1", "FORGED", "OTHER_SECRET"],
+)
+def test_live_needs_a_github_sign_in_before_the_key(kb_service, monkeypatch, clock, cookie):
+    from gradpath.api.auth import SIGNIN_NEEDED
+
+    if cookie == "FORGED":
+        cookie = _forged()
+    elif cookie == "OTHER_SECRET":
+        other = LIVE.model_copy(update={"session_secret": SecretStr("another-secret-" + "o" * 30)})
+        cookie = f"{SESSION_COOKIE}={session_for(settings=other)}"
     c = live_client(monkeypatch, kb_service)
-    assert [chat(c, passcode="nope").status_code for _ in range(5)] == [401] * 5
-    locked = chat(c)  # even the right passcode, while locked
-    assert (locked.status_code, plain(locked.json())) == (429, {"detail": LOCKED})
-    assert chat(c, n=2).status_code == 200  # other IPs are unaffected
-    clock.now += 15 * 60 + 1
+    resp = chat(c, cookie=cookie)
+    assert (resp.status_code, plain(resp.json())) == (401, {"detail": SIGNIN_NEEDED})
+    assert resp.json()["code"] == "signin_required"
+
+
+def test_wrong_sign_ins_lock_nobody_out(kb_service, monkeypatch, clock):
+    """No passcode lock any more: forged cookies cost nothing and block no one on the network."""
+    c = live_client(monkeypatch, kb_service)
+    assert [chat(c, cookie=_forged()).status_code for _ in range(20)] == [401] * 20
     assert chat(c).status_code == 200
 
 
-def test_the_passcode_is_never_logged_or_echoed(kb_service, monkeypatch, clock, caplog):
+def test_an_expired_session_is_refused(kb_service, monkeypatch, clock):
+    from gradpath.api import auth
+
     c = live_client(monkeypatch, kb_service)
+    cookie = PASS["Cookie"]
+    monkeypatch.setattr(auth, "now", lambda: __import__("time").time() + LIVE.session_ttl_s + 1)
+    assert chat(c, cookie=cookie).status_code == 401
+
+
+def test_a_blocked_user_is_refused_even_with_a_valid_session(kb_service, monkeypatch, clock):
+    c = live_client(monkeypatch, kb_service, github_blocked_users=f"someone, {LOGIN.upper()}")
+    assert chat(c).status_code == 401
+    c = live_client(monkeypatch, kb_service, github_blocked_users=str(GITHUB_ID))
+    assert chat(c).status_code == 401
+
+
+def test_the_session_is_never_logged_or_echoed(kb_service, monkeypatch, clock, caplog):
+    c = live_client(monkeypatch, kb_service)
+    value = PASS["Cookie"].split("=", 1)[1]
     with caplog.at_level(logging.DEBUG):
         good = chat(c)
-        bad = chat(c, passcode="guess-" + "g" * 20)
-    assert PASSCODE not in caplog.text and "gggg" not in caplog.text
-    assert PASSCODE not in good.text + bad.text and "gggg" not in bad.text
+        bad = chat(c, cookie=_forged())
+    for secret in (value, LOGIN, str(GITHUB_ID), SESSION_SECRET):
+        assert secret not in caplog.text and secret not in good.text + bad.text
 
 
-def test_live_refuses_to_start_without_a_long_passcode(monkeypatch):
-    monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
-    monkeypatch.delenv("ANTHROPIC_API_URL", raising=False)
-    for weak in (None, "", "short-pass", " " * 20):
-        s = LIVE.model_copy(update={"live_passcode": None if weak is None else _secret(weak)})
-        with pytest.raises(RuntimeError, match="LIVE_PASSCODE") as err:
-            check_live_settings(s)
-        assert "short-pass" not in str(err.value)
+def _with(**update):
+    return LIVE.model_copy(update=update)
+
+
+@pytest.mark.parametrize(
+    ("settings", "names"),
+    [
+        (_with(github_client_id=None), "GITHUB_CLIENT_ID"),
+        (_with(github_client_id="x y"), "GITHUB_CLIENT_ID"),
+        (_with(github_client_secret=None), "GITHUB_CLIENT_SECRET"),
+        (_with(github_client_secret=SecretStr("   ")), "GITHUB_CLIENT_SECRET"),
+        (_with(session_secret=None), "SESSION_SECRET"),
+        (_with(session_secret=SecretStr("short-secret")), "SESSION_SECRET"),
+        (_with(session_secret=SecretStr("sëcret-" + "s" * 40)), "SESSION_SECRET"),
+        (_with(session_secret=SecretStr("secret with spaces " + "s" * 30)), "SESSION_SECRET"),
+        (_with(public_site_url=None), "PUBLIC_SITE_URL"),
+        (_with(public_site_url="http://site.example"), "PUBLIC_SITE_URL"),
+        (_with(public_site_url="https://site.example/"), "PUBLIC_SITE_URL"),
+        (_with(public_site_url="https://site.example/path"), "PUBLIC_SITE_URL"),
+        (_with(proxy_shared_secret=SecretStr("short-secret")), "PROXY_SHARED_SECRET"),
+        (_with(proxy_shared_secret=SecretStr("")), "PROXY_SHARED_SECRET"),
+        (_with(proxy_shared_secret=SecretStr("spaces in it " + "p" * 30)), "PROXY_SHARED_SECRET"),
+    ],
+)
+def test_live_refuses_to_start_without_github_sign_in_settings(monkeypatch, settings, names):
+    for var in ("ANTHROPIC_BASE_URL", "ANTHROPIC_API_URL"):
+        monkeypatch.delenv(var, raising=False)
+    with pytest.raises(RuntimeError, match=names) as err:
+        check_live_settings(settings)
+    for value in ("short-secret", "spaces", "sëcret", "site.example"):
+        assert value not in str(err.value)
+
+
+def test_live_starts_with_a_localhost_site_for_local_testing(monkeypatch):
+    for var in ("ANTHROPIC_BASE_URL", "ANTHROPIC_API_URL"):
+        monkeypatch.delenv(var, raising=False)
     check_live_settings(LIVE)
-
-
-def _secret(value: str):
-    from pydantic import SecretStr
-
-    return SecretStr(value)
+    check_live_settings(_with(public_site_url="http://127.0.0.1:3000"))
+    check_live_settings(_with(public_site_url="http://localhost:3000"))
 
 
 def test_workflow_runs_started_through_assist_count(kb_service, monkeypatch, clock):
@@ -287,30 +369,6 @@ def test_without_trusted_proxies_a_forged_header_changes_nothing(kb_service, mon
     codes = [c.post("/api/search", json={"query": "sql index"}, headers=ip(n)).status_code
              for n in range(3)]  # fmt: skip
     assert codes == [200, 200, 429]  # all one client: the connection address
-
-
-def test_the_lock_tells_the_client_when_to_retry(kb_service, monkeypatch, clock):
-    c = live_client(monkeypatch, kb_service)
-    for _ in range(5):
-        chat(c, passcode="nope")
-    locked = chat(c)
-    assert locked.status_code == 429 and int(locked.headers["Retry-After"]) == 15 * 60
-
-
-def test_a_passcode_with_surrounding_spaces_matches(kb_service, monkeypatch, clock):
-    from pydantic import SecretStr
-
-    c = live_client(monkeypatch, kb_service, live_passcode=SecretStr(f"  {PASSCODE}\n"))
-    assert chat(c, passcode=f" {PASSCODE} ").status_code == 200
-    assert chat(c, passcode=PASSCODE.upper()).status_code == 401  # case matters
-
-
-def test_live_refuses_a_passcode_that_is_not_printable_ascii(monkeypatch):
-    for var in ("ANTHROPIC_BASE_URL", "ANTHROPIC_API_URL"):
-        monkeypatch.delenv(var, raising=False)
-    for bad in ("pässcode-" + "p" * 20, "pass code with spaces inside"):
-        with pytest.raises(RuntimeError, match="printable ASCII"):
-            check_live_settings(LIVE.model_copy(update={"live_passcode": _secret(bad)}))
 
 
 def test_demo_model_routes_are_refused_without_counting(monkeypatch, clock):

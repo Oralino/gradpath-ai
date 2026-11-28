@@ -5,6 +5,15 @@ Non-trivial work gets a ticket in `tickets/open/` (moved to `tickets/in-progress
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
+- [ ] [T-029](tickets/open/T-029-llm-provider-layer.md): Milestone 9, an LLM provider layer
+      (Claude, Ollama, LM Studio, transformers.js) with a browser relay for local models on the
+      deployed site; the workflow stays unchanged. After the Milestone 8 PR (owner, 2026-11-28).
+- [ ] [T-030](tickets/open/T-030-content-security-policy.md): Content-Security-Policy for the
+      site, designed after T-029 (owner, 2026-11-28).
+- [ ] [T-027](tickets/open/T-027-app-info-logs.md): the API's own INFO log lines (sign-in
+      outcomes and others) never reach the logs; only warnings do. Found closing T-026.
+- [ ] DESIGN.md: record the GitHub sign-in row of the live panel (replaces the passcode field and
+      decisions 11-12; design-advisor drafts, owner approves; T-026).
 - [ ] DESIGN.md: record the visible input rows and "Build plan again" on the Plan screen
       (design-advisor drafts, owner approves; T-011 design critique).
 - [ ] PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard). Moved out of Milestone 7
@@ -24,6 +33,8 @@ Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner
 - [ ] Add `uvx pip-audit` to the release checks (dependency vulnerabilities). Ran for Milestone 6:
       clean (T-011); `npm audit` for the frontend also found 0 vulnerabilities (2026-11-20). Adopting
       both in `CLAUDE.md` is the owner's call.
+- [ ] **(owner)** After the Milestone 8 PR merges: switch Render's branch and Vercel's production
+      branch back to `main`.
 - [ ] **(owner)** Two-factor authentication on GitHub, Anthropic, Voyage and LangSmith.
 
 ## Corpus (before Milestone 5)

@@ -40,6 +40,7 @@ uv run ruff check . && uv run ruff format --check .
 uv run python -m gradpath.providers.smoke   # manual: one real call through LLM_PROVIDER (Haiku)
 uv run python -m gradpath.ingestion.ingest [--dry-run]   # build the knowledge base index (+ index_info.json)
 uv run python -m gradpath.ingestion.ingest --info-only   # rewrite index_info.json only (no fetch, no Voyage)
+uv run python -m gradpath.ingestion.copy_index [--dry-run]   # copy the local index to QDRANT_CLOUD_URL (no Voyage)
 uv run python -m gradpath.retrieval.probe                # real retrieval scores (threshold check)
 uv run python -m gradpath.rag.ask "question"             # one RAG answer from the terminal
 uv run python -m gradpath.jobs.cli <job_description_file> [--json]   # analyse a posting
@@ -52,6 +53,13 @@ uv run python -m gradpath.router.cli "message" [--job FILE] [--profile FILE] [--
 uv run python -m gradpath.demo.record [--only ID ...] [--force] [--list]   # record demo runs (real calls, sample inputs only)
 uv run uvicorn gradpath.api.main:app --reload            # API on :8000 (docs at /docs)
 ```
+Docker (from the repo root, needs Docker Desktop; CI's `docker` job builds, smoke-tests and Trivy-scans it too):
+```bash
+docker build -f backend/Dockerfile -t gradpath-api .      # the API image the deployed site runs
+docker run --rm -p 8000:8000 gradpath-api                 # demo mode, no keys; settings via -e at run time
+```
+- The image's build context is an allowlist (`.dockerignore` at the root): add a file there before
+  the image can use it. Never pass keys as build args.
 - Local Qdrant allows one process at a time: stop the API before running ingest, probe, ask or eval.
 Frontend (from `frontend/`, Node >= 20.9, versions pinned exactly in `package.json`):
 ```bash

@@ -17,8 +17,8 @@ from langchain_anthropic import ChatAnthropic
 from pydantic import SecretStr
 from test_runs import CTX, SETTINGS, data
 
+from gradpath.api import auth, deps, limits
 from gradpath.api import chat as chat_module
-from gradpath.api import deps, limits
 from gradpath.api import main as main_module
 from gradpath.api.deps import KEY_HEADER, KEY_NEEDED, get_retrieval, run_owner
 from gradpath.api.main import KEY_LIMITED, KEY_REFUSED, check_live_settings, create_app
@@ -30,11 +30,38 @@ from gradpath.workflows.runs import RunStore
 
 KEY_A = "sk-ant-api03-" + "A" * 40
 KEY_B = "sk-ant-api03-" + "B" * 40
-PASSCODE = "test-passcode-" + "p" * 20
-PASS = {"X-GradPath-Passcode": PASSCODE}
+SESSION_SECRET = "test-session-secret-" + "s" * 20
+CLIENT_SECRET = "test-github-client-secret-" + "c" * 10
 LIVE = Settings(
-    _env_file=None, app_mode="live", llm_provider="anthropic_api", live_passcode=PASSCODE
+    _env_file=None,
+    app_mode="live",
+    llm_provider="anthropic_api",
+    github_client_id="Ov23litestclient",
+    github_client_secret=CLIENT_SECRET,
+    session_secret=SESSION_SECRET,
+    public_site_url="https://site.example",
 )
+GITHUB_ID = 4242
+LOGIN = "visitor-one"
+
+
+def session_for(github_id: int = GITHUB_ID, login: str = LOGIN, settings: Settings = LIVE) -> str:
+    """A valid `gp_session` value, as the GitHub callback would set it (T-026)."""
+    return auth.session_cookie(settings, github_id, login)[0]
+
+
+# Signed in with GitHub: what a browser sends on live routes (T-026; replaced the passcode).
+PASS = {"Cookie": f"{auth.SESSION_COOKIE}={session_for()}"}
+
+
+def owner_of(key: str | None, github_id: int = GITHUB_ID) -> str | None:
+    """`run_owner` as a route computes it for this signed-in user and key."""
+    from types import SimpleNamespace
+
+    request = SimpleNamespace(state=SimpleNamespace(github_id=github_id))
+    return run_owner(request, SecretStr(key) if key else None)  # type: ignore[arg-type]
+
+
 ANSWER = ChatAnswer(
     question="What is an index?", status="answered", answer="It helps.", citations=[]
 )
@@ -149,7 +176,7 @@ def test_non_ascii_header_bytes_are_refused(monkeypatch):
 def request_with(key: str | None):
     from fastapi import Request
 
-    headers = [(b"x-gradpath-passcode", PASSCODE.encode())]
+    headers = [(b"cookie", PASS["Cookie"].encode())]
     if key is not None:
         headers.append((KEY_HEADER.lower().encode(), key.encode()))
     return Request({"type": "http", "headers": headers})
@@ -223,7 +250,7 @@ def finish(store, run_id: str, owner: str | None = None, timeout_s: float = 10.0
 
 def started_run(store, key: str | None) -> str:
     """A finished run in `store`, owned by `key` (started directly, placeholder nodes, no model)."""
-    owner = run_owner(SecretStr(key)) if key else None
+    owner = owner_of(key)
     run_id = store.start(
         data(), context=CTX, settings=SETTINGS, impl=placeholder_nodes(), owner=owner
     )
@@ -245,16 +272,26 @@ def test_a_run_is_visible_only_with_the_key_that_started_it(live_runs):
     assert c.get(url).status_code == 401
 
 
+def test_a_run_is_invisible_to_another_github_user_with_the_same_key(live_runs):
+    """T-026: runs are bound to the GitHub user too, so a shared or leaked key isn't enough."""
+    c, store = live_runs
+    run_id = started_run(store, KEY_A)
+    other_user = {"Cookie": f"{auth.SESSION_COOKIE}={session_for(GITHUB_ID + 1, 'someone-else')}"}
+    resp = c.get(f"/api/career/runs/{run_id}", headers={KEY_HEADER: KEY_A, **other_user})
+    assert resp.status_code == 404
+
+
 def test_the_run_record_keeps_no_key(live_runs):
     _, store = live_runs
     run_id = started_run(store, KEY_A)
     record = store._runs[run_id]
-    assert KEY_A not in repr(record) and record.owner == run_owner(SecretStr(KEY_A))
-    assert run_owner(SecretStr(KEY_A)) != run_owner(SecretStr(KEY_B))
+    assert KEY_A not in repr(record) and record.owner == owner_of(KEY_A)
+    assert owner_of(KEY_A) != owner_of(KEY_B)
+    assert owner_of(KEY_A) != owner_of(KEY_A, github_id=GITHUB_ID + 1)  # T-026
 
 
 def test_local_runs_are_not_bound():
-    assert run_owner(None) is None
+    assert owner_of(None) is None
     store = RunStore(limits.CAREER)
     run_id = started_run(store, None)
     assert store.get(run_id) is not None and store.get(run_id, "anything") is not None
@@ -266,16 +303,11 @@ def test_local_runs_are_not_bound():
 def test_live_needs_the_api_provider_and_no_server_key(restore_logger_levels):
     check_live_settings(LIVE)  # fine
     with pytest.raises(RuntimeError, match="LLM_PROVIDER=anthropic_api"):
-        check_live_settings(
-            Settings(
-                _env_file=None, app_mode="live", llm_provider="claude_code", live_passcode=PASSCODE
-            )
-        )
+        check_live_settings(LIVE.model_copy(update={"llm_provider": "claude_code"}))
     with pytest.raises(RuntimeError, match="must not have ANTHROPIC_API_KEY") as err:
         check_live_settings(
-            Settings(_env_file=None, app_mode="live", llm_provider="anthropic_api",
-                     anthropic_api_key="sk-ant-server-" + "z" * 30)
-        )  # fmt: skip
+            LIVE.model_copy(update={"anthropic_api_key": SecretStr("sk-ant-server-" + "z" * 30)})
+        )
     assert "zzzz" not in str(err.value)
 
 
@@ -354,7 +386,7 @@ def placeholder_runs(live_runs, monkeypatch):
 
 
 def assert_bound(c, store, run_id):
-    owner_a = run_owner(SecretStr(KEY_A))
+    owner_a = owner_of(KEY_A)
     finish(store, run_id, owner_a)
     url = f"/api/career/runs/{run_id}"
     assert c.get(url, headers={KEY_HEADER: KEY_A}).json()["status"] == "done"

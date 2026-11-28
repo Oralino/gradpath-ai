@@ -127,8 +127,14 @@ class RetrievalService:
         min_score: float = 0.35,
     ):
         self.embeddings = embeddings
+        # The store never embeds here: queries are embedded by `self.embeddings` and searched by
+        # vector. Its collection check would embed a probe text with Voyage on every start (a
+        # paid call outside the budget, and Render restarts often), so it is off (T-020 step 2).
         self.store = QdrantVectorStore(
-            client=client, collection_name=collection, embedding=embeddings
+            client=client,
+            collection_name=collection,
+            embedding=embeddings,
+            validate_collection_config=False,
         )
         self.k = k
         self.min_score = min_score
@@ -257,9 +263,26 @@ def get_retrieval_service(settings: Settings | None = None) -> RetrievalService:
     from gradpath.ingestion.index import get_qdrant_client
 
     s = settings or get_settings()
+    if s.app_mode != "local" and not s.qdrant_url:
+        # The budget and cache write to Qdrant from several threads; the local folder client is
+        # not thread-safe, and the counters would land beside the index. Demo turns search off
+        # on this error (`open_retrieval`); live refuses to start.
+        raise RuntimeError("demo and live modes need QDRANT_URL (a Qdrant server)")
+    client = get_qdrant_client(s)
     embeddings = build_query_embeddings(s)  # no document cache: queries only
+    if s.app_mode != "local":
+        # Deployed: every paid query embedding goes through the persistent cache and budget.
+        from gradpath.retrieval.budget import EmbedBudget
+        from gradpath.retrieval.guarded import GuardedEmbeddings
+        from gradpath.retrieval.query_cache import QueryCache
+
+        embeddings = GuardedEmbeddings(
+            embeddings,
+            QueryCache(client, s.query_cache_collection, s.embed_model, s.query_cache_max),
+            EmbedBudget(client, s.usage_collection, s.embed_budget_daily, s.embed_budget_total),
+        )
     return RetrievalService(
-        get_qdrant_client(s),
+        client,
         s.qdrant_collection,
         embeddings,
         k=s.retrieval_k,

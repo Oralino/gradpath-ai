@@ -37,10 +37,22 @@ class Settings(BaseSettings):
     # Voyage limits without a payment method: 3 requests and ~10K tokens per minute.
     voyage_rpm: int = 3
     voyage_tpm: int = 10_000
+    # Cost protection on the deployed server (never local mode): public search off switch, a
+    # persistent cap on query embeddings per UTC day and in total, and a persistent query cache.
+    search_enabled: bool = True
+    embed_budget_daily: int = Field(default=300, ge=0)
+    embed_budget_total: int = Field(default=20_000, ge=0)
+    query_cache_max: int = Field(default=10_000, ge=0)
+    usage_collection: str = "gradpath_usage"
+    query_cache_collection: str = "gradpath_query_cache"
 
     qdrant_url: str | None = None
     qdrant_api_key: SecretStr | None = None
     qdrant_local_path: str = "backend/data/qdrant"  # relative to the repo root
+    # Target of `ingestion.copy_index` only (T-020): the deployed index. Separate from qdrant_url
+    # so setting it never points local runs at the cloud. The deployed server uses qdrant_url.
+    qdrant_cloud_url: str | None = None
+    qdrant_cloud_api_key: SecretStr | None = None
     qdrant_collection: str = "gradpath_kb"
 
     # Chunking (characters); tuned later by the chunk-size experiment in EVALUATION.md.
@@ -72,12 +84,34 @@ class Settings(BaseSettings):
     # allowed; demo = deployed, recorded runs only, model routes off; live = deployed, recordings
     # plus model routes with a visitor's key. Default demo: the safest, and it needs no keys.
     app_mode: Literal["local", "demo", "live"] = "demo"
-    # Live mode's shared passcode (T-018 step 7, owner decision): visitors send it in the
-    # X-GradPath-Passcode header; live refuses to start without one of 16+ characters.
-    live_passcode: SecretStr | None = None
+    # Sign in with GitHub guards live mode (T-026, owner decision 2026-11-27; replaced the shared
+    # passcode). A GitHub OAuth App with no scopes: the server learns the visitor's GitHub id,
+    # login and account age once, then keeps only a signed cookie. Live refuses to start without
+    # the four values below (`api/main.check_live_settings`).
+    github_client_id: str | None = None
+    github_client_secret: SecretStr | None = None
+    # Signs the session and sign-in cookies (HMAC-SHA256); 32+ characters. Changing it signs
+    # everyone out.
+    session_secret: SecretStr | None = None
+    # The public site's origin (the Vercel URL, no trailing slash): GitHub sends visitors back to
+    # PUBLIC_SITE_URL/api/auth/github/callback, and sign-in ends on its home page.
+    public_site_url: str | None = None
+    # Owner decisions 2026-11-27: GitHub accounts younger than this are refused (throwaway
+    # accounts); a sign-in lasts a day; individual users can be blocked (comma-separated logins
+    # or numeric ids, case-insensitive).
+    github_min_account_age_days: int = Field(default=30, ge=0, le=3650)
+    session_ttl_s: int = Field(default=86_400, ge=300, le=7 * 86_400)
+    github_blocked_users: str = ""
     # Proxies in front of the API that append to X-Forwarded-For (Render: set in Milestone 8).
     # 0 = use the connection address; never trust the client-written left end of the header.
     trusted_proxy_hops: int = Field(default=0, ge=0, le=5)
+    # T-020 step 4: the site's own server (frontend/proxy.ts on Vercel) sends the visitor's
+    # address in X-GradPath-Client-IP together with this secret in X-GradPath-Proxy-Secret; the API
+    # believes that address only when the secret matches. Unset = never believed. Set in Render and
+    # Vercel's server settings only (never a NEXT_PUBLIC_ name), 32+ printable characters.
+    proxy_shared_secret: SecretStr | None = None
+    # Temporary measuring page GET /api/debug/forwarded (T-020 step 4): 404 unless true.
+    debug_forwarded: bool = False
     # Browser origins allowed to POST (T-018 step 8, CSRF defence in depth): comma-separated, exact
     # scheme://host[:port]. Requests with no Origin header (curl, CLIs) are unaffected. There is
     # no CORS middleware: the browser only calls its own origin, through Next's /api proxy.

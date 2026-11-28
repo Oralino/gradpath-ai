@@ -1,6 +1,27 @@
 # DONE.md
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
+## 2026-11-28
+- [T-020 Milestone 8, deploy](tickets/done/T-020-deploy.md): GradPath live at
+  `gradpath-ai-phi.vercel.app` on free tiers (Vercel, Render running the API's Docker image,
+  Qdrant Cloud); Voyage budget and cache, Sign in with GitHub, the site vouching for visitor
+  addresses, direct calls to Render refused, Trivy in CI, security headers, release checks, public
+  README. Merged in [#19](https://github.com/Oralino/gradpath-ai/pull/19). CSP deferred to T-030.
+- [T-028 Waking-up screen](tickets/done/T-028-wake-up-screen.md): while the API wakes from
+  Render's free-tier sleep (measured 43 s), a full-page "Waking up AI braincells..." screen with
+  an animated nerve-cell drawing and a timer; retries for 3 minutes, then "The braincells didn't
+  wake up." with Try again and a link to the issues. Designed by design-advisor, approved by the
+  owner from a mock-up. On the Milestone 8 branch (`255e885`, `c72686c`).
+- [T-026 Sign in with GitHub](tickets/done/T-026-github-sign-in.md): live mode's shared passcode
+  replaced by a GitHub sign-in (OAuth App with PKCE, accounts 30+ days old, 1-day signed cookie,
+  per-user limits). Checked with the owner's real sign-in on the deployed site; `LIVE_PASSCODE`
+  deleted. On the Milestone 8 branch (`3bed7f9`, `09e8744`, `eba80cc`).
+
+## 2026-11-27
+- [T-025 Slim API image](tickets/done/T-025-slim-api-image.md): the Docker image installs only the
+  API's runtime set (dependency groups `local`, `eval`, `ingest` left out): 1.27 GB -> 560 MB
+  unpacked, deployed on Render. On the Milestone 8 branch (`0995875`, `8cf9f8a`).
+
 ## 2026-11-21
 - [T-022 Same-label chips told apart](tickets/done/T-022-same-label-resources.md): chips that share
   "title: section" in one list add the page name, e.g. "(docker overview)". Merged in

@@ -130,7 +130,7 @@ export function PlanView() {
   const serverReady = info.status === "ready";
   const demo = serverReady && info.mode === "demo";
   const liveMode = serverReady && info.mode === "live";
-  const liveReady = session.hasKey && session.hasToken;
+  const liveReady = session.hasKey && session.signedIn;
   // A run is resumed after a reload only where this tab may poll it: local, or live with a key.
   const persist = serverReady && (info.mode === "local" || (liveMode && liveReady));
   const run = usePlanRun({ persistKey: persist ? RUN_STORAGE_KEY : undefined });

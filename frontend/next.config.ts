@@ -11,6 +11,17 @@ const apiUrl = process.env.GRADPATH_API_URL ?? "http://127.0.0.1:8000";
 // return its own "stopped early" result; DESIGN.md's client cut-off is 320 s.
 const PROXY_TIMEOUT_MS = 330_000;
 
+// Browser protections on every page (T-020 step 5, SECURITY.md): no framing by other sites
+// (clickjacking), no content-type guessing, and only the origin (never the path or query) sent to
+// sites the visitor follows a link to. HSTS comes from Vercel. /api replies set the same three in
+// the API itself (backend api/main.py SecurityHeaders): headers() doesn't reach an external
+// rewrite. A Content-Security-Policy is a separate, later decision.
+const SECURITY_HEADERS = [
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: { proxyTimeout: PROXY_TIMEOUT_MS },
@@ -21,6 +32,9 @@ const nextConfig: NextConfig = {
         as: "*.css",
       },
     },
+  },
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${apiUrl}/api/:path*` }];
