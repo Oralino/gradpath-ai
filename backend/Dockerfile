@@ -47,6 +47,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HF_HOME=/app/.cache/huggingface \
     HF_HUB_OFFLINE=1
 
+# Debian's security fixes published since the pinned base image (T-020 step 5: Trivy found fixed
+# zlib1g and libzstd1 versions the base didn't have yet). Each build takes whatever Debian has
+# fixed by then; the apt lists are removed so the image stays small. The base image's own pip goes
+# too: the API never installs anything at run time (its environment, copied below, has no pip), and
+# pip's bundled urllib3 and msgpack carry fixed HIGH findings. CI's Trivy step fails the build if
+# a fixable HIGH or CRITICAL finding is ever left.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m pip uninstall --yes --no-input pip
+
 # A normal user, not root: if the app is ever compromised, it can't change the image's files.
 RUN useradd --create-home --uid 10001 app
 WORKDIR /app
