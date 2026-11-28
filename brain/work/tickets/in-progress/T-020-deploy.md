@@ -82,6 +82,13 @@ Owner decisions, 2026-11-21 (plan approved as recommended):
   standard). Consequences: `/docs`, `/redoc`, `/openapi.json` are unreachable on the deployed
   site (that SECURITY.md decision is settled); a mismatched secret takes the site down (403
   `site_only`) until both dashboards match.
+- **Changing the secret without an outage (owner 2026-11-28): rejected for now.** Option: a
+  `PROXY_SHARED_SECRET_PREVIOUS` that Render also accepts while the owner switches Vercel to the
+  new value (set previous + new in Render, then Vercel, then delete previous). Rejected because
+  today's gap is 1-2 minutes on a low-traffic site and the secret will rarely change; during the
+  switch two secrets work, and a forgotten "previous" keeps an old value alive; and it doesn't
+  help the case that matters most, a leaked secret, which must die at once anyway. Reconsider
+  as its own ticket if the site gets steady traffic.
 
 ## Step 0: free-tier terms (checked 2026-11-21, from the providers' pages)
 | Service | Free, no card | Limits that matter |

@@ -166,8 +166,8 @@ From guide 09, narrowed to this app. Run before each release; the project's rele
       Vercel, then reload the site and run a search. If the value may have leaked, Generate a
       new one in Render first. Emergency switch: delete `PROXY_SHARED_SECRET` in Render only; the
       site works at once, but until it's restored direct calls are not blocked and visitors
-      share one rate-limit bucket. (Not planned: zero-downtime rotation by accepting a previous
-      secret too; always-hard, not worth it for a solo site.)
+      share one rate-limit bucket. (Rejected for now, owner 2026-11-28: zero-downtime rotation
+      through a `PROXY_SHARED_SECRET_PREVIOUS`; reasons in the T-020 ticket.)
 - [x] Live deploy, client address (T-020 step 4, checked 2026-11-28): `PROXY_SHARED_SECRET` set to the same 32+
       character random value in Render and Vercel (server settings only, never a `NEXT_PUBLIC_`
       name; not in `.next/static`); through the site the debug page's `rate_limit_key` is the
