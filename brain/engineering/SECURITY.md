@@ -151,12 +151,12 @@ From guide 09, narrowed to this app. Run before each release; the project's rele
       are per process); never `--log-level trace`; no proxy or platform log format that records
       request headers (`X-Anthropic-Key`); `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_URL` unset (live
       refuses to start otherwise).
-- [ ] Live deploy, site only (T-020 step 4): straight at the Render URL every path but
+- [x] Live deploy, site only (T-020 step 4, checked 2026-11-28): straight at the Render URL every path but
       `/api/health` answers 403 `site_only` (`/docs`, `/openapi.json`, `/api/demo` included);
       the site works. Changing the secret: set the new value in Render and Vercel, then
       redeploy Vercel; until both match, the site answers 403 `site_only` (a short outage, never
       an opening).
-- [ ] Live deploy, client address (T-020 step 4): `PROXY_SHARED_SECRET` set to the same 32+
+- [x] Live deploy, client address (T-020 step 4, checked 2026-11-28): `PROXY_SHARED_SECRET` set to the same 32+
       character random value in Render and Vercel (server settings only, never a `NEXT_PUBLIC_`
       name; not in `.next/static`); through the site the debug page's `rate_limit_key` is the
       visitor's real public IP even with a forged `X-Forwarded-For`; straight at the Render URL a

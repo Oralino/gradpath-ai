@@ -7,7 +7,8 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 ## Current
 - [ ] [T-020](tickets/in-progress/T-020-deploy.md): Milestone 8, deploy (plan approved 2026-11-21: decisions
       in the ticket). Done: steps 0, 1 (index on Qdrant Cloud), 2, 2b (Docker image) and 3 (live
-      on Render and Vercel). Next: step 4 (proxy hops), 5 (deployed-site checks), 6 (README), PR.
+      on Render and Vercel) and 4 (visitor address vouched for by the site with a shared secret;
+      direct calls to Render refused). Next: step 5 (deployed-site checks), 6 (README), PR.
 - [ ] [T-027](tickets/open/T-027-app-info-logs.md): the API's own INFO log lines (sign-in
       outcomes and others) never reach the logs; only warnings do. Found closing T-026.
 - [ ] DESIGN.md: record the GitHub sign-in row of the live panel (replaces the passcode field and

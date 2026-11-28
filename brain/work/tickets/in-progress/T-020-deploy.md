@@ -161,7 +161,12 @@ Step 4 (2026-11-28), shared-secret client address, before deploy:
   a wrong secret, the sign of a Render/Vercel mismatch; the site shows "The site can't reach its
   server right now" for `site_only` instead of the API's "use the website" text; the unused
   `HEAD` exemption dropped; more tests. Backend 936 passed, 1 skipped; frontend 319 passed,
-  lint, typecheck.
+  lint, typecheck. Commits `8941e5e`, `fedebf3`; CI green on `fedebf3`.
+- Deployed (2026-11-28, Render and Vercel on `fedebf3`): straight at the Render URL `/api/demo`,
+  `/docs`, `/redoc`, `/openapi.json`, `/api/auth/me`, `/api/debug/forwarded` and a search POST
+  get 403 `site_only`; `/api/health` 200. Through the site: health, demo and `/api/auth/me` 200,
+  the sign-in link redirects to GitHub, a real source search returns hits; `/docs` 404 (the site
+  has none). `TRUSTED_PROXY_HOPS` stays unset (0). Step 4 done.
 
 Step 3 (2026-11-27), deploy on Render and Vercel (the owner made the accounts and pasted every
 value; the lead checked setting names and value shapes only, never values):
