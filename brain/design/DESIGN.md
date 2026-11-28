@@ -594,49 +594,24 @@ If you asked this in the full app: Knowledge-base answer · chosen by rules
   disabled. Loading: "Searching the sources..." meta line, button disabled, no timer (it is fast).
   Empty: intro plus the three example questions from Ask as text buttons that fill the field.
 
-#### Live mode panel (decisions 10, 11)
-Inline where it is needed: on Ask, Job and Plan it replaces the submit row; on Profile it sits
-inside "Fill from a resume". One shared in-memory state, so entering it once unlocks every screen
-until reload. Not a `<form>` (no submit event, fewer password-manager prompts): a `<div
-role="group" aria-labelledby="live-title">`; Enter in either field runs "Use live mode".
-```
-+-- bg-surface border border-rule rounded-md p-4 sm:p-6 ----------+
-| Use live mode                                       <- h2/h3      |
-| Runs the real app with your own Anthropic API key. Requests use   |
-| your Anthropic credit; a plan makes many more calls than an answer.|
-| Passcode                                                           |
-| [ ••••••••••••••••••              ] [ Show ]                       |
-| From the site owner.                                               |
-| Anthropic API key                                                  |
-| [ sk-ant-•••••••••••••••          ] [ Show ]                       |
-| Sent to the GradPath server with each request, which passes it to  |
-| Anthropic for that request only. Never stored, logged or shown     |
-| back. Kept in this tab's memory: reloading or closing the page     |
-| clears it.                                                         |
-| [ Use live mode ]                       No key? Browse the examples|
-+--------------------------------------------------------------------+
-```
-- Inputs: `type="password"`, `autoComplete="off"`, `spellCheck={false}` (stops browser cloud spell
+#### Live mode panel (decisions 10, 11): key field only
+T-026 replaced the passcode with GitHub sign-in, and the picker section (T-029) supersedes this
+panel's layout and placement: setup now lives in the live mode dialog. What still holds is the
+**Anthropic key field** used by its Claude block. Not a `<form>` (no submit event, fewer
+password-manager prompts): a `<div role="group">`; Enter in the key field runs "Use live mode".
+- Input: `type="password"`, `autoComplete="off"`, `spellCheck={false}` (stops browser cloud spell
   check when shown as text), `autoCapitalize="none"`, `autoCorrect="off"`, no paste blocking, no
-  `maxLength` surprise; values trimmed. Input `flex-1`, Show button secondary `h-11 sm:h-10`
-  beside it; its text and accessible name switch "Show passcode" / "Hide passcode"; both fields
-  hide again on "Use live mode". Help text linked by `aria-describedby`.
+  `maxLength` surprise; value trimmed. Input `flex-1`, Show button secondary `h-11 sm:h-10` beside
+  it; visible text "Show" / "Hide", accessible name "Show API key" / "Hide API key"; it hides again
+  on "Use live mode".
+  Help ("Sent to the GradPath server with each request, which passes it to Anthropic for that
+  request only. Never stored, logged or shown back. Kept in this tab's memory: reloading or closing
+  the page clears it.") linked by `aria-describedby`.
 - Local check only: key must start with `sk-ant-` ("This doesn't look like an Anthropic API key:
-  they start with sk-ant-."); passcode non-empty ("Enter the passcode."). No length hints.
-- "Use live mode" calls `POST /api/live/check` (decision 12): the server checks the passcode and
-  tests the key with Anthropic (a free call), then returns a session token. Errors show in the panel
-  at once (States below). The button shows "Checking..." while it waits.
-- **Key set**: the panel collapses to an info strip at the top of the form (`rounded-md border-l-4
-  border-info bg-info-bg p-3 text-small`, key glyph): "Live mode on. Your key is in this tab's memory
-  only and clears on reload; the passcode is remembered for this tab for up to 12 hours." + text
-  button "Clear key and passcode". Focus moves to the strip
-  (`tabindex="-1"`); live region "Live mode on". Clear: one click, no dialog (re-entry is cheap),
-  wipes both values from state, panel returns, focus to its heading, live region "Key cleared".
-- **Passcode after a reload (decision 11)**: the tab keeps only the session token (sessionStorage,
-  never the passcode). While it is valid, the panel shows only the key field with "Passcode
-  remembered for this tab." and a "Use a different passcode" text button; an expired or refused
-  token clears itself and the passcode field returns. Clear removes the token too.
-- **After a reload**: if Plan has a stored run id (`usePlanRun` persist) and no key, the panel's
+  they start with sk-ant-."). No length hints.
+- "Use live mode" calls `POST /api/live/check` (decision 12): the server checks the sign-in and
+  tests the key with Anthropic (a free call). Errors show in the dialog at once.
+- **After a reload**: if Plan has a stored run id (`usePlanRun` persist) and no key, the dialog's
   first line reads "A plan run from before the reload may still be on the server. Enter the same key
   again to see it." A different key gets the run's 404: "That run belongs to another key or has
   expired."
@@ -665,6 +640,257 @@ re-sends by itself. The api client must tell the 401 and 429 cases apart (Known 
 - Error fields use the existing Field error pattern (`aria-invalid`, octagon, `aria-describedby`).
 - At 375px: panel buttons full width (`w-full sm:w-auto`), Show buttons stay beside the input;
   excerpts wrap (`break-words`), never scroll sideways; picker rows full width.
+
+### Model provider picker (T-029): approved 2026-11-28
+Replaces the inline live mode panel of T-026 (`components/LivePanel.tsx`) with a **modal dialog**
+(owner, 2026-11-28; supersedes decision 10 option A for the setup itself). Shared in-memory state as
+before: setting up once unlocks Ask, Analyse a job and Plan until reload. Decisions 13-19 (approved)
+are applied below. Only existing tokens and components, plus one glyph: **monitor** = a model on this
+computer (14px badges, 16px strips, `aria-hidden`).
+
+**Form row while setup is incomplete** (Ask, Analyse a job, Plan; replaces the submit row):
+```
+| Live mode: sign in with GitHub, then choose     Browse the examples instead  [ Set up live mode ] |
+| Claude or a model on your computer.             <- text link                 <- primary          |
+```
+`flex flex-wrap items-center justify-end gap-3`; the meta line (`text-meta text-ink-muted mr-auto`),
+then the text link "Browse the examples instead" (`textButton text-small`, href
+`#recorded-examples`, replaces "No key? Browse the examples": a local model needs no key), then the
+primary "Set up live mode", which opens the dialog. At 375px the line and the link wrap to full
+width and the button goes `w-full sm:w-auto`. Inputs above the row stay usable.
+
+#### Live mode dialog
+- **Element:** native `<dialog aria-labelledby="live-title">` opened with `showModal()`: the page
+  behind is inert (native focus trap), backdrop `backdrop:bg-black/60`. Classes: `m-auto
+  max-h-[90vh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-md border border-rule
+  bg-surface p-4 text-ink sm:p-6`. Long content (connected state, setup help open) scrolls inside
+  the dialog; the footer scrolls with it (not sticky, as approved).
+- **Body scroll:** locked while open (`html:has(dialog[open]) { overflow: hidden }` or a class
+  toggle), with `scrollbar-gutter: stable` on `html` so the page does not shift sideways.
+- **Header row:** `flex items-start justify-between gap-3`: h2 `#live-title` "Use live mode"
+  (`text-heading`) and a close icon button: 16px x glyph, `aria-label="Close"`, `inline-flex size-11
+  sm:size-9 items-center justify-center rounded-md text-ink-muted hover:bg-sunken` (44px on mobile,
+  36px from `sm`; glyph 6.9:1 on surface).
+- **Footer:** `flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-rule pt-4`: primary
+  ("Use live mode" for Claude, "Use this model" for local; decision 14) then secondary "Cancel", both
+  `w-full sm:w-auto` (stacked full width at 375px).
+- **Focus on open:** the checked radio (`autoFocus`; by default the last confirmed choice, else
+  Claude), never the close button (showModal would otherwise pick the first focusable, the x).
+- **Closing:** x, Cancel and Escape all mean Cancel: close, abort a pending Connect or key check, keep
+  the last confirmed setup in force, focus back to the button that opened it ("Set up live mode",
+  the strip's "Change", or "Change model"). A **backdrop click does not close** (a stray click must
+  not lose typed values or a connection in progress): no light-dismiss handler, no `closedby="any"`.
+- **Success:** "Use live mode" / "Use this model" closes the dialog, the strip appears in the form,
+  focus to the strip (`tabindex="-1"`), then the layout live region says "Live mode on" / "Using
+  Ollama". Announce only after `close()`: the layout's live region sits in the inert page and is
+  silent while the dialog is open (every in-dialog message uses its own `role="status"` / `alert`).
+- **Kept values:** the choice, typed key, address, connection result and model list stay in tab
+  memory when the dialog closes, and come back on reopen in the same tab (key: memory only, as now).
+- **Chrome's local-network prompt** is browser UI and appears above the dialog during Connect;
+  nothing on the page changes for it beyond the "Connecting" hint.
+- **Sign in with GitHub** leaves the page (OAuth). Recommend reopening the dialog once on return
+  (a non-secret sessionStorage flag set on the click); main session to confirm it fits T-026's flow.
+
+**Dialog content order:** header row -> intro -> sign-in row (as T-026, required for every option)
+-> `<fieldset>` "How answers are generated" -> the chosen option's block -> stopped line -> footer.
+Intro: "Runs the real app after you sign in with GitHub. Answers come from Claude with your own API
+key, or from a model running on this computer." (`text-small text-ink-muted`).
+```
++-- dialog: bg-surface border border-rule rounded-md p-4 sm:p-6 ---------+
+| Use live mode                                                     [x]  |
+| Runs the real app after you sign in with GitHub. ...                    |
+| Signed in as @login   Sign out                                          |
+| How answers are generated                          <- legend, label     |
+| +-------------------------------------------------------------------+   |
+| | (o) Claude (your API key)                                         |   |
+| |     Fastest and most reliable. Uses your Anthropic credit.        |   |
+| +-------------------------------------------------------------------+   |
+| | (*) Ollama on this computer                    <- border-ink      |   |
+| |     Free. Runs on your machine; slower, quality depends on model. |   |
+| +-------------------------------------------------------------------+   |
+| | (o) LM Studio on this computer                                    |   |
+| |     Free. Runs on your machine; slower, quality depends on model. |   |
+| +-------------------------------------------------------------------+   |
+| | (-) Model in your browser          [Coming soon]  <- neutral badge|   |
+| |     No install needed. Not available yet.                         |   |
+| +-------------------------------------------------------------------+   |
+| Server address                                                          |
+| [ http://localhost:11434                  ] [ Connect ]                 |
+| Ollama's address on this computer. Default http://localhost:11434.      |
+| > Setup help for Ollama                            <- details           |
+| Your posting and profile go from this page to your own server and to    |
+| GradPath's server, which runs search and the workflow. Your model's     |
+| replies go to GradPath's server, which checks them. Search still uses   |
+| GradPath's source index.                                                |
+|-------------------------------------------------------- border-t ------|
+| [ Use this model ]  [ Cancel ]   (primary disabled until connected and  |
+|                                   a model is chosen)                    |
++-------------------------------------------------------------------------+
+```
+- **Radio rows:** native `<input type="radio" class="size-5 accent-ink">` inside a `<label>` row,
+  `flex items-start gap-3 rounded-md border border-rule bg-surface p-3`, hover `border-line`,
+  selected `has-checked:border-ink` (the filled radio is the non-colour cue). Name `text-label`, hint
+  `text-small text-ink-muted`. Arrow keys change the choice (native); the option block swaps in
+  place, focus stays on the radio, nothing is announced. Values typed per option are kept while
+  switching. "Model in your browser": `disabled` radio, name and hint `text-ink-muted` (not
+  `opacity-50`; 6.9:1 / 6.7:1 on surface), neutral "Coming soon" badge. Default selection: the last
+  confirmed choice on this device (decision 19), else Claude.
+- **Claude block:** the key field, help and errors of "Live mode panel" below; primary "Use live
+  mode" ("Checking..." while `POST /api/live/check` runs; errors show in the dialog, focus the key
+  field). The key stays in tab memory when a local model is chosen (decision 18).
+- **Local block:** address field (Field pattern, `type="text" inputMode="url"`, `autoComplete="off"`,
+  `spellCheck={false}`, `autoCapitalize="none"`), Connect as a secondary button beside it (`h-11
+  sm:h-10`, `shrink-0`; the row wraps below 340px). Help: Ollama "Ollama's address on this computer.
+  Default http://localhost:11434."; LM Studio "LM Studio's address on this computer, ending in /v1.
+  Use the port LM Studio prints when its server starts (often 1234 or 1235)." A "Use the default"
+  text button appears when the value differs from the default. Primary button "Use this model".
+- **Address check** (on Connect, before any request): http or https, host `localhost`, `127.0.0.1`
+  or `[::1]`, any port. Errors in the Field error pattern: "Only a server on this computer works
+  here: use localhost, 127.0.0.1 or [::1], with any port." / "Enter a full address, like
+  http://localhost:11434." Focus the field.
+- **Connect** must be the click that makes the first call (Chrome's local-network permission prompt).
+  While waiting: button "Connecting..." disabled, a "Cancel" text button beside it (stops the
+  connect only; the footer Cancel closes the dialog), and a meta line "Waiting for Ollama at
+  localhost:11434. If Chrome asks to let this site access apps and services on this device, choose
+  Allow." After 60 s without an answer it ends as "Can't reach" (decision 15). Results go to a
+  `role="status"` line under the row (see States).
+
+**After connect** (the address field stays editable; editing it returns to "not connected"):
+```
+| [check] Connected to Ollama: 4 models.             <- role=status     |
+| [x] Use one model for both                                            |
+| Model                                                                 |
+| [ llama3.1:8b                                  v ]                    |
+| A model of 7B or larger is recommended: smaller ones often return     |
+| replies GradPath can't read.                                          |
+|   -- unchecked: two selects --                                        |
+| Fast model   [ llama3.2:3b  v ]  Reads the request and the posting.   |
+| Smart model  [ qwen2.5:14b  v ]  Writes and checks the plan.          |
+| Address and model names are remembered on this device (they aren't   |
+| secret).  Forget                                                      |
+|------------------------------------------------------ border-t ------|
+| [ Use this model ]  [ Cancel ]                                        |
+```
+- Connected line: `flex items-center gap-1 text-small text-positive`, check 14px (positive on
+  surface 7.5:1 / 8.1:1 or better). Focus stays on Connect; the status line announces it.
+- Selects: native `<select>`, `h-11 sm:h-10 w-full sm:w-auto sm:min-w-64 rounded-md border
+  border-line bg-surface px-3 text-body`; options are the server's model names as plain text.
+  Preselected: the remembered name if the list has it, else the first listed. Checkbox native,
+  `size-5 accent-ink`, checked by default; unchecking reveals the second select below the first
+  (no animation) and keeps focus on the checkbox. Help per select linked by `aria-describedby`.
+- Remember line `text-meta text-ink-muted` + text button "Forget": clears the stored choice, address
+  and names (decision 19), resets to defaults, status "Forgotten on this device". Never stores
+  anything else (never the key).
+- "Use this model" closes the dialog and shows the strip (see "Success" above).
+
+**Setup help** (`<details>`, closed by default, opened automatically after a "can't reach" result):
+- Ollama, an `<ol>`: 1. Quit Ollama (its tray or menu-bar icon, Quit). 2. Set the user environment
+  variable `OLLAMA_ORIGINS` to this site's address, exactly: then the current origin in a sunken
+  block (`bg-sunken rounded-md px-3 py-2 text-small break-all`, plain text) with a secondary "Copy"
+  button (text becomes "Copied" for 2 s, status "Address copied"). Windows: Settings, search
+  "environment variables", "Edit environment variables for your account", New. macOS: `launchctl
+  setenv OLLAMA_ORIGINS "<origin>"`. 3. Start Ollama again, then Connect.
+- LM Studio: start the server with CORS on: `lms server start --cors`, or turn on "Enable CORS" in
+  the server settings. Then Connect with the port it prints.
+- Both: "Chrome asks once whether this site may access apps and services on your device: choose
+  Allow. If you chose Block, use the site settings icon left of the address bar to allow it."
+- Commands are inline code (`bg-sunken font-mono`, wrapping). Main session checks each step against
+  the current Ollama and LM Studio docs before shipping.
+
+**Collapsed strip** (inline at the top of the form after setup; LiveStrip style, `rounded-md
+border-l-4 border-info bg-info-bg p-3 text-small`, `flex flex-wrap items-start gap-x-3 gap-y-1`):
+```
+| [monitor] Using Ollama · llama3.1:8b on this computer, signed in as     |
+|           @login.                                   Change   Sign out   |
+| two models: "Using Ollama on this computer · fast llama3.2:3b, smart    |
+|             qwen2.5:14b, signed in as @login."                          |
+| Claude:   [key] Live mode on, signed in as @login. (T-026 text)         |
+|                                       Change   Clear key   Sign out     |
+```
+"Change" reopens the dialog with the choice, address and model list kept (no reconnect unless the
+address changes); focus as in "Focus on open". "Clear key" / "Sign out" in the strip: the form row
+returns, focus to "Set up live mode", live region "Key cleared" / "Signed out". Header indicator
+for the local state: info badge, monitor glyph, "Live: your model" (decision 13). Live mode note
+becomes: "Live mode: sign in with GitHub, then use your own Anthropic API key or a model on your
+computer. Without them you can still browse the recorded examples and [search the sources]."
+
+**Profile:** resume import stays on Claude (decision 16). "Fill from a resume" gets the same
+"Set up live mode" row; its dialog shows only the Claude block (no radio group, focus on the key
+field), with a first line "Filling from a resume needs Claude (your API key). Your local model is
+used on Ask, Analyse a job and Plan."
+
+**On the page, not in the dialog:** the running view, Stop run and every failed-run panel stay
+inline in the result slot. An error after setup (sign-in ended, key refused on a real request)
+never opens the dialog by itself: the result slot shows it, the form row returns, and "Set up live
+mode" opens the dialog with the field error already shown.
+
+**Running on a local model** (every local request is a background run; Long runs layout):
+```
++--------------------------------------------------------------+
+| Preparing your plan                              6:42        |
+| On your own model this takes longer than with Claude: one    |
+| model call can take 2 minutes or more. It stops by itself    |
+| after 15 minutes.                                            |
+| Your model is working on step 4: Compare requirements with   |
+| your profile.                                                |
+| Waiting for llama3.1:8b  1:12                  <- meta       |
+| [i] Keep this tab open: the run stops if the page stops      |
+|     checking in for 90 s.                                    |
+|  (x) Read the job posting                                    |
+|  (x) Read your profile                                       |
+|  (x) Search the knowledge base                               |
+|  (o) Compare requirements with your profile                  |
+|  ...                                                         |
+|  [ Stop run ]                                                |
++--------------------------------------------------------------+
+```
+- No "Usually 80-150 s" or "stops at 5:00" copy for local runs; "It stops by itself after 15
+  minutes." instead, and the "Taking longer than usual" line is off (decision 17). Ask and Analyse a
+  job use the same view with h2 "Answering with your model" / "Reading the posting with your model"
+  and no stage list.
+- "Waiting for {model} {m:ss}": `text-meta text-ink-muted tabular-nums`, resets per model call,
+  not in a live region. Keep-open line: `rounded-md border-l-4 border-info bg-info-bg p-3
+  text-small`, info circle 16px.
+- "Stop run": secondary button, visible from the start (not after a delay), one click, no dialog.
+  Status "Stopping..."; then whatever the server returns (a fallback result follows Honesty states)
+  or a neutral panel "You stopped the run."
+- Live region (polite): "Your model is working on step N: {label}" on each step change, "Still
+  waiting for your model, N minutes" every 2 minutes of one call, then the result heading. Failures
+  move focus to the panel headline.
+
+#### Picker states
+| Trigger | Where | Treatment |
+|---|---|---|
+| Connecting | under the address row | meta line (Chrome prompt hint above), Connect "Connecting...", Cancel shown; 60 s then "Can't reach" |
+| Connected | status line | positive line "Connected to {server}: N models."; selects appear |
+| No models | status line | caution line, triangle: Ollama "Connected, but Ollama has no models installed. Install one (for example `ollama pull llama3.1:8b`), then Connect again."; LM Studio "Connected, but LM Studio has no models downloaded. Download one in LM Studio, then Connect again." |
+| Can't reach | stopped line in the dialog (`role="alert"`) | "Can't reach {server} at {address}. The browser can't tell why, so check:" + `<ul>`: it is running; the address and port are right; it allows this site (Setup help); you chose Allow when Chrome asked about apps on this device. Setup help opens; focus stays on Connect |
+| Something answered, not the server | stopped line | "Something answered at {address}, but not like {server}. Check the address{; LM Studio's ends in /v1}." |
+| Address not local / malformed | field error | texts above; focus the field |
+| Cancelled | status line | "Connection cancelled." (meta) |
+| Run: model didn't answer in time | result slot, stopped panel | headline "Your model run stopped", server text, "What you can do: try a smaller model or try again." |
+| Run: page stopped checking in | result slot, stopped panel | server text, "Keep this tab open while it runs, then try again." |
+| Run: local model reported an error | result slot, stopped panel | server text, "Check the model in {server}, then try again." |
+| Run: reply couldn't be read | result slot, stopped panel | server text (it says a larger model may do better); "Change model" text button reopens the dialog |
+| Run: too many model calls | result slot, stopped panel | server text, "Try again, or use a larger model." |
+| Run: can't reach the local server (client) | result slot, stopped panel | "Can't reach your local server any more, so the run stopped. Check that {server} is still running, then try again." |
+| Sign-in ended, 429, 503 busy | as in "Demo and live modes" States / Long runs | unchanged |
+
+A server result that carries partial work follows Honesty states instead of the plain stopped panel.
+Inputs stay on screen in every case; nothing re-sends by itself.
+
+#### Accessibility and mobile (picker)
+- Dialog: named by its h2 (`aria-labelledby`), modal and focus trap native to `showModal()`; Tab
+  cycles inside it; Escape = Cancel. No `aria-modal` hand-rolling, no custom trap.
+- `<fieldset>` + `<legend class="text-label">`; each hint is part of its label, so the radio's
+  name reads "Ollama on this computer, Free. Runs on ...". Disabled option stays in the reading order.
+- Connect results use one `role="status"` line, can't-reach uses `role="alert"`; never both.
+- Targets: radio rows are the whole label (well over 24px); close 44px, selects and buttons `h-11`
+  at 375px.
+- At 375px: the dialog is the viewport minus 1rem each side, rows full width, the address row may
+  wrap with Connect full width under the input, the origin block breaks anywhere (`break-all`),
+  selects full width, footer buttons full width and stacked, the strip's buttons wrap under the
+  text. Nothing scrolls sideways; the dialog scrolls vertically inside `max-h-[90vh]`.
 
 ### Accessibility (WCAG 2.2 AA)
 - Landmarks: `header` with `nav aria-label="Main"`, `main`, `footer`; plan nav `aria-label="Plan
@@ -748,6 +974,9 @@ Milestone 7 (T-018), decided by the owner on 2026-11-20:
    button opening a native `<dialog>`; (C) a `/live` page. **Recommend A**: the copy about the key
    sits next to the form that uses it, and nothing hides behind a header control. B is tidier but
    adds a second dialog pattern and a focus trap; C needs a round trip before the first question.
+   **Changed 2026-11-28 (T-029):** with the picker the setup grew too long to sit inline, so it
+   opens in a native `<dialog>` from a "Set up live mode" button in each form (not the header); the
+   strip and run views stay inline.
 11. **Passcode lifetime. Decided: B, as a token.** The owner wants the passcode to survive a
    reload without storing it: after a correct passcode the server returns a signed token that expires
    in 12 hours; the tab keeps only the token (sessionStorage), never the passcode. The key stays in
@@ -759,6 +988,30 @@ Milestone 7 (T-018), decided by the owner on 2026-11-20:
    listing models) before the panel collapses. **Recommend B** if cheap to build: errors show in the
    panel at once, and a made-up key no longer spends a Voyage search. A works with this design as
    written.
+
+Model provider picker (T-029), decided by the owner on 2026-11-28 (all as recommended; the setup
+itself moved into a modal dialog, see the picker section):
+13. **Glyph and header word for a local model. Decided: A.** (A) a new monitor glyph and "Live:
+   your model"; (B) reuse the key glyph. The key glyph means "a visitor key is held in this tab",
+   and a local run holds none; one glyph, one meaning.
+14. **Primary button. Decided: A.** (A) "Use live mode" for Claude, "Use this model" for local;
+   (B) "Use live mode" for all. For local, the click confirms a model choice, and the words say so.
+15. **Connect wait. Decided: B.** The request waits while Chrome's prompt is open. (A) no timeout,
+   a Cancel text button from the start; (B) also a 60 s timeout ending in "can't reach". Cancel for
+   the impatient, 60 s so a forgotten prompt doesn't spin forever.
+16. **Profile with a local model chosen. Decided: A.** (A) Claude-only dialog there with the "needs
+   Claude" line; (B) the full picker with local options disabled. B shows choices that can never
+   work on that screen.
+17. **Time copy for local runs. Decided: as recommended.** The server's limits are fixed settings
+   (`config.py`): a plan's time budget is `RELAY_TIME_BUDGET_S` 900 s (15 min) and no relay run
+   lasts past 900 + 180 s (18 min); one model call may take up to 180 s. The running view says "It
+   stops by itself after 15 minutes."; no "Taking longer than usual" (local speed varies too much
+   for one threshold).
+18. **Switching to local while a Claude key is held. Decided: A.** (A) keep the key in tab memory,
+   the strip shows the active choice; (B) choosing a local model clears the key. Switching back is
+   one click, and the key is already memory-only; "Clear key" stays on the Claude strip.
+19. **Remembered choice. Decided: yes.** The last confirmed option (Claude or which server) is
+   remembered with the address and names, so a reload preselects it; the same "Forget" clears it.
 
 ## Do's and Don'ts
 Do:
@@ -800,6 +1053,15 @@ Don't:
     GradPath never stores it.
   - Recording list items carry no outcome or status, so the picker relies on `summary` text.
   - The session token is bound to the key: a different key after a reload needs the passcode again.
+- Stale passcode text (T-026 replaced the passcode with GitHub sign-in): decision 11, the passcode
+  rows in "States (new elements)" (their "panel reopens" now means "shown in the dialog") and the
+  Security rules line "The passcode follows decision 11". The Live mode panel section is rewritten
+  to the key field only (2026-11-28); the picker section owns the layout. Rewrite the rest with the
+  picker build.
+- Picker (T-029): Chrome throttles timers in hidden tabs (down to about once a minute after a few
+  minutes hidden), close to the 90 s check-in limit. Main session to confirm the check-in survives a
+  background tab; if not, the keep-open line must say "keep this tab in front".
+- Picker: a CSP (Milestone 8) must allow `connect-src` to localhost, 127.0.0.1 and [::1] on any port.
 - Milestone 8: Content-Security-Policy.
 - Font: Atkinson Hyperlegible Next is on Google Fonts (checked 2026-11-19); confirm the `next/font/google`
   import at build. Icons: about ten hand-drawn inline SVGs (no icon package).

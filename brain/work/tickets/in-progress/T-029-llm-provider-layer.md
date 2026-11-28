@@ -63,6 +63,14 @@ Design (lead, owner decisions 2026-11-28):
 - **Visitor setup:** add the site to `OLLAMA_ORIGINS` and restart Ollama; LM Studio with CORS on
   (`lms server start --cors`); Chrome 142+ asks for Local Network Access, so the first local
   call starts from a button click.
+- **Local address (owner, 2026-11-28): this computer only.** The picker's editable address
+  accepts `localhost`, `127.0.0.1` and `[::1]` (any port), never a LAN or public host, so a
+  visitor's posting and profile reach only their own PC and Chrome asks one permission
+  (loopback). Rejected: LAN hosts (a second permission, more ways to send data elsewhere).
+- **Picker screen (owner approved 2026-11-28, after a mockup on the real Plan page):** a pop-up
+  dialog opened from a "Set up live mode" button in the form (and from "Change" on the strip),
+  not an inline panel; running and failed runs stay on the page. DESIGN.md "Model provider
+  picker" holds the layout and decisions 13-19 (all recommendations approved).
 - **Build order:** 1 server-side Ollama and LM Studio (local mode); 2 relay model, endpoints,
   limits and timeouts (always-hard); 3 provider picker and browser clients for Ollama and LM
   Studio (design-advisor drafts the screen, owner approves); 4 transformers.js in a Web Worker;
@@ -96,6 +104,9 @@ Design notes still to settle while building:
     `tests/test_api_relay.py`, `tests/test_demo.py`
 - Commits (hash, message):
   - `eed1291` feat: add Ollama and LM Studio as local-mode chat models (T-029)
+  - `d9979bc` docs: record the Ollama and LM Studio smoke runs (T-029)
+  - `d5fbb49` feat: add the browser relay chat model and relay run routes (T-029)
+  - `4342797` docs: record the browser relay design, threats and real run (T-029)
 
 ## Verification
 - Step 1 (2026-11-28): 947 tests pass, ruff clean; the API still imports with the new libraries
