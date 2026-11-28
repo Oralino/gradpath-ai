@@ -118,6 +118,33 @@ in the background with short polls; the cold start needs a visible "Waiting for 
   fix: let the image check tolerate unreadable folders (T-020).
 
 ## Verification
+Step 5 (2026-11-28), checks on the deployed site (in progress):
+- Release checklist, code: every request body is a Pydantic model with `extra="forbid"` and
+  bounds (corrections: 500 characters, at most 10); responses carry fixed text, never exception
+  text; models have no tools; untrusted text enters prompts through `block()` /
+  `neutralise_tags` (system prompts are fixed text); no `dangerouslySetInnerHTML`; model and
+  source links pass `safeExternalUrl`; nothing logs headers or keys; the Dockerfile runs one
+  worker with `--no-proxy-headers`. Secret scan of the branch diff, commit messages and
+  `demo_runs/`: clean; only `.env.example` tracked.
+- Render logs, last 7 days (server-side search, control `GET /api/health` = 50 lines): no
+  `sk-ant`, `lsv2_`, `Bearer`, `x-anthropic-key`, proxy secret, `code=`, `Traceback`, ERROR or
+  WARNING lines.
+- HTTPS: `http` answers 308 to `https`; `Strict-Transport-Security` (2 years, preload) on pages
+  and the API. No other security headers yet (decision pending).
+- Memory: Render's free plan shows no memory graph (paid plans only). No out-of-memory or crash
+  event across every deploy and today's searches.
+- Vercel's 120 s limit: RAG answers take about 6 s (EVALUATION.md); plans run in the background
+  with short polls.
+- Restart keeps the budget: stored counts read with a read-only script (counts only). A new
+  search made today 1; after the owner's manual restart, the next new search continued from the
+  stored count (today 52: the 50 in between came from the eval run, see EVALUATION.md).
+- Scanners: `pip-audit` on the runtime requirements: no known vulnerabilities. `npm audit`:
+  0. Trivy 0.57.1 on the API image (`python:3.13.18-slim-trixie`, Debian 13.7): 0 CRITICAL, no
+  Python package findings; 55 HIGH, 106 MEDIUM, 79 LOW, 15 unknown, all Debian base packages;
+  of the HIGH, only `zlib1g` and `libzstd1` have a fixed version, the rest none yet (most in
+  tools the API never runs: util-linux, login, systemd-homed).
+- Retrieval eval on the deployed index: unchanged (EVALUATION.md, 2026-11-28).
+
 Step 4 (2026-11-28), shared-secret client address, before deploy:
 - Files: `api/ratelimit.py` (`from_site`, `client_ip`), `api/debug.py` (new), `api/main.py`
   (start check: `PROXY_SHARED_SECRET` 32+ printable characters when set), `config.py`,

@@ -523,6 +523,18 @@ uncovered questions (`q-032`, `q-033`, at 0.26 to 0.30, under the threshold). Th
 monitoring question, so the gain is shown by one real answer instead (T-023 ticket). One Voyage
 call. Output: `evaluation/results/retrieval-20261121-104638.json`.
 
+### Release check: retrieval on the deployed index (2026-11-28, corpus v3, T-020 step 5)
+The Milestone 8 release check: the same eval against the Qdrant Cloud cluster the deployed API
+reads, after steps 2-4. Unchanged from step 1: Recall@5 0.961, Precision@5 0.605, MRR 0.987
+(Recall@1 0.908, Recall@10 0.987); at 0.45, 97% of covered kept and 67% of uncovered rejected;
+the same partial misses (q-001, q-027, q-034), the same uncovered questions above the threshold
+(q-031, q-047, q-049, q-050) and the same covered one below it (q-041). Search about 66 ms per
+question from the owner's PC. One Voyage call on the owner's local key. Because the owner's
+`.env` has `APP_MODE=demo`, the run went through the deployed guard: its 50 questions were
+counted in the deployed daily budget (50 of that day's 300) and stored in the query cache. Next
+time, force `APP_MODE=local` for eval runs. Output:
+`evaluation/results/retrieval-20261128-041801.json`.
+
 ### Retrieval on Qdrant Cloud (2026-11-27, corpus v3, T-020 step 1)
 The local index copied to the deployed cluster (`copy_index`, 1,700 points, no re-embedding),
 then the same eval run against it. Identical to the local run of 2026-11-21: Recall@5 0.961,
