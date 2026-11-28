@@ -153,6 +153,14 @@ Step 5 (2026-11-28), checks on the deployed site (in progress):
   with no keys and answers `/api/health`, 169 MiB idle; size 560 -> 602 MB. Rejected: bumping the
   base image pin (fixed zlib only and added the `pip` findings); `--ignore-unfixed` alone.
   `pip-audit` and `npm audit` stay manual release checks.
+- Weekly CI run added (owner): Mondays 06:00 UTC plus a manual start; GitHub runs schedules from
+  `main` only, so it starts after the milestone merges.
+- Chainguard considered (owner's friend suggested it): measured `cgr.dev/chainguard/python:latest`
+  with Trivy 0.76.2: 0 findings, 106 MB, but Python 3.15.2 and no shell; our Debian base: 263
+  findings (125 distinct). Not adopted now: the free tier offers only `latest` (version tags need
+  a paid plan: zero-cost rule), so the project would move to Python 3.15 and jump with every new
+  release, and the Dockerfile and CI checks rely on a shell. Recorded as the preferred future
+  "minimal base image" option, as its own ticket.
 
 Step 4 (2026-11-28), shared-secret client address, before deploy:
 - Files: `api/ratelimit.py` (`from_site`, `client_ip`), `api/debug.py` (new), `api/main.py`
