@@ -3,6 +3,7 @@ import { Atkinson_Hyperlegible_Next } from "next/font/google";
 import { SignInNotice } from "@/components/SignInNotice";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SourcesDate } from "@/components/SourcesDate";
+import { WakeScreen } from "@/components/WakeScreen";
 import { ServerInfoProvider } from "@/lib/serverInfo";
 import "./globals.css";
 
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 // Root layout: theme script, skip link, header, main, footer (DESIGN.md, Screens and
-// Accessibility). suppressHydrationWarning on <html> only: theme-init.js may set data-theme
+// Accessibility), under the cold-start cover (WakeScreen, T-028). suppressHydrationWarning on <html> only: theme-init.js may set data-theme
 // before React hydrates, which is expected.
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -34,25 +35,28 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script src="/theme-init.js" />
       </head>
       <body className="flex min-h-screen flex-col bg-paper font-sans text-body text-ink antialiased">
-        <a
-          href="#main"
-          className="sr-only rounded-md bg-surface px-3 py-2 text-label text-ink focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-20"
-        >
-          Skip to main content
-        </a>
         <ServerInfoProvider>
-          <SiteHeader />
-          <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-12 sm:px-6 lg:px-8">
-            <SignInNotice />
-            {children}
-          </main>
-          <footer className="border-t border-rule">
-            <p className="mx-auto w-full max-w-5xl px-4 py-6 text-meta text-ink-muted sm:px-6 lg:px-8">
-              <SourcesDate />
-              Preparation support only, not a hiring prediction · Answers can be wrong: check the
-              sources.
-            </p>
-          </footer>
+          <WakeScreen>
+            {/* Inside the cover's inert wrapper: unreachable while the server wakes (T-028). */}
+            <a
+              href="#main"
+              className="sr-only rounded-md bg-surface px-3 py-2 text-label text-ink focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-20"
+            >
+              Skip to main content
+            </a>
+            <SiteHeader />
+            <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-12 sm:px-6 lg:px-8">
+              <SignInNotice />
+              {children}
+            </main>
+            <footer className="border-t border-rule">
+              <p className="mx-auto w-full max-w-5xl px-4 py-6 text-meta text-ink-muted sm:px-6 lg:px-8">
+                <SourcesDate />
+                Preparation support only, not a hiring prediction · Answers can be wrong: check the
+                sources.
+              </p>
+            </footer>
+          </WakeScreen>
         </ServerInfoProvider>
       </body>
     </html>

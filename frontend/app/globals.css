@@ -55,6 +55,15 @@
   --radius-md: 6px;
 
   --container-reading: 40rem;
+  /* T-028 waking screen: one nerve cell lights and fades (DESIGN.md "Server waking up"). Used as
+     motion-safe:animate-fire, so reduced motion switches it off. */
+  --animate-fire: fire 2.8s ease-in-out infinite;
+  @keyframes fire {
+    0% { opacity: 0; }
+    8% { opacity: 1; }
+    30% { opacity: 0; }
+    100% { opacity: 0; }
+  }
 }
 
 :root[data-theme="light"] {
