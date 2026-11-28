@@ -83,6 +83,24 @@ routing quality are measured, not assumed.
   fake stream; the `FakeChatModel` returns canned replies and records prompts.
 - **Q: "How do you keep a visitor's key safe?"** `get_chat_model(api_key=...)` passes it straight to
   the client for that request; settings store secrets as `SecretStr`, which never prints.
+- **Local model servers (T-029 step 1, `providers/local_servers.py`):** `LLM_PROVIDER=ollama` gives
+  `ChatOllama`; `LLM_PROVIDER=lmstudio` gives `ChatOpenAI` pointed at LM Studio, because LM Studio
+  speaks the OpenAI protocol. The workflow is untouched: it still just receives a chat model.
+  - **Why the separate module:** these libraries (with `openai` and `tiktoken`) are in the `local`
+    dependency group, which the Docker image leaves out. The factory imports the module only for
+    these two providers, and `test_runtime_deps.py` fails if anything on the API path imports them.
+  - **Gotcha 1:** `ChatOpenAI` defaults to tool calling for structured output, which small local
+    models do badly; `with_structure` asks for `json_schema` (LM Studio's `response_format`).
+    `ChatOllama` already defaults to `json_schema` (Ollama's `format` field).
+  - **Gotcha 2:** the OpenAI client reads `OPENAI_API_KEY` and `OPENAI_BASE_URL` from the
+    environment. The factory always passes the LM Studio address and a placeholder key, so a real
+    OpenAI key on the PC is never sent anywhere.
+  - **Gotcha 3:** the tier names default to Claude models. Under a local provider a `claude-*` name
+    is refused with a clear message instead of a confusing "model not found" from the server.
+  - **Q: "Why not run visitors' Ollama from the server?"** Render can't reach a visitor's
+    `localhost`. These clients are for the owner's PC; the deployed site uses the browser relay.
+  - **Rejected:** a model server's own SDK without LangChain (the nodes would need a second code
+    path); LM Studio through `ChatOllama` (it does not speak Ollama's API).
 
 ## LangChain for building blocks, own code for the core
 - **Decision:** LangChain for chat models, structured output, tools, loaders, splitters, embeddings

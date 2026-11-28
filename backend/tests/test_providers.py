@@ -181,3 +181,67 @@ async def test_env_api_key_triggers_a_warning(monkeypatch, caplog):
     await llm.ainvoke("hi")
     assert "ANTHROPIC_API_KEY is set" in caplog.text
     assert "would-bill-the-api" not in caplog.text  # never log the key itself
+
+
+# Local model servers (T-029): server-side clients, local mode only. No server is contacted.
+
+
+def local_settings(provider: str, **overrides) -> Settings:
+    base = dict(llm_provider=provider, model_fast="llama3.1:8b", model_smart="qwen2.5:7b")
+    return Settings(_env_file=None, **(base | overrides))
+
+
+def test_ollama_provider_builds_chat_ollama():
+    from langchain_ollama import ChatOllama
+
+    s = local_settings("ollama", ollama_base_url="http://127.0.0.1:11434", local_llm_timeout_s=42)
+    fast, smart = get_chat_model("fast", settings=s), get_chat_model("smart", settings=s)
+    assert isinstance(fast, ChatOllama) and fast.model == "llama3.1:8b"
+    assert smart.model == "qwen2.5:7b"
+    assert fast.base_url == "http://127.0.0.1:11434"
+    assert fast.client_kwargs == {"timeout": 42}
+
+
+def test_lmstudio_provider_builds_openai_client_with_placeholder_key(monkeypatch):
+    from langchain_openai import ChatOpenAI
+
+    # Environment values must not redirect the client or send a real key to LM Studio.
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://example.invalid/v1")
+    monkeypatch.setenv("OPENAI_API_KEY", "real-openai-key")
+    monkeypatch.setenv("OPENAI_PROXY", "http://proxy.invalid:8080")
+    llm = get_chat_model("fast", settings=local_settings("lmstudio", local_llm_timeout_s=60))
+    assert isinstance(llm, ChatOpenAI) and llm.model_name == "llama3.1:8b"
+    assert llm.openai_api_base == "http://localhost:1234/v1"
+    assert llm.openai_api_key.get_secret_value() == "lm-studio"
+    assert str(llm.root_client.base_url).startswith("http://localhost:1234/v1")
+    assert llm.request_timeout == 60
+    assert llm.openai_proxy is None
+
+
+@pytest.mark.parametrize("provider", ["ollama", "lmstudio"])
+def test_local_server_refuses_claude_model_names(provider):
+    s = Settings(_env_file=None, llm_provider=provider)  # default Haiku / Sonnet names
+    with pytest.raises(ValueError, match="local model names"):
+        get_chat_model("fast", settings=s)
+
+
+@pytest.mark.parametrize("provider", ["ollama", "lmstudio"])
+def test_local_server_refuses_a_request_key(provider):
+    with pytest.raises(ValueError, match="anthropic_api"):
+        get_chat_model(settings=local_settings(provider), api_key=SecretStr("visitor-key"))
+
+
+def test_with_structure_uses_json_schema_for_ollama():
+    llm = get_chat_model("fast", settings=local_settings("ollama"))
+    bound = with_structure(llm, Skill).first  # RunnableBinding(model, format=...) | parser
+    assert bound.kwargs["format"] == Skill.model_json_schema()
+
+
+def test_with_structure_uses_json_schema_for_lmstudio():
+    llm = get_chat_model("fast", settings=local_settings("lmstudio"))
+    bound = with_structure(llm, Skill).first
+    # The OpenAI client's parse call turns the class into a `json_schema` response_format; not
+    # tool calling, which small local models handle poorly.
+    assert bound.kwargs["response_format"] is Skill
+    assert bound.kwargs["ls_structured_output_format"]["kwargs"]["method"] == "json_schema"
+    assert "tools" not in bound.kwargs

@@ -13,7 +13,18 @@ from pathlib import Path
 # Top-level modules of the groups the image leaves out. Keep in step with pyproject.toml
 # [dependency-groups] local, eval and ingest when a library is added to one of them.
 # langchain_text_splitters is not listed: langchain-voyageai pulls it into the runtime set anyway.
-LEFT_OUT = ["claude_agent_sdk", "fastembed", "onnxruntime", "bs4", "pypdf"]
+LEFT_OUT = [
+    "claude_agent_sdk",
+    "langchain_ollama",
+    "langchain_openai",
+    "ollama",
+    "openai",
+    "tiktoken",
+    "fastembed",
+    "onnxruntime",
+    "bs4",
+    "pypdf",
+]
 
 SCRIPT = f"""
 import importlib.abc, sys
@@ -50,6 +61,7 @@ SRC = Path(__file__).resolve().parents[1] / "src" / "gradpath"
 # import test above and still fail on Render.
 ALLOWED = {
     "providers/claude_code.py",
+    "providers/local_servers.py",
     "retrieval/sparse.py",
     "retrieval/rerank.py",
     "ingestion/clean.py",

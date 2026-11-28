@@ -315,6 +315,21 @@ passcode it shows what demo shows; with it and their own key, visitors use the f
 | 5. Checks on the deployed site | ✅ | Release checklist and secret scans; 7-day log scan; eval on the deployed index; Trivy in CI with two gates and a weekly run; security headers on pages and the API; separate Qdrant keys; a waking screen for the 43 s cold start ([T-028](tickets/done/T-028-wake-up-screen.md)) | The project's release gate, run against the real deployment | All clean; retrieval eval unchanged; 0 CRITICAL and no fixable HIGH in the image; restarts keep the search budget |
 | 6. README and docs | ✅ | Public README: the site link, what visitors can do, Sign in with GitHub, the waking screen, the deploy diagram, running locally and in Docker | The first thing an employer reads | Checked against the code; no private host names |
 
+## Milestone 9: LLM provider layer (in progress)
+*Ticket: `tickets/in-progress/T-029-llm-provider-layer.md` · branch `feat/t-029-provider-layer`*
+
+**Goal:** visitors pick how answers are generated: their own Claude key, a local Ollama or LM
+Studio server, or an open model in the browser (transformers.js). The LangGraph workflow does not
+change; it only receives a chat model.
+
+| Step | Status | What we built | Why | Result |
+|---|---|---|---|---|
+| 1. Ollama and LM Studio on the server (local mode) | ✅ | `LLM_PROVIDER=ollama` (`ChatOllama`) and `lmstudio` (`ChatOpenAI` at LM Studio), JSON-schema structured output, libraries kept out of the API image | Free runs and evals on the owner's PC; the base for the relay | Smoke run on `llama3.1:8b` through Ollama: plain and structured replies work |
+| 2. Browser relay | ⏳ | | | |
+| 3. Provider picker + browser clients | ⏳ | | | |
+| 4. transformers.js in a Web Worker | ⏳ | | | |
+| 5. Deployed-site checks, docs, PR | ⏳ | | | |
+
 ## Milestones 4–8: what's next
 
 | # | Milestone | What it will do | Why it matters |

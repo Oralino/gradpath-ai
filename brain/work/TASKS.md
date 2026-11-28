@@ -5,7 +5,7 @@ Non-trivial work gets a ticket in `tickets/open/` (moved to `tickets/in-progress
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] [T-029](tickets/open/T-029-llm-provider-layer.md): Milestone 9, an LLM provider layer
+- [ ] [T-029](tickets/in-progress/T-029-llm-provider-layer.md): Milestone 9, an LLM provider layer
       (Claude, Ollama, LM Studio, transformers.js) with a browser relay for local models on the
       deployed site; the workflow stays unchanged. After the Milestone 8 PR (owner, 2026-11-28).
 - [ ] [T-030](tickets/open/T-030-content-security-policy.md): Content-Security-Policy for the

@@ -3,7 +3,7 @@ Milestone 9 ticket (planned). Today's factory is `backend/src/gradpath/providers
 and live mode are in `../../../engineering/ARCHITECTURE.md` ("Providers and modes").
 
 - **Type:** feature
-- **Status:** open
+- **Status:** in progress
 - **Opened:** 2026-11-28 · **Closed:**
 - **GitHub Issue:** none
 
@@ -75,10 +75,17 @@ Design notes still to settle while building:
   whether relay runs need the GitHub sign-in (they still spend the Voyage budget).
 
 ## Changes
-- Branch:
+- Branch: `feat/t-029-provider-layer`
 - PR:
 - Files touched:
+  - Step 1: `providers/local_servers.py` (new), `providers/factory.py`, `config.py`,
+    `pyproject.toml` + `uv.lock` (`local` group: `langchain-ollama==1.2.0`,
+    `langchain-openai==1.8.4`; 1.8.5 needs `langchain-core>=1.8.4`, we pin 1.8.2),
+    `.env.example`, `tests/test_providers.py`, `tests/test_runtime_deps.py`
 - Commits (hash, message):
 
 ## Verification
-TBD.
+- Step 1 (2026-11-28): 947 tests pass, ruff clean; the API still imports with the new libraries
+  blocked (`test_runtime_deps.py`). Real smoke run (`providers.smoke`, tracing off) through Ollama
+  on `llama3.1:8b`: the plain reply and the structured `Requirement` both came back valid. LM Studio
+  smoke run: pending a chat model in LM Studio (only an embedding model is installed).

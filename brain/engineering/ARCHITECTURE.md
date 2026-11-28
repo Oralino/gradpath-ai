@@ -95,7 +95,18 @@ All LLM calls go through one factory that returns a LangChain chat model.
 |---|---|---|
 | `claude_code` | `ChatClaudeCode`: calls Claude through the Claude Agent SDK (bundles the Claude Code CLI), built-in tools and user settings off | Local runs on the owner's Pro plan; recording demo runs |
 | `anthropic_api` | `ChatAnthropic` with a server key or the visitor's key | Live mode |
+| `ollama` | `ChatOllama` (langchain-ollama) at `OLLAMA_BASE_URL` (default `http://localhost:11434`), no key | Local mode on the owner's PC: free runs and evals on a local model (T-029 step 1) |
+| `lmstudio` | `ChatOpenAI` (langchain-openai) at `LMSTUDIO_BASE_URL` (default `http://localhost:1234/v1`), a fixed placeholder key | Local mode, as for `ollama`, through LM Studio's OpenAI-compatible server |
 | `fake` | LangChain fake chat model with canned responses | Tests |
+
+**Local model servers (T-029 step 1):** under `ollama` / `lmstudio`, `MODEL_FAST` and
+`MODEL_SMART` name local models (the same one may serve both tiers; a `claude-*` name is refused)
+and each call may take `LOCAL_LLM_TIMEOUT_S` (300 s). Structured output uses JSON-schema mode on
+both (Ollama's `format`, LM Studio's `response_format`). The two libraries are in the `local`
+dependency group, so the API image leaves them out: they are imported only by
+`providers/local_servers.py`, which the factory loads only for these providers, and live mode
+refuses to start with them anyway. Visitors' local models on the deployed site go through the
+browser relay instead (T-029 step 2; the server can't reach a visitor's `localhost`).
 
 `APP_MODE` (T-018, owner decision 2026-11-20) picks one of three modes; the default is `demo`
 because it is the safe one for a server:

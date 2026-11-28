@@ -26,11 +26,19 @@ class Settings(BaseSettings):
         env_file=REPO_ROOT / ".env", env_file_encoding="utf-8", extra="ignore"
     )
 
-    llm_provider: Literal["claude_code", "anthropic_api", "fake"] = "claude_code"
+    llm_provider: Literal["claude_code", "anthropic_api", "ollama", "lmstudio", "fake"] = (
+        "claude_code"
+    )
     anthropic_api_key: SecretStr | None = None
     # Owner decision 2026-11-17: Haiku for routing and extraction, Sonnet for answers and plans.
+    # Under ollama / lmstudio these name the local models (both may be the same model, T-029).
     model_fast: str = "claude-haiku-5-5"
     model_smart: str = "claude-sonnet-5-5"
+    # Local model servers on this PC (LLM_PROVIDER=ollama / lmstudio, local mode only, T-029).
+    ollama_base_url: str = "http://localhost:11434"
+    lmstudio_base_url: str = "http://localhost:1234/v1"
+    # Seconds one local-model call may take (local models on a CPU are slow).
+    local_llm_timeout_s: float = Field(default=300, ge=5, le=1800)
 
     voyage_api_key: SecretStr | None = None
     embed_model: str = "voyage-4"

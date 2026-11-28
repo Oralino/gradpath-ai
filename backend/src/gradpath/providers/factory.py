@@ -13,6 +13,8 @@ from gradpath.providers.fake import FakeChatModel
 from gradpath.tracing import is_tracing
 
 Tier = Literal["fast", "smart"]
+# Providers served by a model server on this PC (T-029); their clients live in `local_servers`.
+LOCAL_SERVERS = ("ollama", "lmstudio")
 
 
 def get_chat_model(
@@ -28,6 +30,8 @@ def get_chat_model(
     and never stored. A request key never falls back to the server key (even when empty) and is
     refused under providers that can't use it, so a visitor can never run on the owner's account.
     It is also refused while tracing is on, so a visitor's request is never traced.
+    Under `ollama` / `lmstudio` the tier's name is a local model's (a `claude-*` name is refused),
+    and the client module is imported only then, as the API image leaves its libraries out.
     """
     s = settings or get_settings()
     model = s.model_fast if tier == "fast" else s.model_smart
@@ -39,6 +43,15 @@ def get_chat_model(
         if is_tracing():
             # A visitor's prompt must never reach LangSmith (live mode forces tracing off too).
             raise ValueError("refusing a request API key while LangSmith tracing is on")
+    if s.llm_provider in LOCAL_SERVERS:
+        if model.startswith("claude-"):
+            raise ValueError(
+                f"LLM_PROVIDER={s.llm_provider} needs MODEL_FAST and MODEL_SMART set to local "
+                f"model names (got {model!r})"
+            )
+        from gradpath.providers.local_servers import local_server_model
+
+        return local_server_model(model, s)
     if s.llm_provider == "claude_code":
         return ChatClaudeCode(model=model)
     if s.llm_provider == "anthropic_api":
@@ -54,8 +67,16 @@ def with_structure(llm: BaseChatModel, schema: type[BaseModel]) -> Runnable:
     """Bind structured output the way each provider needs.
 
     `ChatAnthropic` must use `method="json_schema"`: its default forces a tool call, which current
-    Claude models (Sonnet 5.5, Opus 5.5) reject with a 400. The other providers have one method.
+    Claude models (Sonnet 5.5, Opus 5.5) reject with a 400. Local-server clients (Ollama, LM
+    Studio) use JSON-schema mode too (`local_servers.structured_method`); the module is imported
+    only for those clients, so the API never loads their libraries. The others have one method.
     """
     if isinstance(llm, ChatAnthropic):
         return llm.with_structured_output(schema, method="json_schema")
+    if type(llm).__module__.startswith(("langchain_ollama", "langchain_openai")):
+        from gradpath.providers.local_servers import structured_method
+
+        method = structured_method(llm)
+        if method is not None:
+            return llm.with_structured_output(schema, method=method)
     return llm.with_structured_output(schema)

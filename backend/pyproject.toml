@@ -43,8 +43,13 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
 [dependency-groups]
-# Local mode only: LLM_PROVIDER=claude_code (the SDK bundles the Claude Code program).
-local = ["claude-agent-sdk==0.2.184"]
+# Local mode only: LLM_PROVIDER=claude_code (the SDK bundles the Claude Code program), and
+# LLM_PROVIDER=ollama / lmstudio (server-side clients for local model servers, T-029).
+local = [
+    "claude-agent-sdk==0.2.184",
+    "langchain-ollama==1.2.0",
+    "langchain-openai==1.8.4",
+]
 # Retrieval experiments only: keyword search and reranking (retrieval/sparse.py, rerank.py).
 eval = ["fastembed==0.9.1"]
 # Building the index only (ingestion/clean.py, chunk.py).
