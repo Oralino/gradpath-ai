@@ -83,9 +83,13 @@ Design notes still to settle while building:
     `langchain-openai==1.8.4`; 1.8.5 needs `langchain-core>=1.8.4`, we pin 1.8.2),
     `.env.example`, `tests/test_providers.py`, `tests/test_runtime_deps.py`
 - Commits (hash, message):
+  - `eed1291` feat: add Ollama and LM Studio as local-mode chat models (T-029)
 
 ## Verification
 - Step 1 (2026-11-28): 947 tests pass, ruff clean; the API still imports with the new libraries
   blocked (`test_runtime_deps.py`). Real smoke run (`providers.smoke`, tracing off) through Ollama
   on `llama3.1:8b`: the plain reply and the structured `Requirement` both came back valid. LM Studio
-  smoke run: pending a chat model in LM Studio (only an embedding model is installed).
+  (`qwen2.5-7b-instruct` Q4_K_M from `lmstudio-community`, 4.68 GB): three runs; both replies valid
+  once the model had finished loading (one 400 while it was still loading). Gotcha: `lms server
+  start` took port 1235 on this PC, not 1234, so `LMSTUDIO_BASE_URL` must match the port it prints.
+- Commit `eed1291` CI green (backend, frontend, docker).

@@ -97,6 +97,8 @@ routing quality are measured, not assumed.
     OpenAI key on the PC is never sent anywhere.
   - **Gotcha 3:** the tier names default to Claude models. Under a local provider a `claude-*` name
     is refused with a clear message instead of a confusing "model not found" from the server.
+  - **Gotcha 4:** LM Studio's server uses the port it prints at start (1235 on the owner's PC when
+    1234 was busy); set `LMSTUDIO_BASE_URL` to match. A call while a model is still loading gets a 400.
   - **Q: "Why not run visitors' Ollama from the server?"** Render can't reach a visitor's
     `localhost`. These clients are for the owner's PC; the deployed site uses the browser relay.
   - **Rejected:** a model server's own SDK without LangChain (the nodes would need a second code
