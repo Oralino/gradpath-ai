@@ -29,6 +29,7 @@ from gradpath.api.demo import router as demo_router
 from gradpath.api.jobs import router as jobs_router
 from gradpath.api.live import router as live_router
 from gradpath.api.profile import router as profile_router
+from gradpath.api.ratelimit import PROXY_SECRET_HEADER, from_site
 from gradpath.api.runs import router as runs_router
 from gradpath.api.search import router as search_router
 from gradpath.config import REPO_ROOT, Settings, get_settings
@@ -332,6 +333,55 @@ class BodySizeLimit:
 
 CROSS_SITE = b'{"detail":"Cross-site requests are not accepted.","code":"cross_site"}'
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+SITE_ONLY = b'{"detail":"Use GradPath through its website.","code":"site_only"}'
+# The one route a caller may reach without the site's secret: the host's health check calls the
+# API directly (Render: /api/health), and it reveals nothing beyond the footer's facts.
+OPEN_ROUTES = {("GET", "/api/health")}
+
+
+class SiteOnly:
+    """Once PROXY_SHARED_SECRET is set (the deployed site), refuse every request that did not come
+    through the site's own server (403), except the health check: "origin cloaking", owner
+    decision T-020 step 4. Callers who skip the site can't use the API, its docs or its debug
+    page at all. Unset (local, CI, the Docker smoke test): no effect. Uses `ratelimit.from_site`
+    (constant-time compare); added by `create_app` outermost, before anything reads the body.
+    Only "http" scopes are checked: the app has no websocket routes, and lifespan must pass."""
+
+    warned_mismatch = False
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    @classmethod
+    def _warn_mismatch(cls, scope) -> None:
+        """A wrong secret header (not a missing one) usually means Render's and Vercel's values
+        differ: the whole site is then refused. Logged once per process, never with a value."""
+        if cls.warned_mismatch:
+            return
+        if any(k == PROXY_SECRET_HEADER.encode() for k, _ in scope.get("headers") or []):
+            cls.warned_mismatch = True
+            log.warning(
+                "site only: a request carried a wrong site secret (Render and Vercel values "
+                "differ, or a guess); refusing"
+            )
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] == "http":
+            settings = get_settings()
+            secret = settings.proxy_shared_secret
+            if (
+                secret is not None
+                and secret.get_secret_value()
+                and (scope.get("method", ""), scope.get("path", "")) not in OPEN_ROUTES
+                and not from_site(Request(scope), settings)
+            ):
+                self._warn_mismatch(scope)
+                await send({"type": "http.response.start", "status": 403,
+                            "headers": [(b"content-type", b"application/json"),
+                                        (b"cache-control", b"no-store")]})  # fmt: skip
+                await send({"type": "http.response.body", "body": SITE_ONLY})
+                return
+        await self.app(scope, receive, send)
 
 
 def allowed_origins(settings: Settings) -> frozenset[str]:
@@ -367,7 +417,7 @@ class OriginCheck:
     (403), before anything reads it (T-018 step 8, guide 01: CORS is not CSRF protection, check
     Origin too). Browsers send Origin on every cross-site POST, including form posts; requests
     with no Origin (curl, server-to-server) pass. `null` (sandboxed or privacy-redirected pages) is
-    refused. Added by `create_app`, outermost."""
+    refused. Added by `create_app`, right inside `SiteOnly`."""
 
     def __init__(self, app) -> None:
         self.app = app
@@ -396,7 +446,8 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
     )
     _redact_auth_queries()
     app.add_middleware(BodySizeLimit)
-    app.add_middleware(OriginCheck)  # added last = runs first
+    app.add_middleware(OriginCheck)
+    app.add_middleware(SiteOnly)  # added last = runs first
     # Deliberately no CORSMiddleware: cross-origin browser reads stay blocked (T-018 step 8).
     app.add_exception_handler(RequestValidationError, _validation_handler)
     app.add_exception_handler(StarletteHTTPException, _http_handler)

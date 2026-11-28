@@ -120,3 +120,18 @@ def plain(body: dict) -> dict:
     """An error body without its machine-readable `code` (T-018 step 9), for tests that compare
     the fixed `detail` text; `test_error_codes.py` checks the codes themselves."""
     return {k: v for k, v in body.items() if k != "code"}
+
+
+@pytest.fixture(autouse=True)
+def _no_proxy_secret(monkeypatch):
+    """`SiteOnly` refuses every request without the site's secret once PROXY_SHARED_SECRET is set
+    (T-020 step 4); a developer's `.env` must not turn it on for the whole suite.
+    `test_proxy_secret.py` sets it itself."""
+    from gradpath.api import main
+    from gradpath.config import get_settings
+
+    monkeypatch.setattr(
+        main,
+        "get_settings",
+        lambda: get_settings().model_copy(update={"proxy_shared_secret": None}),
+    )

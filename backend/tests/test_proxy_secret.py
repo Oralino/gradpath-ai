@@ -179,3 +179,100 @@ def test_an_unusable_vouched_address_is_logged_once_without_values(monkeypatch, 
     lines = [r for r in caplog.records if "address was unusable" in r.getMessage()]
     assert len(lines) == 1
     assert SECRET not in caplog.text and "not-an-ip" not in caplog.text
+
+
+# --- direct calls are refused (SiteOnly, owner decision: option C) ---------------------------
+
+
+@pytest.fixture
+def guarded(monkeypatch):
+    """The whole app with PROXY_SHARED_SECRET set, as on the deployed site."""
+    from gradpath.api import main
+
+    s = settings(debug_forwarded=True)
+    for module in (main, debug):
+        monkeypatch.setattr(module, "get_settings", lambda: s)
+    return TestClient(create_app(use_lifespan=False))
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("GET", "/api/demo"),
+        ("GET", "/api/auth/me"),
+        ("GET", "/api/debug/forwarded"),
+        ("GET", "/docs"),
+        ("GET", "/openapi.json"),
+        ("POST", "/api/chat"),
+        ("POST", "/api/health"),  # only GET and HEAD are open
+        ("GET", "/api/health/"),
+        ("GET", "/api/healthz"),
+        ("GET", "/nothing-here"),
+    ],
+)
+def test_a_direct_call_is_refused_before_anything_runs(guarded, method, path):
+    reply = guarded.request(method, path, json={"message": "x"} if method == "POST" else None)
+    assert reply.status_code == 403
+    assert reply.json() == {"detail": "Use GradPath through its website.", "code": "site_only"}
+    assert reply.headers["cache-control"] == "no-store"
+
+
+def test_forged_or_guessed_secrets_are_refused(guarded):
+    for secret in ("", "guess-" + "x" * 40, SECRET[:-1], SECRET + "x"):
+        reply = guarded.get("/api/demo", headers={PROXY_SECRET_HEADER: secret})
+        assert reply.status_code == 403
+    both = [(PROXY_SECRET_HEADER, SECRET), (PROXY_SECRET_HEADER, "other")]
+    assert guarded.get("/api/demo", headers=both).status_code == 403
+
+
+def test_the_health_check_stays_open(guarded):
+    assert guarded.get("/api/health").status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [("HEAD", "/api/demo"), ("HEAD", "/api/health"), ("OPTIONS", "/api/chat"),
+     ("GET", "//api/health"), ("GET", "/api//health"), ("GET", "/API/health")],
+)  # fmt: skip
+def test_method_and_path_tricks_are_refused(guarded, method, path):
+    assert guarded.request(method, path).status_code == 403
+
+
+def test_a_wrong_secret_is_logged_once_and_never_echoed(guarded, monkeypatch, caplog):
+    from gradpath.api.main import SiteOnly
+
+    monkeypatch.setattr(SiteOnly, "warned_mismatch", False)
+    caplog.set_level(logging.WARNING)
+    guarded.get("/api/demo")  # no secret header at all: a plain direct call, not logged
+    assert "wrong site secret" not in caplog.text
+    guess = "guess-" + "x" * 40
+    for _ in range(3):
+        reply = guarded.get("/api/demo", headers={PROXY_SECRET_HEADER: guess})
+        assert guess not in reply.text and SECRET not in reply.text
+    assert caplog.text.count("wrong site secret") == 1
+    assert guess not in caplog.text and SECRET not in caplog.text
+
+
+def test_the_secret_without_an_address_passes_the_guard(guarded):
+    """What proxy.ts sends when it couldn't measure the visitor: allowed, keyed by the hops rule."""
+    reply = guarded.get("/api/debug/forwarded", headers={PROXY_SECRET_HEADER: SECRET})
+    assert reply.status_code == 200 and reply.json()["proxy_secret_matches"] is True
+
+
+def test_calls_through_the_site_pass(guarded):
+    through = {PROXY_SECRET_HEADER: SECRET, CLIENT_IP_HEADER: "198.51.100.7"}
+    assert guarded.get("/api/health", headers=through).status_code == 200
+    reply = guarded.get("/api/debug/forwarded", headers=through)
+    assert reply.status_code == 200 and reply.json()["rate_limit_key"] == "198.51.100.7"
+    assert SECRET not in reply.text
+
+
+def test_without_a_secret_nothing_is_blocked(monkeypatch):
+    """Local, CI and the Docker smoke test run with no secret: the guard is off."""
+    from gradpath.api import main
+
+    s = settings(proxy_shared_secret=None)
+    monkeypatch.setattr(main, "get_settings", lambda: s)
+    client = TestClient(create_app(use_lifespan=False))
+    assert client.get("/api/health").status_code == 200
+    assert client.get("/openapi.json").status_code == 200

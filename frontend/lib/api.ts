@@ -46,6 +46,7 @@ export const MESSAGES: Record<ApiErrorKind, string> = {
 // api/career.py, api/deps.py, api/ratelimit.py), so it is safe to show. Any other status gets our
 // own message. Every error body also carries a machine-readable `code` (T-018).
 const FIXED_DETAIL_STATUSES = new Set([401, 403, 404, 413, 429, 502, 503]);
+const SITE_MISCONFIGURED = "The site can't reach its server right now. Try again in a few minutes.";
 const CODE_SHAPE = /^[a-z_]{1,40}$/;
 
 export class ApiError extends Error {
@@ -120,6 +121,12 @@ export async function toApiError(response: Response): Promise<ApiError> {
           : status === 403
             ? "forbidden"
             : "server";
+  // site_only (T-020 step 4): the API refused a request without the site's secret. Reaching the
+  // site, that means Render's and Vercel's PROXY_SHARED_SECRET differ: a server problem, not
+  // something the visitor did, so the API's "use the website" text would mislead them.
+  if (status === 403 && code === "site_only") {
+    return new ApiError("server", status, SITE_MISCONFIGURED, [], code);
+  }
   const detail = FIXED_DETAIL_STATUSES.has(status) ? fixedDetail(body) : null;
   const retry = Number.parseInt(response.headers.get("Retry-After") ?? "", 10);
   const retryAfter = Number.isFinite(retry) && retry >= 0 && retry < 86_400 ? retry : null;

@@ -118,6 +118,15 @@ describe("error codes and Retry-After (T-018)", () => {
     );
   });
 
+  test("site_only is a server problem with its own text, not the API's", async () => {
+    const error = await toApiError(
+      jsonResponse(403, { detail: "Use GradPath through its website.", code: "site_only" }),
+    );
+    expect(error.kind).toBe("server");
+    expect(error.code).toBe("site_only");
+    expect(error.message).toMatch(/can't reach its server/);
+  });
+
   test("a code of the wrong shape is dropped", async () => {
     const error = await toApiError(jsonResponse(401, { detail: "x", code: "<script>" }));
     expect(error.code).toBeNull();

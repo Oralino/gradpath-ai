@@ -29,17 +29,17 @@ export function visitorAddress(headers: Headers): string | null {
 }
 
 /** The request headers to forward to the API. Always drops any copy of our two headers the
- *  browser sent; adds them back only with a secret and a measured address. Without a secret
- *  (local development) the API falls back to its own rules. Called by `proxy`. */
+ *  browser sent; adds the secret whenever there is one (the API refuses requests without it,
+ *  `SiteOnly`) and the visitor address only when it was measured (otherwise the API falls back to
+ *  its own rules). Without a secret (local development) neither is sent. Called by `proxy`. */
 export function forwardHeaders(incoming: Headers, secret: string | undefined): Headers {
   const headers = new Headers(incoming);
   headers.delete(CLIENT_IP_HEADER);
   headers.delete(PROXY_SECRET_HEADER);
+  if (!secret) return headers;
+  headers.set(PROXY_SECRET_HEADER, secret);
   const address = visitorAddress(incoming);
-  if (secret && address) {
-    headers.set(CLIENT_IP_HEADER, address);
-    headers.set(PROXY_SECRET_HEADER, secret);
-  }
+  if (address) headers.set(CLIENT_IP_HEADER, address);
   return headers;
 }
 

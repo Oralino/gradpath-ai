@@ -51,10 +51,10 @@ describe("forwardHeaders", () => {
     expect(withoutSecret.get(PROXY_SECRET_HEADER)).toBeNull();
   });
 
-  it("sends neither header without an address", () => {
+  it("still sends the secret without an address, so the API doesn't refuse the visitor", () => {
     const out = forwardHeaders(new Headers(), SECRET);
     expect(out.get(CLIENT_IP_HEADER)).toBeNull();
-    expect(out.get(PROXY_SECRET_HEADER)).toBeNull();
+    expect(out.get(PROXY_SECRET_HEADER)).toBe(SECRET);
   });
 
   it("keeps the other request headers", () => {
