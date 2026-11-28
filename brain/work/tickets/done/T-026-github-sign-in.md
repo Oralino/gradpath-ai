@@ -1,10 +1,10 @@
 # T-026: Sign in with GitHub replaces the live passcode
-Live mode's gate. Part of Milestone 8 ([T-020](T-020-deploy.md)); the flow is described in
+Live mode's gate. Part of Milestone 8 ([T-020](../in-progress/T-020-deploy.md)); the flow is described in
 `../../../engineering/ARCHITECTURE.md` (live mode), threats in `../../../engineering/SECURITY.md`.
 
 - **Type:** change
-- **Status:** in progress
-- **Opened:** 2026-11-27 · **Closed:**
+- **Status:** done
+- **Opened:** 2026-11-27 · **Closed:** 2026-11-28
 - **GitHub Issue:** none
 
 ## Summary
@@ -48,7 +48,10 @@ Design (lead):
   `lib/api.ts`, `lib/types.ts`, `components/LivePanel.tsx`, `components/SignInNotice.tsx` (new),
   `ModeBadge.tsx`, `ModeNote.tsx`, `app/layout.tsx` and the affected tests.
 - Docs: REQUIREMENTS, ARCHITECTURE, SECURITY, WALKTHROUGH, TASKS, `.env.example`.
-- Commits (hash, message):
+- Commits (hash, message): `3bed7f9` feat: sign in with GitHub for live mode instead of the
+  passcode (T-026); `09e8744` docs: record GitHub sign-in for live mode (T-026); `eba80cc` docs:
+  record the sign-in deploy on Render and Vercel (T-026); and the closing `docs: close the GitHub
+  sign-in ticket (T-026)`.
 
 ## Verification
 - Backend: 897 passed, 1 skipped; ruff clean. `test_auth.py` runs the whole flow against a fake
@@ -75,6 +78,14 @@ Design (lead):
   GitHub" and no passcode; through Vercel, `/api/auth/me` answers `{"signed_in": false}` and
   `/api/auth/github/login` answers 302 to GitHub with the production callback and sets `gp_oauth`
   (HttpOnly, Secure, SameSite=Lax, Path `/api/auth/github`).
-- **Still to check (owner):** delete `LIVE_PASSCODE` in Render; one real sign-in on the site (the
-  303 back and `gp_session` passing Vercel's rewrite), `/api/auth/me` showing the login, sign-out,
-  and Render's logs free of code, state, login and id.
+- Closing check (2026-11-28, the owner signed in; the lead checked in the built-in browser, never
+  reading a value): `LIVE_PASSCODE` gone from Render's Environment page (the 11 expected names
+  present). The site shows "Signed in with GitHub" and "Signed in as" the owner's login;
+  `/api/auth/me` through Vercel answers `signed_in: true` with the login and a 1-day expiry; no
+  cookie is readable from page scripts (HttpOnly); the fake key `sk-ant-test-not-a-real-key-...`
+  got "Anthropic refused this API key"; Sign out turns `/api/auth/me` back to `signed_in: false`
+  and the page shows "Sign in with GitHub" again. Render's logs, searched server-side: both
+  callback lines read `GET /api/auth/github/callback?[redacted] ... 303`; no match for the login,
+  `code=`, `state=`, `gp_session` or `sk-ant`.
+- Found: no `github sign-in: ...` outcome line reached Render at all (INFO lines are dropped):
+  [T-027](../open/T-027-app-info-logs.md).

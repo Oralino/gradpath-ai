@@ -1,6 +1,12 @@
 # DONE.md
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
+## 2026-11-28
+- [T-026 Sign in with GitHub](tickets/done/T-026-github-sign-in.md): live mode's shared passcode
+  replaced by a GitHub sign-in (OAuth App with PKCE, accounts 30+ days old, 1-day signed cookie,
+  per-user limits). Checked with the owner's real sign-in on the deployed site; `LIVE_PASSCODE`
+  deleted. On the Milestone 8 branch (`3bed7f9`, `09e8744`, `eba80cc`).
+
 ## 2026-11-27
 - [T-025 Slim API image](tickets/done/T-025-slim-api-image.md): the Docker image installs only the
   API's runtime set (dependency groups `local`, `eval`, `ingest` left out): 1.27 GB -> 560 MB
