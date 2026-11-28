@@ -80,6 +80,17 @@ Design (lead, owner decisions 2026-11-28):
 Sources checked (2026-11-28): Ollama FAQ (allowed origins), Chrome's Local Network Access
 guide, LM Studio structured-output docs (models under ~7B unreliable), Transformers.js v3 WebGPU.
 
+Step 3 change (owner, 2026-11-28): the picker offers llama.cpp's `llama-server` instead of LM
+Studio. LM Studio's page client and `LLM_PROVIDER=lmstudio` are kept, hidden, for later; a
+remembered LM Studio choice falls back to the default. Owner also chose a server-side
+`LLM_PROVIDER=llamacpp` (local mode, `ChatOpenAI` at `LLAMACPP_BASE_URL`). Why llama.cpp: it can
+turn a Qwen3 model's hidden reasoning off (`--reasoning off`, and `chat_template_kwargs`
+per request), which LM Studio's API could not. Lead decisions: show only a `.gguf` path's file
+name (llama-server's model id is the full path; the full id is still sent); the setup help gives
+the start command with `--cors-origins <site>` and warns that the default `*` lets any website
+use the model. Known limit (review): two models in different folders with the same file name
+show the same label; it matters only for a server listing several models.
+
 Design notes still to settle while building:
 - Search stays on Voyage: the index is `voyage-4`, so a local embedding model can't query it.
 - Visitors must allow the site's origin in Ollama (`OLLAMA_ORIGINS`) and turn on CORS in LM
@@ -111,6 +122,11 @@ Design notes still to settle while building:
     `ResumeImport.tsx`, `ModeBadge.tsx`, `ModeNote.tsx`, `icons.tsx`, `app/globals.css`,
     `vitest.setup.ts`; tests for each new module and the screens. Docs: `DESIGN.md` (picker),
     ARCHITECTURE, SECURITY, WALKTHROUGH.
+  - Step 3, llama.cpp: `frontend/lib/localModels.ts` (`llamacpp`, `PICKER_SERVERS`,
+    `modelLabel`, `MAX_NAME` 1,000), `lib/providerSession.ts`, `components/ProviderPicker.tsx`,
+    `ProviderSetup.tsx`, `RelayRunView.tsx` and their tests; backend `config.py`
+    (`llamacpp_base_url`), `providers/factory.py`, `providers/local_servers.py`,
+    `tests/test_providers.py`, `.env.example`; docs DESIGN, ARCHITECTURE, SECURITY, WALKTHROUGH.
 - Commits (hash, message):
   - `eed1291` feat: add Ollama and LM Studio as local-mode chat models (T-029)
   - `d9979bc` docs: record the Ollama and LM Studio smoke runs (T-029)
@@ -119,6 +135,10 @@ Design notes still to settle while building:
   - `33ffb97` docs: design the model provider picker dialog (T-029)
   - `f57b872` feat: add the model provider picker and browser clients for Ollama and LM Studio (T-029)
   - `46a3a9b` fix: turn off Ollama thinking so large models answer within the call limit (T-029)
+  - `6ffd392` fix: give queued relay prompts 420 s and hide embedding models from the picker (T-029)
+  - `e8a9805` docs: record the step 3 real runs, the queue timeout and the relay limits (T-029)
+  - `95f8dfc` feat: add llama.cpp's llama-server as a local-mode chat model (T-029)
+  - `108961b` feat: offer llama.cpp instead of LM Studio in the model picker (T-029)
 
 ## Verification
 - Step 1 (2026-11-28): 947 tests pass, ruff clean; the API still imports with the new libraries
@@ -176,3 +196,22 @@ Design notes still to settle while building:
     left out of the model menu.
   - Seen once, not reproduced: the run view's elapsed timer stuck at 0:25 while the server said
     108 s (the per-call "Waiting for" timer kept counting).
+- Step 3, llama.cpp (2026-11-28): owner's `llama-server` build 12835, checked first on Qwen2.5-7B
+  Q4_K_M: `/v1/models` is `{object, data: [{id, ...}], models: [...]}` with `id` = the model file's
+  full path (104 characters); `response_format` json_schema (strict) returned schema-valid JSON in
+  `choices[0].message.content`; `chat_template_kwargs: {enable_thinking: false}` accepted; with
+  `--cors-origins http://localhost:3001` that origin got its ACAO, another origin's GET got 403;
+  `--help` says the default is `*`. Checks: frontend 446 tests, lint, typecheck, build; backend 996
+  tests, ruff. code-reviewer: no data-leak path or Ollama regression; applied: a longer name cap
+  (1,000; storage cap 12,000), the remembered-names line says a llama.cpp name is the file path, two
+  more tests; collision of equal file names noted as a known limit. Real runs through the page
+  (local mode, API :8001 tracing off, site :3001, sample inputs; RAM cleared first, only the model in
+  use loaded; server started with `-c 32768 --reasoning off --cors-origins http://localhost:3001`):
+  - Qwen2.5-7B Q4_K_M: Connect listed 1 model, shown as its file name; Plan finished in about a
+    minute, "finished with open issues" (one revision; the check flagged 62 h of roadmap against 48
+    available). 5 model calls, 28 s of model time, largest prompt 5,800 tokens.
+  - Qwen3.8-27B IQ4_XS (retest of the LM Studio 27B `RelayBadOutput`): Plan complete, "Checked",
+    no blocking issues, 7 minor notes. 5 model calls, 277 s of model time, longest call 126 s;
+    largest prompt 4,611 tokens, longest reply 1,808 tokens. So these calls fit a 16k context with
+    thinking off: the LM Studio failure was probably not a context cut-off; its hidden reasoning
+    pass is the likelier cause (not verified).

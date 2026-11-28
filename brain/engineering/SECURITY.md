@@ -116,7 +116,8 @@ Solo project, so the realistic risks are a phished account or a leaked key.
 
 ### Browser relay (T-029 step 2, `providers/relay.py`, `api/relay.py`)
 For local models the visitor's browser is the model: each model call in a relay run is a prompt
-the browser polls for, runs on Ollama, LM Studio or transformers.js and answers.
+the browser polls for, runs on Ollama, llama.cpp (LM Studio's client is kept, not offered) or
+transformers.js and answers.
 
 | Threat | Status | Defence |
 |---|---|---|
@@ -125,6 +126,7 @@ the browser polls for, runs on Ollama, LM Studio or transformers.js and answers.
 | A held server thread (closed tab, slow or silent model) | ✅ | Every wait ends: 420 s per reply (it covers a prompt queued behind another), 90 s without a poll closes the run, the visitor can stop it (`DELETE`), a run deadline (relay budget 900 s + 420 s), at most 40 prompts and 4 waiting. At most 2 relay runs on the server (`limits.RELAY`, apart from the Claude slot) and 1 per user (409). |
 | Spending the owner's Voyage budget | ✅ | Live relay runs need a GitHub sign-in (owner decision) and count against the `model` / `workflow` limits like Claude runs; a start is refused (409 / 503) before anything is charged; polls, replies and cancels have their own `relay` bucket (300 a minute per IP, 150 per user: a refused poll would look like a closed tab). Searches still go through the persistent Voyage budget. |
 | Visitor data reaching LangSmith | ✅ | Live mode forces tracing off; relay prompts are built from the same chains. |
+| Another website using the visitor's local model server (it answers any page the browser is on) | ⚠️ advice | GradPath can't set the visitor's server. The setup help tells them to allow only this site: Ollama's `OLLAMA_ORIGINS`, and for llama.cpp `--cors-origins <site>`, with a warning, because llama-server's default is `*` (its `--help`, build 12835). Checked 2026-11-28: with `--cors-origins http://localhost:3001`, another origin's GET got 403 and its preflight named only :3001. The page itself only calls `localhost`, `127.0.0.1` or `[::1]`, with no cookies, no referrer and no redirects (`lib/localModels.ts`). Model names (llama.cpp: the file path) stay in the browser. |
 
 ## 08 Testing and operations
 - **Tests:** injection cases in `test_router.py` and the workflow tests (`test_workflow_*.py`); eval case

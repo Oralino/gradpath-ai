@@ -105,6 +105,14 @@ routing quality are measured, not assumed.
     path); LM Studio through `ChatOllama` (it does not speak Ollama's API).
 
 ## Browser relay (`providers/relay.py`, `api/relay.py`, T-029 step 2)
+- **llama.cpp instead of LM Studio in the picker (step 3, owner decision 2026-11-28).** LM Studio's
+  OpenAI-compatible API had no way to turn off a Qwen3 model's hidden reasoning, and its 27B run
+  failed; llama-server has `--reasoning off` and a per-request `chat_template_kwargs` switch, and
+  speaks the same `/v1` API, so the client is the LM Studio one plus that switch. LM Studio's code
+  stays (hidden, not deleted) so it can come back. Gotcha: llama-server's model id is the file's
+  full path, so the page shows only the file name; and its CORS default is `*`, so the setup help
+  insists on `--cors-origins`. Likely question: "why not just send `/no_think`?" It didn't stop
+  LM Studio's model from reasoning; a server or template switch does.
 - **What it is for:** a visitor on the deployed site uses their own local model (Ollama, LM Studio,
   or a model in the browser) while the workflow still runs on the server. The server can't call the
   visitor's `localhost`, so it turns each model call around: the call becomes a prompt the browser

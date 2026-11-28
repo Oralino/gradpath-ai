@@ -97,16 +97,25 @@ All LLM calls go through one factory that returns a LangChain chat model.
 | `anthropic_api` | `ChatAnthropic` with a server key or the visitor's key | Live mode |
 | `ollama` | `ChatOllama` (langchain-ollama) at `OLLAMA_BASE_URL` (default `http://localhost:11434`), no key | Local mode on the owner's PC: free runs and evals on a local model (T-029 step 1) |
 | `lmstudio` | `ChatOpenAI` (langchain-openai) at `LMSTUDIO_BASE_URL` (default `http://localhost:1234/v1`), a fixed placeholder key | Local mode, as for `ollama`, through LM Studio's OpenAI-compatible server |
+| `llamacpp` | `ChatOpenAI` at `LLAMACPP_BASE_URL` (default `http://localhost:9931/v1`, llama-server's port on the owner's build), a fixed placeholder key, `chat_template_kwargs.enable_thinking=false` on every call | Local mode, as for `ollama`, through llama.cpp's `llama-server`; it serves the one model it was started with, so the model names are labels (T-029 step 3) |
 | `fake` | LangChain fake chat model with canned responses | Tests |
 
-**Local model servers (T-029 step 1):** under `ollama` / `lmstudio`, `MODEL_FAST` and
+**Local model servers (T-029 step 1):** under `ollama` / `lmstudio` / `llamacpp`, `MODEL_FAST` and
 `MODEL_SMART` name local models (the same one may serve both tiers; a `claude-*` name is refused)
 and each call may take `LOCAL_LLM_TIMEOUT_S` (300 s). Structured output uses JSON-schema mode on
-both (Ollama's `format`, LM Studio's `response_format`). The two libraries are in the `local`
+all (Ollama's `format`, `response_format` for the OpenAI-style servers). The two libraries are in the `local`
 dependency group, so the API image leaves them out: they are imported only by
 `providers/local_servers.py`, which the factory loads only for these providers, and live mode
 refuses to start with them anyway. Visitors' local models on the deployed site go through the
 browser relay instead (T-029 step 2; the server can't reach a visitor's `localhost`).
+
+**Browser clients (T-029 step 3, `frontend/lib/localModels.ts`):** the picker offers Ollama and
+llama.cpp (`PICKER_SERVERS`); LM Studio's client is kept but not offered (owner decision
+2026-11-28), and a remembered LM Studio choice falls back to the default. Ollama uses its native
+API with `think: false`; llama.cpp and LM Studio use `/v1/models` and `/v1/chat/completions` with
+`response_format` json_schema, plus `chat_template_kwargs.enable_thinking=false` for llama.cpp.
+llama-server names a model by its file's full path, so the page shows only the file name
+(`modelLabel`) and sends the full name; names stay in the browser (never sent to GradPath).
 
 **Browser relay (T-029 step 2):** for a visitor's own local model the server can't call it
 (Render can't reach their `localhost`; transformers.js runs only in a browser), so the browser
