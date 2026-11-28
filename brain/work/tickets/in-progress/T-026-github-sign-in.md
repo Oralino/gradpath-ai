@@ -67,5 +67,14 @@ Design (lead):
   not revoked (the OAuth App's expiring tokens die in 8 hours; no token is kept); `__Host-` cookie
   prefix (would break testing live mode over http on localhost); a weak-but-long SESSION_SECRET
   passes the start check (Render's Generate makes a random one).
-- Deployed: to do after the push (the owner's sign-in through Vercel's rewrite: 302, 303 and both
-  Set-Cookie headers; `/api/auth/me`; sign-out; Render logs).
+- Deployed (2026-11-27): CI green on `09e8744` (backend, frontend, docker); Render live on it with
+  the four GitHub settings (names checked in the dashboard, values never read). The Vercel project
+  had been paused (503 `DEPLOYMENT_PAUSED`; the owner resumed it) and still built `main`, the old
+  passcode frontend: its production branch is now `feat/t-020-deploy` (switch back after the
+  milestone merges) and `09e8744` was redeployed to production. The site shows "Sign in with
+  GitHub" and no passcode; through Vercel, `/api/auth/me` answers `{"signed_in": false}` and
+  `/api/auth/github/login` answers 302 to GitHub with the production callback and sets `gp_oauth`
+  (HttpOnly, Secure, SameSite=Lax, Path `/api/auth/github`).
+- **Still to check (owner):** delete `LIVE_PASSCODE` in Render; one real sign-in on the site (the
+  303 back and `gp_session` passing Vercel's rewrite), `/api/auth/me` showing the login, sign-out,
+  and Render's logs free of code, state, login and id.

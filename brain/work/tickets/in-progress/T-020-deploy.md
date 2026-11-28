@@ -104,7 +104,8 @@ value; the lead checked setting names and value shapes only, never values):
 - First deploy of `38b3fed`: build 2 min 21 s, startup about 1 s. `/api/health`: `app_mode:
   live`, `llm_provider: anthropic_api`, `search_enabled: true`, sources dates present.
 - **Vercel** project `gradpath-ai` (Hobby): root `frontend`, Next.js preset, branch `main` (its
-  `frontend/` is identical to the deploy branch's), `GRADPATH_API_URL` = the Render URL,
+  `frontend/` was identical to the deploy branch's then; since T-026 the production branch is
+  `feat/t-020-deploy`, like Render's, until the milestone merges), `GRADPATH_API_URL` = the Render URL,
   `NEXT_TELEMETRY_DISABLED=1`. Build 34 s. Production domain `https://gradpath-ai-phi.vercel.app`;
   HTTPS with `Strict-Transport-Security`.
 - Through the site: `/api/health` and `/api/demo` 200; before `ALLOWED_ORIGINS`, a search POST
