@@ -10,6 +10,7 @@ from pydantic import BaseModel, SecretStr
 from gradpath.config import Settings, get_settings
 from gradpath.providers.claude_code import ChatClaudeCode
 from gradpath.providers.fake import FakeChatModel
+from gradpath.providers.relay import BrowserRelayChatModel, RelayChannel
 from gradpath.tracing import is_tracing
 
 Tier = Literal["fast", "smart"]
@@ -22,6 +23,7 @@ def get_chat_model(
     *,
     settings: Settings | None = None,
     api_key: SecretStr | None = None,
+    relay: RelayChannel | None = None,
 ) -> BaseChatModel:
     """Return the configured chat model for a tier ("fast" = Haiku, "smart" = Sonnet by default).
 
@@ -32,7 +34,13 @@ def get_chat_model(
     It is also refused while tracing is on, so a visitor's request is never traced.
     Under `ollama` / `lmstudio` the tier's name is a local model's (a `claude-*` name is refused),
     and the client module is imported only then, as the API image leaves its libraries out.
+    `relay` (T-029 step 2) is a relay run's channel: the model is then the visitor's browser,
+    whatever LLM_PROVIDER says, and a request key is refused with it.
     """
+    if relay is not None:
+        if api_key is not None:
+            raise ValueError("a relay run takes no API key")
+        return BrowserRelayChatModel(channel=relay, tier=tier)
     s = settings or get_settings()
     model = s.model_fast if tier == "fast" else s.model_smart
     if api_key is not None:

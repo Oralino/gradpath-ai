@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     lmstudio_base_url: str = "http://localhost:1234/v1"
     # Seconds one local-model call may take (local models on a CPU are slow).
     local_llm_timeout_s: float = Field(default=300, ge=5, le=1800)
+    # Browser relay runs (T-029 step 2): how long one prompt may wait for the browser's reply,
+    # how long the browser may go without polling before the run stops (a closed tab), and the
+    # time budget of a relay plan (local models are slower than Claude). Every wait ends.
+    relay_reply_timeout_s: float = Field(default=180, ge=10, le=900)
+    # 90 s: browsers slow timers in a background tab to about one a minute.
+    relay_idle_timeout_s: float = Field(default=90, ge=10, le=300)
+    relay_time_budget_s: int = Field(default=900, ge=60, le=1800)
 
     voyage_api_key: SecretStr | None = None
     embed_model: str = "voyage-4"

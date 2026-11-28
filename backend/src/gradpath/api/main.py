@@ -30,6 +30,7 @@ from gradpath.api.jobs import router as jobs_router
 from gradpath.api.live import router as live_router
 from gradpath.api.profile import router as profile_router
 from gradpath.api.ratelimit import PROXY_SECRET_HEADER, from_site
+from gradpath.api.relay import router as relay_router
 from gradpath.api.runs import router as runs_router
 from gradpath.api.search import router as search_router
 from gradpath.config import REPO_ROOT, Settings, get_settings
@@ -172,7 +173,7 @@ def error_codes() -> dict[str, str]:
     """Every fixed error message the API sends, mapped to a stable machine-readable code, so the
     frontend can tell signed-out from bad-key from rate-limited without matching text (T-018
     step 9). Used by the error handlers; a test checks every raised detail has a code."""
-    from gradpath.api import auth, career, demo, deps, limits, live, ratelimit, runs, search
+    from gradpath.api import auth, career, demo, deps, limits, live, ratelimit, relay, runs, search
 
     return {
         deps.MODEL_ROUTES_OFF: "demo_mode",
@@ -193,6 +194,9 @@ def error_codes() -> dict[str, str]:
         limits.BUSY: "busy",
         career.BUSY: "busy",
         runs.NOT_FOUND: "run_not_found",
+        relay.RELAY_BUSY: "busy",
+        relay.OWNER_BUSY: "relay_owner_busy",
+        relay.PROMPT_GONE: "relay_prompt_gone",
         demo.NOT_FOUND: "recording_not_found",
         live.LIVE_OFF: "live_off",
         "Not Found": "not_found",
@@ -512,6 +516,7 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
     app.include_router(assist_router)
     app.include_router(profile_router)
     app.include_router(runs_router)
+    app.include_router(relay_router)
     app.include_router(demo_router)
     app.include_router(search_router)
     app.include_router(live_router)

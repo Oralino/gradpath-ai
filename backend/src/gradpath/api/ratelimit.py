@@ -52,6 +52,10 @@ PER_IP: dict[str, tuple[Window, ...]] = {
     "model": (Window(6, MINUTE), Window(60, DAY)),
     "workflow": (Window(3, HOUR), Window(10, DAY)),
     "poll": (Window(60, MINUTE),),
+    # Relay runs (T-029): the browser polls about once a second and posts each model reply. A
+    # refused poll looks like a closed tab to the run, so leave room for two tabs or two people
+    # behind one address; per user (`PER_USER`) it stays at one run's worth.
+    "relay": (Window(300, MINUTE),),
     # Sign in with GitHub (T-026): each callback makes two GitHub calls.
     "auth": (Window(10, MINUTE), Window(50, DAY)),
 }
@@ -59,7 +63,8 @@ PER_IP: dict[str, tuple[Window, ...]] = {
 # network can't hand one person more than their share, and one person can't use several networks
 # to get more. Set by `deps.require_session` (request.state.github_id).
 PER_USER: dict[str, tuple[Window, ...]] = {
-    bucket: PER_IP[bucket] for bucket in ("model", "workflow", "poll")
+    **{bucket: PER_IP[bucket] for bucket in ("model", "workflow", "poll")},
+    "relay": (Window(150, MINUTE),),  # one relay run per user: ~60 polls plus its replies
 }
 # Site-wide caps kept in memory. Search's daily cap moved to `retrieval/budget.py` (T-020 step 2):
 # stored in Qdrant, so a restart doesn't reset it, and it counts every server-paid embedding.

@@ -76,6 +76,29 @@ def require_model_routes(key: VisitorKey) -> None:
     model and touches no retrieval; `visitor_key` is cached per request, so it runs once."""
 
 
+def relay_access(request: Request) -> None:
+    """Guard on the browser relay routes (T-029 step 2): local passes, live needs a GitHub
+    sign-in (401 `signin_required`; it also sets `request.state.github_id`), demo and anything
+    else is refused (403). No API key: the visitor's browser runs the model."""
+    settings = get_settings()
+    if settings.app_mode == "local":
+        return
+    if settings.app_mode != "live":
+        raise HTTPException(status_code=403, detail=MODEL_ROUTES_OFF)
+    require_session(request, settings)
+
+
+def relay_owner(request: Request, _: Annotated[None, Depends(relay_access)]) -> str | None:
+    """A tag tying a relay run to the signed-in GitHub user (HMAC with the per-process secret,
+    a different message from `run_owner` so the two can't collide). None in local mode. Used
+    for run access and the one-relay-run-per-user rule in `api/relay.py`."""
+    github_id = getattr(request.state, "github_id", None)
+    if github_id is None:
+        return None
+    message = f"relay|{github_id}".encode()
+    return hmac.new(_RUN_SECRET, message, hashlib.sha256).hexdigest()
+
+
 def run_owner(request: Request, key: VisitorKey) -> str | None:
     """A tag tying a background run to the GitHub user and key that started it (HMAC-SHA256 with
     a per-process secret; the key itself is not kept). None in local mode, where runs are not

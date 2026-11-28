@@ -18,6 +18,9 @@ CHAT = threading.BoundedSemaphore(2)  # one model call each, under a minute
 JOBS = threading.BoundedSemaphore(1)  # two model calls, about a minute
 CAREER = threading.BoundedSemaphore(1)  # about five model calls, a few minutes
 SEARCH = threading.BoundedSemaphore(2)  # one Voyage request each, no model (T-018)
+# Browser relay runs (T-029): a thread each that mostly waits on the visitor's own model. Apart
+# from CAREER, so a slow local model never blocks a Claude run; one per user on top (`api/relay`).
+RELAY = threading.BoundedSemaphore(2)
 
 
 @contextmanager

@@ -224,6 +224,11 @@ MODEL_ROUTES = [
     ("get", "/api/career/runs/{run_id}", "/api/career/runs/abc"),
     ("post", "/api/assist", "/api/assist"),
     ("post", "/api/profile/from-resume", "/api/profile/from-resume"),
+    # Browser relay (T-029): no key, but the same demo refusal and live sign-in gate.
+    ("post", "/api/relay/runs", "/api/relay/runs"),
+    ("get", "/api/relay/runs/{run_id}", "/api/relay/runs/abc"),
+    ("post", "/api/relay/runs/{run_id}/replies", "/api/relay/runs/abc/replies"),
+    ("delete", "/api/relay/runs/{run_id}", "/api/relay/runs/abc"),
 ]
 OPEN_ROUTES = {
     ("get", "/api/health"),
