@@ -28,6 +28,10 @@ export const CHAT_TIMEOUT_MS = 170_000; // under the server's 180 s reply timeou
 const LIST_TIMEOUT_MS = 60_000; // Connect gives up after this (DESIGN.md decision 15)
 // Ollama's default context can silently cut long prompts (a plan prompt is tens of KB).
 export const OLLAMA_NUM_CTX = 16_384;
+// Thinking models (Qwen3 family) otherwise write a hidden reasoning pass first: measured twice the
+// time on qwen38-27b-iq4xs, and the 27B ran past CHAT_TIMEOUT_MS on a plan's first call. Models
+// without a thinking mode accept `think: false` (checked on llama3.1:8b, 2026-11-28).
+export const OLLAMA_THINK = false;
 
 export type LocalErrorKind =
   | "unreachable" // network error: not running, wrong port, origin not allowed, Chrome permission denied
@@ -168,6 +172,7 @@ export async function chat(
       model,
       messages: msgs,
       stream: false,
+      think: OLLAMA_THINK,
       options: { num_ctx: OLLAMA_NUM_CTX },
     };
     if (schema) payload.format = schema;

@@ -161,6 +161,7 @@ describe("chat", () => {
       model: "llama3.1:8b",
       messages,
       stream: false,
+      think: false,
       options: { num_ctx: OLLAMA_NUM_CTX },
       format: schema,
     });
