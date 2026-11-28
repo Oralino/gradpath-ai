@@ -9,6 +9,9 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
       in the ticket). Done: steps 0, 1 (index on Qdrant Cloud), 2, 2b (Docker image) and 3 (live
       on Render and Vercel) and 4 (visitor address vouched for by the site with a shared secret;
       direct calls to Render refused). Next: step 5 (deployed-site checks), 6 (README), PR.
+- [ ] [T-028](tickets/in-progress/T-028-wake-up-screen.md): an animated "Waking up AI braincells..."
+      screen while the API wakes from Render's free-tier sleep (design-advisor drafts, owner
+      approves, then build).
 - [ ] [T-027](tickets/open/T-027-app-info-logs.md): the API's own INFO log lines (sign-in
       outcomes and others) never reach the logs; only warnings do. Found closing T-026.
 - [ ] DESIGN.md: record the GitHub sign-in row of the live panel (replaces the passcode field and

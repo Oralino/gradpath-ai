@@ -159,7 +159,7 @@ Vercel. No Content-Security-Policy yet.
 
 **Site only (T-020 step 4, owner decision "origin cloaking"):** once `PROXY_SHARED_SECRET` is set,
 `SiteOnly` (ASGI middleware right inside `SecurityHeaders`, `api/main.py`) answers 403 `site_only` to every request
-without the matching secret, except `GET`/`HEAD /api/health` (Render's health check calls the
+without the matching secret, except `GET /api/health` (Render's health check calls the
 API directly). So the Render URL is useless on its own: no API, no `/docs`, `/redoc` or
 `/openapi.json` (the site forwards only `/api/*`, so those are unreachable on the deployed site;
 they stay available locally). Unset (local, CI, the Docker smoke test): no effect. Measured chain
@@ -181,6 +181,13 @@ Anthropic call (listing models), and returns `{ok: true}`; it issues nothing (th
 of T-018 was removed with the passcode). Every error body is `{detail, code}`; the codes
 (`api/main.py` `error_codes`) let the frontend tell signed-out from a refused key from a rate limit
 without matching text, and `/api/health` reports `search_enabled`.
+
+**Cold start (T-028):** Render's free host sleeps after 15 idle minutes; a measured wake took 43 s
+(2026-11-28). `lib/serverInfo.tsx` retries the health check (60 s per attempt, under Vercel's 120 s;
+3 s apart) for up to 3 minutes; after 2 s without an answer it reports `waking`, and
+`components/WakeScreen.tsx` covers the site ("Waking up AI braincells...", an elapsed timer, the
+site behind it `inert`) until the answer, or shows a stopped state with "Try again" and a link to
+the repo's issues. A fast answer shows nothing.
 
 **Frontend modes (T-018 step 9):** `lib/serverInfo.tsx` makes one `/api/health` request per page
 load and shares `mode` (an unknown value reads as demo), `searchEnabled` and `sourcesAsOf` with the

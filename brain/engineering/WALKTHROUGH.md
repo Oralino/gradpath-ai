@@ -1133,6 +1133,35 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   React children (no raw HTML). Memory-only storage protects against the key outliving the tab, not
   against XSS; the XSS defence is the rendering rules in DESIGN.md "Security rules".
 
+## The waking-up screen (`components/WakeScreen.tsx`, `lib/serverInfo.tsx`, T-028)
+- **What it is:** the free API host (Render) sleeps after 15 minutes without visitors; the first
+  request then waits for it to start (measured: 43 s). Instead of a page that silently hangs, a
+  full-page screen shows "Waking up AI braincells..." with a small animated drawing of nerve cells
+  and an elapsed timer, then fades away when the server answers.
+- **How it connects:** the site already made one shared health check per page load
+  (`ServerInfoProvider`); that check now keeps retrying through a cold start and reports a
+  `waking` flag after 2 s. `WakeScreen` wraps the whole site in `app/layout.tsx` and reads the flag.
+- **Decision: show it only when needed.** A fast answer (the usual case) never shows it; once
+  shown it stays at least 0.8 s so a just-late answer doesn't flicker. Rejected: always showing a
+  splash (slows every visit).
+- **Decision: retry, don't just wait.** Each attempt waits up to 60 s (Render holds the first
+  request until the host is up, so a shorter cut-off would drop a request about to succeed;
+  Vercel allows 120 s), 3 s between attempts, 3 minutes in all; then a stopped state with "Try
+  again" and a link to the repo's GitHub issues (owner decisions: no email on the site, no
+  "continue anyway" since nothing works without the API).
+- **Decision: the owner's words.** "Waking up AI braincells..." exactly, after the owner rejected
+  a longer explanatory sentence; the design (seven cells, one lit at a time, calm single accent)
+  was drafted by design-advisor, shown as a mock-up, and approved.
+- **Accessibility:** the site behind the cover is `inert` (no Tab or screen-reader access to
+  hidden controls); a polite live region says "Waking up AI braincells" once, then once a minute,
+  then "Server ready", never every second; reduced motion gets a still drawing; the stopped
+  headline takes focus.
+- **Likely question:** *"Why not keep the server awake with a ping?"* That would need a scheduled
+  job pinging the API every few minutes and burns the free plan's 750 instance hours a month; the
+  owner's zero-cost rule favours an honest wait screen over gaming the free tier.
+- **Gotcha:** the tests drive it on fake timers including animation frames: the cover mounts on a
+  frame scheduled after React commits, so each clock jump is followed by a short extra step.
+
 ## Demo and live screens (`components/LivePanel.tsx`, `RecordedExamples.tsx`, `SourceSearch.tsx`, `ModeBadge.tsx`, T-018 step 9)
 - **What it is:** what each mode looks like to a visitor. The header badge says which mode the
   server is in; each model screen has one mode-note line; demo replaces the forms with recorded
