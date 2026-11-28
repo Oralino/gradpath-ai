@@ -17,7 +17,9 @@ statuses and permissions are decided in our code; the model only fills validated
   `/api/health`, `/api/demo`, `/api/demo/{id}` and `/api/search` (T-018: no model call, the owner's
   Voyage key, per-IP limited); `/api/auth/*` (T-026: Sign in with GitHub); live routes behind
   a GitHub sign-in (one signed session cookie); no CORS middleware, an Origin check on POSTs
-  (T-018 step 8). Deployed on Render behind Vercel (T-020).
+  (T-018 step 8). Deployed on Render behind Vercel (T-020). Browser relay (T-029 step 2):
+  `/api/relay/runs` (start), `/api/relay/runs/{id}` (poll) and `/api/relay/runs/{id}/replies`,
+  where the visitor's browser answers the run's model calls; see "Browser relay" below.
 - **Frontend** (`frontend/`, Milestone 6): Next.js pages that call same-origin `/api/*`, which Next
   forwards to the API, so the backend address stays server-side. The profile and the last plan stay
   in the browser (localStorage / sessionStorage) and leave it only inside a request the visitor makes.
@@ -111,6 +113,18 @@ Solo project, so the realistic risks are a phished account or a leaked key.
 | System prompt leakage | ✅ | The prompts are public in the repo by design; none holds a secret or a rule that security depends on. | — |
 | Model supply chain, theft, poisoning | — | Hosted models only; no model files, no fine-tuning. Libraries pinned (see 04). | — |
 | Hallucination | ✅ | Answers only from retrieved evidence, citations checked in code, abstention below the 0.45 threshold, critic + revision, evaluations in EVALUATION.md. | Grounding check beyond citation ids (TASKS). |
+
+### Browser relay (T-029 step 2, `providers/relay.py`, `api/relay.py`)
+For local models the visitor's browser is the model: each model call in a relay run is a prompt
+the browser polls for, runs on Ollama, LM Studio or transformers.js and answers.
+
+| Threat | Status | Defence |
+|---|---|---|
+| Someone else's run: reading its prompts (the visitor's posting and profile) or answering them | ✅ | Runs are tied to the GitHub user (`deps.relay_owner`, HMAC of the user id with a per-process secret); another user, an unknown, expired or malformed id all get the same 404. Prompt ids are uuid4 and one reply each. Relay runs have their own store, so career run ids don't work there. Tested in `test_api_relay.py`. |
+| A forged or hostile reply | ✅ | The reply only shapes the visitor's own run. It is bounded (20,000 characters, the 256 KB body cap), its `<think>` block is stripped, structured replies are validated by the same Pydantic schemas as Claude's (ids filtered to known chunks, citations checked in code) and the frontend renders model text as text. Never logged: logs hold exception types only. |
+| A held server thread (closed tab, slow or silent model) | ✅ | Every wait ends: 180 s per reply, 90 s without a poll closes the run, the visitor can stop it (`DELETE`), a run deadline (relay budget 900 s + 180 s), at most 40 prompts and 4 waiting. At most 2 relay runs on the server (`limits.RELAY`, apart from the Claude slot) and 1 per user (409). |
+| Spending the owner's Voyage budget | ✅ | Live relay runs need a GitHub sign-in (owner decision) and count against the `model` / `workflow` limits like Claude runs; a start is refused (409 / 503) before anything is charged; polls, replies and cancels have their own `relay` bucket (300 a minute per IP, 150 per user: a refused poll would look like a closed tab). Searches still go through the persistent Voyage budget. |
+| Visitor data reaching LangSmith | ✅ | Live mode forces tracing off; relay prompts are built from the same chains. |
 
 ## 08 Testing and operations
 - **Tests:** injection cases in `test_router.py` and the workflow tests (`test_workflow_*.py`); eval case

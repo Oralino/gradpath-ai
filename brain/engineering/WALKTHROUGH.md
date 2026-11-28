@@ -104,6 +104,40 @@ routing quality are measured, not assumed.
   - **Rejected:** a model server's own SDK without LangChain (the nodes would need a second code
     path); LM Studio through `ChatOllama` (it does not speak Ollama's API).
 
+## Browser relay (`providers/relay.py`, `api/relay.py`, T-029 step 2)
+- **What it is for:** a visitor on the deployed site uses their own local model (Ollama, LM Studio,
+  or a model in the browser) while the workflow still runs on the server. The server can't call the
+  visitor's `localhost`, so it turns each model call around: the call becomes a prompt the browser
+  picks up, the browser runs it locally and posts the answer back.
+- **How it connects:** `get_chat_model(tier, relay=channel)` returns `BrowserRelayChatModel`, a
+  normal LangChain chat model. The router, RAG chain and LangGraph workflow get it like any model
+  and never know the browser is behind it. A relay run (`POST /api/relay/runs`) runs in the
+  background in its own `RunStore`; the browser polls `GET /api/relay/runs/{id}`, which also
+  returns the prompts waiting for it, and posts each answer to `.../replies`.
+- **How a call waits:** `RelayChannel.ask` adds the prompt and waits on a `threading.Condition`,
+  re-checking its deadlines every quarter second; `reply` wakes it. The workflow runs some stages
+  in parallel, so several calls can wait at once; each has its own prompt id.
+- **Decision: the browser is untrusted.** The server strips a `<think>` block, pulls the JSON out
+  of the reply, validates it with the same Pydantic schema as for Claude, retries once, then lets
+  the existing labelled fallback take over. Relay errors are `ConnectionError` / `TimeoutError`
+  subclasses, so the fallback labels them like an unreachable model.
+- **Decision: every wait ends.** A reply timeout (180 s), the browser going quiet for 90 s (a closed
+  tab), and a run deadline. Otherwise one closed tab could hold a server thread for good.
+- **Decision: a separate run store and slot.** Two relay runs on the server and one per user, apart
+  from the Claude run slot: a slow model on someone's laptop must never block a Claude run.
+- **Gotcha found by the real run:** the first stand-in browser ran the model inside its poll loop,
+  so it went quiet for the whole 133 s generation and the server stopped the run as a closed tab.
+  The page must keep polling while its model works (a timer apart from the model call).
+- **Rejected:** WebSockets (Vercel's `/api` rewrite doesn't carry them and caps a request at 120 s);
+  rewriting the workflow in TypeScript for the browser (two copies of the workflow); calling the
+  visitor's model from the server (impossible from Render).
+- **Q: "What stops a visitor sending fake model answers?"** Nothing needs to: an answer only shapes
+  that visitor's own run, it is validated like any model output, and the run is tied to their
+  GitHub account, so nobody else can read or answer its prompts.
+- **Q: "Why is an Ask that becomes a plan charged later?"** An Ask is routed first; only if the
+  router picks the workflow does the run count against the plan limit (checked up front, charged
+  then), so a plain question with a profile attached doesn't use up plan runs.
+
 ## LangChain for building blocks, own code for the core
 - **Decision:** LangChain for chat models, structured output, tools, loaders, splitters, embeddings
   and the vector store; own code for retrieval logic, routing, fallback and evaluation.

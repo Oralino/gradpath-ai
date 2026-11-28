@@ -15,6 +15,13 @@ for Ollama and `localhost:1234/v1` for LM Studio from the page and runs `onnx-co
 the browser; it has no server and no Claude option).
 
 ## Decision
+Step 2 build decisions (lead, 2026-11-28): relay runs in their own `RunStore` (2 slots, 1 per
+user, apart from the Claude slot); kinds `ask`, `job`, `plan` on one poll route; the server
+validates every structured reply (one retry, then the labelled fallback); bounded waits (reply
+180 s, idle 90 s, run deadline = relay budget 900 s + 180 s, 40 prompts, 4 waiting); a cancel
+route; an Ask routed to the workflow is charged as a plan only then. Resume import stays on
+Claude.
+
 Owner decisions (2026-11-28):
 - **The LangGraph workflow does not change.** A provider factory returns an LLM instance; the
   workflow, router and RAG chain only receive it and never know which model is behind it. (Today's
@@ -82,6 +89,11 @@ Design notes still to settle while building:
     `pyproject.toml` + `uv.lock` (`local` group: `langchain-ollama==1.2.0`,
     `langchain-openai==1.8.4`; 1.8.5 needs `langchain-core>=1.8.4`, we pin 1.8.2),
     `.env.example`, `tests/test_providers.py`, `tests/test_runtime_deps.py`
+  - Step 2: `providers/relay.py`, `api/relay.py` (new), `workflows/runs.py` (`start_task`,
+    `snapshot`, `refusal`, `cancel`), `api/deps.py` (`relay_access`, `relay_owner`),
+    `api/limits.py` (`RELAY`), `api/ratelimit.py` (`relay` bucket), `api/main.py`,
+    `providers/factory.py` (`relay=`), `config.py` (`RELAY_*`), `tests/test_relay.py`,
+    `tests/test_api_relay.py`, `tests/test_demo.py`
 - Commits (hash, message):
   - `eed1291` feat: add Ollama and LM Studio as local-mode chat models (T-029)
 
@@ -93,3 +105,13 @@ Design notes still to settle while building:
   once the model had finished loading (one 400 while it was still loading). Gotcha: `lms server
   start` took port 1235 on this PC, not 1234, so `LMSTUDIO_BASE_URL` must match the port it prints.
 - Commit `eed1291` CI green (backend, frontend, docker).
+- Step 2 (2026-11-28): 992 tests pass, ruff clean. code-reviewer: no deadlock or cross-user leak;
+  fixed the relay rate limit (a refused poll looked like a closed tab), quota spent by refused
+  starts, a cancel route, a 90 s idle timeout for background tabs, `RecursionError` on nested
+  JSON, the prompt cap labelled stage_failed, and the missing tests. Real run: a plan through the
+  relay on the sample inputs, with a script as the browser forwarding prompts to Ollama
+  (`llama3.1:8b`): complete, no fallback, 5 prompts in 242 s (18 requirements, 10 roadmap items,
+  10 questions). The first attempt ended in the labelled fallback because that script stopped
+  polling during a 133 s generation: the page must poll on its own timer (step 3).
+- Left for step 3: each poll resends the full text of every waiting prompt (tens of KB a
+  second while a slow prompt waits); fine on Vercel's free bandwidth, but a cursor could cut it.

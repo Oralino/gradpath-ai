@@ -325,7 +325,7 @@ change; it only receives a chat model.
 | Step | Status | What we built | Why | Result |
 |---|---|---|---|---|
 | 1. Ollama and LM Studio on the server (local mode) | ✅ | `LLM_PROVIDER=ollama` (`ChatOllama`) and `lmstudio` (`ChatOpenAI` at LM Studio), JSON-schema structured output, libraries kept out of the API image | Free runs and evals on the owner's PC; the base for the relay | Smoke runs: `llama3.1:8b` through Ollama and `qwen2.5-7b-instruct` through LM Studio; plain and structured replies work |
-| 2. Browser relay | ⏳ | | | |
+| 2. Browser relay | ✅ | `BrowserRelayChatModel` and `RelayChannel`; `/api/relay/runs` (start, poll, reply, stop) for Ask, Job and Plan; sign-in gate, one run per user, bounded waits | The server can't reach a visitor's `localhost`, so the browser answers the run's model calls | A full plan through the relay on Ollama (`llama3.1:8b`, a script as the browser): complete in 242 s |
 | 3. Provider picker + browser clients | ⏳ | | | |
 | 4. transformers.js in a Web Worker | ⏳ | | | |
 | 5. Deployed-site checks, docs, PR | ⏳ | | | |

@@ -108,6 +108,22 @@ dependency group, so the API image leaves them out: they are imported only by
 refuses to start with them anyway. Visitors' local models on the deployed site go through the
 browser relay instead (T-029 step 2; the server can't reach a visitor's `localhost`).
 
+**Browser relay (T-029 step 2):** for a visitor's own local model the server can't call it
+(Render can't reach their `localhost`; transformers.js runs only in a browser), so the browser
+answers the run's model calls. `get_chat_model(tier, relay=channel)` returns a
+`BrowserRelayChatModel` (`providers/relay.py`); its `invoke` puts the prompt (OpenAI-style
+messages, the tier, and for structured steps the JSON schema) in the run's `RelayChannel` and the
+worker thread waits for the reply. Every relay request is a background run
+(`POST /api/relay/runs`, kinds `ask`, `job`, `plan`) in its own `RunStore` (2 slots, one per
+user); the browser polls `GET /api/relay/runs/{id}` about once a second for progress and waiting
+prompts and posts each answer to `POST /api/relay/runs/{id}/replies`. The server strips a
+`<think>` block, validates structured replies (one retry, then the labelled fallback) and bounds
+every wait (`RELAY_REPLY_TIMEOUT_S` 180, `RELAY_IDLE_TIMEOUT_S` 90 (background tabs slow timers to about one a minute), `RELAY_TIME_BUDGET_S` 900).
+Live mode needs the GitHub sign-in and no key. The browser must keep polling while its model
+works (a generation can take minutes; 90 s without a poll stops the run); `DELETE /api/relay/runs/{id}` stops a run at once. Polling, not WebSockets: Vercel's `/api` rewrite
+carries no WebSockets and caps a request at 120 s. Threats and limits: SECURITY.md, "Browser
+relay".
+
 `APP_MODE` (T-018, owner decision 2026-11-20) picks one of three modes; the default is `demo`
 because it is the safe one for a server:
 
