@@ -339,12 +339,45 @@ SITE_ONLY = b'{"detail":"Use GradPath through its website.","code":"site_only"}'
 OPEN_ROUTES = {("GET", "/api/health")}
 
 
+# Browser protections on every API reply (T-020 step 5, SECURITY.md); the site sets the same three
+# on its pages (frontend/next.config.ts). Its headers() can't reach replies the site forwards from
+# here, so the API adds them itself; Vercel passes them through.
+SECURITY_HEADERS = [
+    (b"x-frame-options", b"DENY"),
+    (b"x-content-type-options", b"nosniff"),
+    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+]
+
+
+class SecurityHeaders:
+    """Add SECURITY_HEADERS to every HTTP response that doesn't already set them, including the
+    guards' own 403/413 replies (added by `create_app` outermost). Raw ASGI, like the guards."""
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_headers(message) -> None:
+            if message["type"] == "http.response.start":
+                present = {k.lower() for k, _ in message.get("headers") or []}
+                extra = [(k, v) for k, v in SECURITY_HEADERS if k not in present]
+                message = {**message, "headers": [*(message.get("headers") or []), *extra]}
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+
 class SiteOnly:
     """Once PROXY_SHARED_SECRET is set (the deployed site), refuse every request that did not come
     through the site's own server (403), except the health check: "origin cloaking", owner
     decision T-020 step 4. Callers who skip the site can't use the API, its docs or its debug
     page at all. Unset (local, CI, the Docker smoke test): no effect. Uses `ratelimit.from_site`
-    (constant-time compare); added by `create_app` outermost, before anything reads the body.
+    (constant-time compare); added by `create_app` right inside `SecurityHeaders`, before
+    anything reads the body.
     Only "http" scopes are checked: the app has no websocket routes, and lifespan must pass."""
 
     warned_mismatch = False
@@ -447,7 +480,8 @@ def create_app(*, use_lifespan: bool = True) -> FastAPI:
     _redact_auth_queries()
     app.add_middleware(BodySizeLimit)
     app.add_middleware(OriginCheck)
-    app.add_middleware(SiteOnly)  # added last = runs first
+    app.add_middleware(SiteOnly)
+    app.add_middleware(SecurityHeaders)  # added last = runs first
     # Deliberately no CORSMiddleware: cross-origin browser reads stay blocked (T-018 step 8).
     app.add_exception_handler(RequestValidationError, _validation_handler)
     app.add_exception_handler(StarletteHTTPException, _http_handler)

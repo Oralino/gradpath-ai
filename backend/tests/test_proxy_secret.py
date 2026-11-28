@@ -276,3 +276,21 @@ def test_without_a_secret_nothing_is_blocked(monkeypatch):
     client = TestClient(create_app(use_lifespan=False))
     assert client.get("/api/health").status_code == 200
     assert client.get("/openapi.json").status_code == 200
+
+
+# --- browser protections on every reply (SecurityHeaders, T-020 step 5) ----------------------
+
+
+@pytest.mark.parametrize("path", ["/api/health", "/api/nothing-here"])
+def test_every_reply_carries_the_browser_protections(path):
+    reply = TestClient(create_app(use_lifespan=False)).get(path)
+    assert reply.headers["x-frame-options"] == "DENY"
+    assert reply.headers["x-content-type-options"] == "nosniff"
+    assert reply.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+
+
+def test_the_guards_own_refusals_carry_them_too(guarded):
+    reply = guarded.get("/api/demo")  # SiteOnly's 403, sent before the app runs
+    assert reply.status_code == 403
+    assert reply.headers["x-frame-options"] == "DENY"
+    assert reply.headers["x-content-type-options"] == "nosniff"
