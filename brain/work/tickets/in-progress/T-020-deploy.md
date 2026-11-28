@@ -146,7 +146,7 @@ Step 5 (2026-11-28), checks on the deployed site (in progress):
 - Retrieval eval on the deployed index: unchanged (EVALUATION.md, 2026-11-28).
 - Cold start measured (2026-11-28, API idle for over 2 hours): the first `/api/health` through
   the site took 43.0 s, the next 0.3 s. Owner decision: an animated waking screen,
-  [T-028](T-028-wake-up-screen.md).
+  [T-028](../done/T-028-wake-up-screen.md).
 - Owner account checks (2026-11-28, read in the browser, names and switches only): Qdrant had one
   key shared by the PC and Render; the owner made `render-api` (global read/write: read-only
   can't update the budget and cache; collection-scoped not tried) and put it in Render; after a

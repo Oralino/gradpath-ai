@@ -1,10 +1,10 @@
 # T-028: an animated "waking up" screen for the API's cold start
-Frontend feature found in Milestone 8 step 5 ([T-020](T-020-deploy.md)). The look is specified in
+Frontend feature found in Milestone 8 step 5 ([T-020](../in-progress/T-020-deploy.md)). The look is specified in
 `../../../design/DESIGN.md`; the health check is described in `../../../engineering/ARCHITECTURE.md`.
 
 - **Type:** feature
-- **Status:** in progress
-- **Opened:** 2026-11-28 · **Closed:**
+- **Status:** done
+- **Opened:** 2026-11-28 · **Closed:** 2026-11-28
 - **GitHub Issue:** none
 
 ## Summary
@@ -33,7 +33,9 @@ design-advisor in DESIGN.md and approved by the owner before it is built.
   link inside), `frontend/app/globals.css` (`--animate-fire`); tests `lib/serverInfo.test.tsx`,
   `components/WakeScreen.test.tsx` (new); DESIGN.md section and the mock-up
   `brain/design/mockups/T-028-wake-up-screen.html`; ARCHITECTURE, WALKTHROUGH.
-- Commits (hash, message):
+- Commits (hash, message): `255e885` feat: show a waking-up screen while the API wakes from
+  sleep (T-028); `c72686c` docs: record the waking-up screen design, mock-up and decisions
+  (T-028); and the closing `docs: close the waking-up screen ticket (T-028)`.
 
 ## Verification
 - Design: design-advisor drafted it in DESIGN.md and an HTML mock-up (six frames); the owner chose
@@ -54,3 +56,7 @@ design-advisor in DESIGN.md and approved by the owner before it is built.
   the retry flag reset after use; the context value memoised. Not taken: reading status through a
   ref in the cover's effect (safe while the two updates are batched); clearing "Server ready".
 - Found by a test: the issues link's accessible name lacked a space ("know(opens"); fixed.
+- Stopped state seen in the real app (slow stand-in API): hollow cells, the copy, the issues link,
+  "Try again", focus on the headline. CI green on `c72686c`; the new bundle is live on Vercel.
+- Known cosmetic limit: the stopped timer shows 2:59 rather than 3:00 (the last tick lands just
+  before the cut-off).

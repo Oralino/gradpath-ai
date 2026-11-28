@@ -2,6 +2,11 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-28
+- [T-028 Waking-up screen](tickets/done/T-028-wake-up-screen.md): while the API wakes from
+  Render's free-tier sleep (measured 43 s), a full-page "Waking up AI braincells..." screen with
+  an animated nerve-cell drawing and a timer; retries for 3 minutes, then "The braincells didn't
+  wake up." with Try again and a link to the issues. Designed by design-advisor, approved by the
+  owner from a mock-up. On the Milestone 8 branch (`255e885`, `c72686c`).
 - [T-026 Sign in with GitHub](tickets/done/T-026-github-sign-in.md): live mode's shared passcode
   replaced by a GitHub sign-in (OAuth App with PKCE, accounts 30+ days old, 1-day signed cookie,
   per-user limits). Checked with the owner's real sign-in on the deployed site; `LIVE_PASSCODE`
