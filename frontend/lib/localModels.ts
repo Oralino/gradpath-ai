@@ -24,7 +24,9 @@ export const DEFAULT_ADDRESS: Record<LocalServer, string> = {
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 export const MAX_MODELS = 200; // names shown in the picker's menus
 const MAX_NAME = 200;
-export const CHAT_TIMEOUT_MS = 170_000; // under the server's 180 s reply timeout (RELAY_REPLY_TIMEOUT_S)
+// One call, under the server's 420 s reply timeout (RELAY_REPLY_TIMEOUT_S), which also covers the
+// time a prompt waits behind another (the page answers one at a time, so no extra VRAM).
+export const CHAT_TIMEOUT_MS = 400_000;
 const LIST_TIMEOUT_MS = 60_000; // Connect gives up after this (DESIGN.md decision 15)
 // Ollama's default context can silently cut long prompts (a plan prompt is tens of KB).
 export const OLLAMA_NUM_CTX = 16_384;
@@ -129,13 +131,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// Model names from a list response: strings only, bounded, de-duplicated, in the server's order.
+// Embedding models can't chat (LM Studio lists them with the chat models), so they are left out.
+// Matched as a separate word ("nomic-embed-text", "text-embedding-...") so a chat model whose name
+// merely contains the letters, like "embedded-systems", stays listed.
+const EMBEDDING = /(^|[^a-z])embed(ding)?([^a-z]|$)/i;
+
+// Model names from a list response: strings only, bounded, de-duplicated, in the server's order,
+// without embedding models.
 function names(items: unknown, field: string): string[] {
   if (!Array.isArray(items)) throw new LocalModelError("not_server");
   const out: string[] = [];
   for (const item of items) {
     const name = isRecord(item) ? item[field] : undefined;
-    if (typeof name === "string" && name.length > 0 && name.length <= MAX_NAME && !out.includes(name)) out.push(name);
+    if (
+      typeof name === "string" &&
+      name.length > 0 &&
+      name.length <= MAX_NAME &&
+      !EMBEDDING.test(name) &&
+      !out.includes(name)
+    ) {
+      out.push(name);
+    }
     if (out.length >= MAX_MODELS) break;
   }
   return out;

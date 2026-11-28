@@ -42,7 +42,11 @@ class Settings(BaseSettings):
     # Browser relay runs (T-029 step 2): how long one prompt may wait for the browser's reply,
     # how long the browser may go without polling before the run stops (a closed tab), and the
     # time budget of a relay plan (local models are slower than Claude). Every wait ends.
-    relay_reply_timeout_s: float = Field(default=180, ge=10, le=900)
+    # 420 s: the reply timer starts when the prompt is queued, and the page answers one prompt at
+    # a time, so two parallel stages on a slow model wait back to back (T-029 step 3 real run:
+    # a 27B thinking model on LM Studio ran out at 180 s while queued). A closed tab is still
+    # caught by the idle timeout.
+    relay_reply_timeout_s: float = Field(default=420, ge=10, le=900)
     # 90 s: browsers slow timers in a background tab to about one a minute.
     relay_idle_timeout_s: float = Field(default=90, ge=10, le=300)
     relay_time_budget_s: int = Field(default=900, ge=60, le=1800)

@@ -224,7 +224,7 @@ export class RelayDriver {
   }
 
   // Post one reply, retrying a failed post (a network blip) REPLY_RETRIES times: the prompt is
-  // taken, so a lost reply would leave the server waiting out its 180 s reply timeout. A 404
+  // taken, so a lost reply would leave the server waiting out its reply timeout. A 404
   // means the prompt or run is no longer waiting: the next check-in says what happened.
   private async send(reply: RelayReply): Promise<void> {
     for (let attempt = 0; attempt <= REPLY_RETRIES && !this.ended; attempt += 1) {

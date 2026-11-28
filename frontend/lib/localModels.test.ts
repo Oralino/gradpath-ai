@@ -87,6 +87,17 @@ describe("listModels", () => {
     expect(init.referrerPolicy).toBe("no-referrer");
   });
 
+  test("embedding models are left out", async () => {
+    stubFetch(async () =>
+      jsonResponse(200, { data: [{ id: "qwen2.5-7b-instruct" }, { id: "text-embedding-nomic-embed-text-v1.5" }] }),
+    );
+    expect(await listModels("lmstudio", "http://localhost:1235/v1")).toEqual(["qwen2.5-7b-instruct"]);
+    stubFetch(async () => jsonResponse(200, { models: [{ name: "nomic-embed-text:latest" }, { name: "llama3.1:8b" }] }));
+    expect(await listModels("ollama", "http://localhost:11434")).toEqual(["llama3.1:8b"]);
+    stubFetch(async () => jsonResponse(200, { models: [{ name: "embedded-systems-7b" }] }));
+    expect(await listModels("ollama", "http://localhost:11434")).toEqual(["embedded-systems-7b"]);
+  });
+
   test("LM Studio reads /v1/models ids", async () => {
     const fetchMock = stubFetch(async () => jsonResponse(200, { data: [{ id: "qwen2.5-7b-instruct" }], object: "list" }));
     expect(await listModels("lmstudio", "http://localhost:1235/v1")).toEqual(["qwen2.5-7b-instruct"]);
