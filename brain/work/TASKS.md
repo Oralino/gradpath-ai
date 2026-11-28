@@ -8,6 +8,11 @@ Milestones follow the spec's order, adjusted to the owner's decisions (`../produ
 - [ ] [T-020](tickets/in-progress/T-020-deploy.md): Milestone 8, deploy (plan approved 2026-11-21: decisions
       in the ticket). Done: steps 0, 1 (index on Qdrant Cloud), 2, 2b (Docker image) and 3 (live
       on Render and Vercel). Next: step 4 (proxy hops), 5 (deployed-site checks), 6 (README), PR.
+- [ ] [T-026](tickets/in-progress/T-026-github-sign-in.md): Sign in with GitHub replaces the live
+      passcode. **(owner)** create the GitHub OAuth App and add its settings in Render; after the
+      deploy, delete `LIVE_PASSCODE` and sign in once on the real site.
+- [ ] DESIGN.md: record the GitHub sign-in row of the live panel (replaces the passcode field and
+      decisions 11-12; design-advisor drafts, owner approves; T-026).
 - [ ] DESIGN.md: record the visible input rows and "Build plan again" on the Plan screen
       (design-advisor drafts, owner approves; T-011 design critique).
 - [ ] PDF/DOCX resume upload (T-014 did pasted text; uploads are always-hard). Moved out of Milestone 7

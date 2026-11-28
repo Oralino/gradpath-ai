@@ -15,8 +15,9 @@ statuses and permissions are decided in our code; the model only fills validated
 - **API** (`api/`): `/api/chat`, `/api/jobs/analyze`, `/api/assist`, `/api/career/prepare`,
   `/api/career/runs` (start) and `/api/career/runs/{id}` (poll), `/api/profile/from-resume`,
   `/api/health`, `/api/demo`, `/api/demo/{id}` and `/api/search` (T-018: no model call, the owner's
-  Voyage key, per-IP limited); live routes behind a passcode; no cookies, no CORS middleware, an
-  Origin check on POSTs (T-018 step 8); not deployed. Runs on the owner's PC.
+  Voyage key, per-IP limited); `/api/auth/*` (T-026: Sign in with GitHub); live routes behind
+  a GitHub sign-in (one signed session cookie); no CORS middleware, an Origin check on POSTs
+  (T-018 step 8). Deployed on Render behind Vercel (T-020).
 - **Frontend** (`frontend/`, Milestone 6): Next.js pages that call same-origin `/api/*`, which Next
   forwards to the API, so the backend address stays server-side. The profile and the last plan stay
   in the browser (localStorage / sessionStorage) and leave it only inside a request the visitor makes.
@@ -38,7 +39,7 @@ Status key: ✅ defended · ⚠️ gap, fix now · 🕒 applies from a later mil
 |---|---|---|---|
 | SQL injection | — | No SQL database. Qdrant is queried through its client with typed filters, never string-built queries. | If a database is added (accounts, Later), parameterised queries only. |
 | XSS | ✅ / 🕒 8 | API returns JSON only; model text is bounded (1,000 chars, router reason 200). The frontend (Milestone 6, release-checked 2026-11-20) follows the rules in the next column. | Keep these rules: render model and retrieved text as plain text (React escaping, no `dangerouslySetInnerHTML`, no raw-HTML markdown: only the safe subset in `frontend/lib/modelText.ts`, parsed to data and rendered as fixed React elements, links reduced to their text); links only `http(s)` and only `source_url` values from the manifest. Source search (T-018) returns retrieved excerpts: same rule, plain text only, links only from `source_url`. Still to do: a Content-Security-Policy on deploy (8). |
-| CSRF | ✅ | No cookies or sessions; the live passcode and visitor key are custom headers a form can't set; FastAPI rejects every content type a form can send (measured: `text/plain`, url-encoded, multipart, none -> 422); `OriginCheck` refuses a POST whose `Origin` isn't in `ALLOWED_ORIGINS` (403, before anything runs); no CORS middleware, so cross-origin reads and preflights get no permission (T-018 step 8, `test_cross_site.py`, checked through `next dev`). | Milestone 8: add the deployed frontend's origin to `ALLOWED_ORIGINS` and check that Vercel's rewrite forwards the browser's `Origin` (if it drops it, requests arrive with none and pass, which is still safe; if it rewrites it, allow that value). Make a real POST through the deployed site and one with a forged foreign `Origin` through the Vercel URL (expect 403); preview-deployment URLs get 403 unless listed. |
+| CSRF | ✅ | One cookie since T-026 (`gp_session`, SameSite=Lax: browsers don't send it on a cross-site POST); the visitor key is a custom header a form can't set, and every model route needs it; FastAPI rejects every content type a form can send (measured: `text/plain`, url-encoded, multipart, none -> 422); `OriginCheck` refuses a POST whose `Origin` isn't in `ALLOWED_ORIGINS` (403, before anything runs); no CORS middleware, so cross-origin reads and preflights get no permission (T-018 step 8, `test_cross_site.py`, checked through `next dev`). | Milestone 8: add the deployed frontend's origin to `ALLOWED_ORIGINS` and check that Vercel's rewrite forwards the browser's `Origin` (if it drops it, requests arrive with none and pass, which is still safe; if it rewrites it, allow that value). Make a real POST through the deployed site and one with a forged foreign `Origin` through the Vercel URL (expect 403); preview-deployment URLs get 403 unless listed. |
 | SSRF | ✅ | `ingestion/fetch.py`: only manifest URLs with status `approved`; robots.txt re-checked on every redirect hop; content-type allow-list; at most 5 redirects. Users can't submit URLs. | Fixed in T-007: every URL and redirect hop must be https on port 443 and a manifest host; private, numeric and localhost hosts refused. Known limit: no DNS check of a manifest host. |
 | Path traversal | ✅ | `workflows/cli.py` `out_allowed`: a real profile's results only under `private/`; `evaluation/workflow_eval.py` `load_profile` refuses paths outside the repo. The API takes no file paths. | Uploads (7) must never use a client file name as a path. |
 | Unsafe file uploads | 🕒 7 | No upload endpoint. | Before any upload: size limit, type from the file's signature not its name, parse in memory, never execute or serve back, never index into the shared collection. High-risk area in CLAUDE.md. |
@@ -48,13 +49,13 @@ Status key: ✅ defended · ⚠️ gap, fix now · 🕒 applies from a later mil
 
 ## 02 Authentication and access control
 
-There are no accounts, logins or sessions today, so these threats have nothing to attack yet. They
-become design rules for Milestone 7 (a passcode or token guarding the model routes).
+There are no accounts or passwords. Since T-026 live mode has a sign-in (GitHub OAuth) and one
+session cookie; the rows below say how each threat applies to it.
 
 | Threat | Status | Rule for Milestone 7 |
 |---|---|---|
-| Brute force, password spraying, credential stuffing | ✅ | No user passwords. The live passcode (T-018 step 7): 16+ characters enforced at startup, constant-time compare, 5 failures per IP in 15 min lock that IP, never logged or echoed (tested). Shared networks (T-020 step 2): a valid session token still passes while its IP is locked (it proves an earlier correct passcode and can't be guessed); passcodes, even right ones, and bad tokens wait out the lock; limit messages say "your network". |
-| Session hijacking, session fixation | 🕒 7 | Prefer no sessions. If one is ever needed: `HttpOnly`, `Secure`, `SameSite=Strict`, a new id after login, short expiry. |
+| Brute force, password spraying, credential stuffing | ✅ | No passwords at all since T-026 (the T-018 passcode and its per-IP lock are gone): GitHub does the authentication. The session cookie is HMAC-SHA256 signed with a 32+ character `SESSION_SECRET` (constant-time compare), so guessing one is hopeless and a forged cookie locks nobody out. Sign-in routes have a per-IP limit (10/min, 50/day). |
+| Session hijacking, session fixation, login CSRF | ✅ | T-026: `gp_session` is HttpOnly, Secure, SameSite=Lax (Strict would drop the cookie on GitHub's redirect back), 1 day, signed with a purpose so the sign-in cookie can't pass as it; a new value at every sign-in (no fixation: the server never accepts an unsigned id). Login CSRF: a random `state` in a signed 10-minute cookie must match the callback (constant time), plus PKCE. No open redirect: every redirect is built from `PUBLIC_SITE_URL`. Known limits: sign-out deletes the browser's cookie but a copied cookie stays valid for its day (block the numeric id, or change `SESSION_SECRET` to sign everyone out); the GitHub token is never stored and expires in 8 hours (not revoked). |
 | Privilege escalation, broken access control | 🕒 7 | One role (visitor). Settings that cost money (revision limit, model choice) come only from server settings, never from the request: already true for `max_revisions` (`api/career.py`). |
 | IDOR / BOLA | ✅ | Live mode (T-018 step 5): each run is bound to the key that started it (HMAC owner tag; another key gets the same 404 as an unknown id). Run ids (T-016): random uuid4, validated, not listable, the same 404 for unknown/expired/malformed; a run record never holds the posting or profile; the result (profile-derived reasoning) is kept in memory for 15 min after the run, at most 20 runs. Anyone holding a run id can read that result until it expires. Guide 02 says unguessable ids aren't access control: done for live mode (above); local mode stays unbound (one user). |
 
@@ -133,6 +134,11 @@ From guide 09, narrowed to this app. Run before each release; the project's rele
 - [ ] From Milestone 7: auth on model routes, per-IP limits, CORS allow-list, visitor key never
       logged or traced, demo mode works with no keys.
 - [ ] From Milestone 8: HTTPS only, security headers, `/docs` decision, separate dev and prod keys.
+- [ ] GitHub sign-in (T-026): the OAuth App's callback is exactly
+      `PUBLIC_SITE_URL/api/auth/github/callback`; "Expire user access tokens" on; the client
+      secret and `SESSION_SECRET` only in Render's dashboard; a real sign-in through the deployed
+      site sets `gp_session` (Vercel's rewrite passes the redirects and both Set-Cookie headers);
+      Render's logs show no code, state, login or id (`RedactAuthQuery`); `LIVE_PASSCODE` deleted.
 - [ ] Live deploy, Voyage (T-020 step 2): the server uses its own revocable Voyage key; the
       budget numbers (`EMBED_BUDGET_DAILY`, `EMBED_BUDGET_TOTAL`) are set on purpose; a restart
       keeps the counts (check on the deployed site); the owner knows `SEARCH_ENABLED=false`.
@@ -140,13 +146,14 @@ From guide 09, narrowed to this app. Run before each release; the project's rele
       instances (a second Render instance, a long deploy overlap) would overwrite each other's
       counts. Demo and live refuse a local Qdrant folder (`QDRANT_URL` required). Known limit:
       live-mode plans spend from the same daily budget (about one embedding per skill), so
-      passcode holders can use up the day's public searches.
+      signed-in visitors can use up the day's public searches.
 - [ ] Live deploy (T-018): exactly one uvicorn worker (the run store, run-owner secret and slots
       are per process); never `--log-level trace`; no proxy or platform log format that records
       request headers (`X-Anthropic-Key`); `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_URL` unset (live
       refuses to start otherwise).
 - [ ] Live deploy, proxy (T-018 step 7 review): check the real `X-Forwarded-For` chain on Render
-      before setting `TRUSTED_PROXY_HOPS` (too low: every visitor shares one address and 5 wrong
-      passcodes lock everyone out; too high: a client-written entry is trusted); run uvicorn so it
+      before setting `TRUSTED_PROXY_HOPS` (too low: every visitor shares one address, so the
+      per-IP limits, sign-in's included, hit everyone at once; too high: a client-written entry
+      is trusted); run uvicorn so it
       does not rewrite the client address from the header itself (`--no-proxy-headers`, or no
       `FORWARDED_ALLOW_IPS=*`); decide `/docs`, `/redoc`, `/openapi.json` in demo and live.

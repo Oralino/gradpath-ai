@@ -118,16 +118,29 @@ file scanned for contact details, keys and local paths before it is written.
 and `get_answer_model` / `get_extraction_model` pass it to `get_chat_model(api_key=...)`; every
 API route builds its models through these two dependencies. A refused key answers 401, the
 visitor's own rate limit 429, both with fixed text and logged by type only. Background runs carry
-an owner tag (HMAC of the key with a per-process secret): polling with another key gets the same
-404 as an unknown id. The key lives in the request and, for a background run, in its worker thread
+an owner tag (HMAC of the GitHub id and the key with a per-process secret, T-026): polling as
+another user or with another key gets the same 404 as an unknown id. The key lives in the request and, for a background run, in its worker thread
 until the run ends; nothing stores, logs, traces or returns it.
 
-**Passcode and per-IP limits (T-018 step 7):** live routes need `LIVE_PASSCODE` (16+ characters)
-in the `X-GradPath-Passcode` header, compared in constant time before the visitor key; 5 wrong
-guesses from one IP in 15 minutes lock that IP (429). `api/ratelimit.py` keeps in-memory sliding
-windows per client, off in local mode: search 2/min and 60/day (plus 1,000/day in total), model routes
+**Sign in with GitHub (T-026; replaced the T-018 passcode):** live routes need a GitHub sign-in
+before the visitor key. `api/auth.py` runs a GitHub OAuth App web flow with PKCE and no scopes:
+`GET /api/auth/github/login` puts a fresh `state` and PKCE verifier in a signed cookie (`gp_oauth`,
+10 minutes) and redirects to GitHub; `GET /api/auth/github/callback` checks the state, exchanges the
+code (client secret + verifier), reads the public `id`, `login` and `created_at` once, drops the
+GitHub token, refuses accounts younger than `GITHUB_MIN_ACCOUNT_AGE_DAYS` (30) or listed in
+`GITHUB_BLOCKED_USERS`, and sets `gp_session` (HMAC-signed `{exp, id, login}`, HttpOnly, Secure,
+SameSite=Lax, 1 day). Every outcome redirects to `PUBLIC_SITE_URL/?signin=<code>`. No database:
+the signature is the proof. `GET /api/auth/me` tells the live panel who is signed in; `POST
+/api/auth/logout` clears the cookie. `deps.require_session` checks the cookie on every live route
+(401 `signin_required`). Live refuses to start without `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
+`SESSION_SECRET` (32+ characters) and an https `PUBLIC_SITE_URL`. Uvicorn's access log hides the
+query string of `/api/auth/` requests (the callback's code and state).
+
+**Rate limits (T-018 step 7, T-026):** `api/ratelimit.py` keeps in-memory sliding windows per
+client, off in local mode: search 2/min and 60/day (plus 1,000/day in total), model routes
 6/min and 60/day, workflow runs 3/hour and 10/day (also charged when `/api/assist` starts one), run
-polling 60/min. Over a limit: 429 with `Retry-After`. The client is the connection address, or
+polling 60/min, sign-in 10/min and 50/day. Model, workflow and poll limits apply per IP and again
+per signed-in GitHub user (`gh:<id>`). Over a limit: 429 with `Retry-After`. The client is the connection address, or
 with `TRUSTED_PROXY_HOPS=n` the n-th `X-Forwarded-For` entry from the right, normalised (IPv6 by
 /64 network, ports dropped). Request bodies over 256 KB get 413 before FastAPI reads them
 (`BodySizeLimit`). In memory and per process: deploy with one worker.
@@ -137,25 +150,22 @@ and Next's `/api` rewrite proxies to the API server-side, so cross-origin reads 
 `OriginCheck` (outermost ASGI middleware) answers 403 to a POST whose `Origin` header is present
 and not in `ALLOWED_ORIGINS`; requests with no `Origin` (curl, CLIs) pass.
 
-**Live check and session token (T-018 step 9):** `POST /api/live/check` (`api/live.py`, live mode
-only; demo 403, local 404) takes the passcode and key as headers, checks the passcode (counted
-towards the lock), the key's shape, then the key itself with one free Anthropic call (listing
-models), and returns `{token, expires_at}`. The token is `<expiry>.<HMAC>` over the expiry, the
-passcode and a SHA-256 of the key, with a per-process secret: it replaces the passcode header on
-later requests (`X-GradPath-Token`) for 12 hours, only together with the same key, and a restart or
-a new `LIVE_PASSCODE` voids every token. A token sent with a different key counts as a wrong
-passcode; a token sent with no key at all gets 401 `key_required` and does not count. Every error body is `{detail, code}`; the codes (`api/main.py` `error_codes`) let the
-frontend tell a wrong passcode from a refused key from a rate limit without matching text, and
-`/api/health` reports `search_enabled`.
+**Live check (T-018 step 9, T-026):** `POST /api/live/check` (`api/live.py`, live mode only;
+demo 403, local 404) needs the GitHub session first (checked before the model limit counts, so an
+anonymous caller spends nothing), then checks the key's shape and the key itself with one free
+Anthropic call (listing models), and returns `{ok: true}`; it issues nothing (the session token
+of T-018 was removed with the passcode). Every error body is `{detail, code}`; the codes
+(`api/main.py` `error_codes`) let the frontend tell signed-out from a refused key from a rate limit
+without matching text, and `/api/health` reports `search_enabled`.
 
 **Frontend modes (T-018 step 9):** `lib/serverInfo.tsx` makes one `/api/health` request per page
 load and shares `mode` (an unknown value reads as demo), `searchEnabled` and `sourcesAsOf` with the
 header, footer and screens. `lib/liveSession.ts` holds the visitor's key in module memory only and
-the session token in sessionStorage (with an in-memory copy, so live mode still works when storage
-is blocked). `lib/api.ts` adds the token and key headers to the model routes only (never to health,
+the signed-in GitHub login (from `/api/auth/me`; the session itself is an HttpOnly cookie the
+frontend never reads). `lib/api.ts` adds the key header to the model routes only (never to health,
 recordings or search), parses `code` and `Retry-After`, and on a 401 tells the live session what to
-forget (`passcode_required` drops the token, `key_refused` / `key_required` the key) and why, so
-the live panel reopens with the right message.
+forget (`signin_required` the sign-in, `key_refused` / `key_required` the key) and why, so the live
+panel reopens with the right message. `SignInNotice` shows the `?signin=` outcome once.
 
 **Source search (T-018 step 4):** `POST /api/search {query}` (`rag/sources.py`, `api/search.py`) is
 the retrieval half of RAG for visitors without a key: one Voyage request, the top passages (at most
@@ -177,8 +187,8 @@ Deployed site:
   keys needed.
 - **Live mode:** the visitor pastes an Anthropic key. It travels over HTTPS with each request, lives
   only in memory for that request, and is never stored, logged, traced or returned. Query embeddings
-  use the owner's Voyage key with a per-IP rate limit, and live routes need a shared passcode in a
-  header (owner decision 2026-11-20, T-018).
+  use the owner's Voyage key with per-IP and per-user rate limits, and live routes need a GitHub
+  sign-in (owner decision 2026-11-27, T-026; a shared passcode until then).
 - **Voyage protections (T-020 step 2):** outside local mode, `get_retrieval_service` wraps the
   query embeddings in `GuardedEmbeddings` (`retrieval/guarded.py`): a persistent query cache
   first (`retrieval/query_cache.py`, Qdrant collection `gradpath_query_cache_<model>`, keyed by a

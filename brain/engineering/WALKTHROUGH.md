@@ -978,17 +978,17 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Likely question:** *"Doesn't this make debugging harder?"* The location and message are enough
   to fix a request; the value is the one thing the client already has.
 
-## Passcode and per-IP limits (`api/ratelimit.py`, `api/deps.check_passcode`, T-018 step 7)
-- **What it is:** the gate in front of live mode and the meter on everything that costs something.
-  Live routes need a shared passcode (owner decision) before the visitor's key is even looked at;
-  every route that calls Voyage or a model counts requests per IP; source search also has a global
-  daily cap.
+## Per-IP and per-user limits (`api/ratelimit.py`, T-018 step 7, T-026)
+- **What it is:** the meter on everything that costs something. Every route that calls Voyage or a
+  model counts requests per IP, model and workflow routes count again per signed-in GitHub user
+  (T-026), and source search also has a global daily cap. (Until T-026 this section also covered
+  the shared live passcode and its 5-guess lock; GitHub sign-in replaced both.)
 - **Decision: own sliding windows, in memory.** A few dozen lines with a fake clock for tests.
   Rejected: a rate-limit library (a dependency for something this small) and Redis (infrastructure
   that can cost money). Trade-off: per process, so one worker, and a restart resets the counts.
-- **Decision: the passcode is checked before the key, and failures lock the IP.** Five wrong
-  guesses in 15 minutes and that IP gets 429 even with the right passcode; the compare is
-  constant-time and the guess is never logged (guide 02: brute force).
+- **Decision (T-026): per-user limits on top of per-IP ones.** A whole office shares one IP, and
+  one person can hop between networks: counting both means neither trick hands anyone more than
+  their share. The user check runs first and nothing is counted when a request is refused.
 - **Decision: a global cap on search.** Per-IP limits don't stop many IPs; 1,000 searches a day
   in total protects the owner's non-refreshing Voyage tokens whatever happens.
 - **Decision: which address is the client.** Behind a proxy every request looks the same, but the
@@ -1003,14 +1003,9 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Gotchas:** limits are off in local mode, so evals and the owner's runs aren't throttled. Polling
   has its own generous bucket (the Plan page polls every 2 s). `/api/assist` charges the workflow
   bucket when it starts a run, so it can't be used to skip that limit, and checks that quota before
-  its routing call. Search allows 2 a minute per client because Voyage allows 3 in total. Known and
-  accepted: concurrent wrong guesses can slightly exceed 5 before the lock (negligible against a
-  16+ character passcode).
-- **Likely questions:**
-  - *"Why not accounts?"* Owner decision: one shared passcode is enough for a portfolio demo, with
-    no passwords to store or reset (multi-user accounts are in "Later").
-  - *"What if the passcode leaks?"* Change `LIVE_PASSCODE` and restart; visitors pay with their own
-    keys, so a leak costs the owner at most the capped Voyage searches.
+  its routing call. Search allows 2 a minute per client because Voyage allows 3 in total.
+- **Likely question:** *"Why not a rate-limit service?"* One process, one instance, a few dozen
+  lines: a service would add an account and a secret for nothing the free tier needs.
 
 ## Cross-site requests: no CORS, an Origin check (`api/main.py` `OriginCheck`, T-018 step 8)
 - **What it is:** the answer to "can another website make a visitor's browser use our API?" No:
@@ -1028,51 +1023,72 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
   has nothing to ride on. The Origin check is the third layer.
 - **Gotcha:** the deployed frontend's address must be added to `ALLOWED_ORIGINS` (Milestone 8), or
   every POST from the real site gets 403. Locally the default covers `localhost:3000`.
-- **Likely question:** *"Why not CSRF tokens?"* They protect cookie sessions; we have none. Our
-  credentials (passcode, key) are custom headers, which a cross-site form can't set.
+- **Likely question:** *"Why not CSRF tokens now that there is a session cookie (T-026)?"* The
+  cookie is SameSite=Lax, so browsers don't send it on a cross-site POST; every model route also
+  needs the visitor's key in a custom header, which a cross-site form can't set; and the Origin
+  check refuses foreign POSTs first. Three layers, none of them a token to manage.
 
-## Live check and session token (`api/live.py`, `api/deps.check_passcode`, T-018 step 9)
-- **What it is:** the "Use live mode" button's backend. It answers "are this passcode and this key
-  good?" once, up front, and hands back a token so the visitor doesn't retype the passcode after a
-  reload.
-- **Decision: check before the first real request** (owner decision 12). Errors show in the panel
-  at once, and a made-up key no longer spends a Voyage search before failing. The key test is
-  Anthropic's models list, which costs nothing.
-- **Decision: a signed token, not a stored passcode** (owner decision 11). The owner wanted the
-  passcode to survive a reload; keeping the passcode in the browser would put a shared secret at
-  rest. The token is an HMAC over its expiry, the passcode and a hash of the key, with a secret
-  that exists only in the server process. It expires in 12 hours, can't be stretched, and dies on
-  a restart or a passcode change. Rejected: a server-side session table (state to keep and expire;
-  the HMAC needs none).
-- **Decision: the token is bound to the key.** A stolen token is useless without the key, which
-  only lives in the visitor's tab. Side effect: the token also proves the key, so after a reload
-  re-entering the same key needs no new check; a different key fails as "passcode needed" and the
-  passcode field returns.
-- **Gotcha:** a token sent with another key counts as a wrong passcode towards the 5-guess lock,
-  so five mismatched keys after a reload lock that IP for 15 minutes. Accepted: a real visitor
-  enters the passcode again after the first refusal (the panel asks for it).
-- **Likely question:** *"Why not a JWT library?"* One HMAC over three fields with
-  `hmac.compare_digest` is the whole job; a JWT library adds algorithm choices to get wrong.
+## Sign in with GitHub (`api/auth.py`, `api/deps.require_session`, T-026)
+- **What it is:** the gate in front of live mode. A visitor signs in with GitHub once a day, then
+  uses their own Anthropic key. It replaced a shared passcode that the owner had to send to every
+  tester (owner decision 2026-11-27). The gate exists because live mode spends the owner's Voyage
+  key on embeddings, even though the model runs on the visitor's key.
+- **How it flows:** the button links to `/api/auth/github/login`, which sends the browser to GitHub
+  with a random `state` and a PKCE challenge (both remembered in a signed 10-minute cookie). GitHub
+  sends the browser back to `/api/auth/github/callback` with a one-time `code`; the server checks
+  the state, swaps the code for a token (with the client secret and the PKCE verifier), reads the
+  visitor's public profile once, forgets the token, and sets `gp_session`. Every outcome lands on
+  the home page as `/?signin=ok|too_new|blocked|denied|failed`.
+- **Decision: no database.** The session cookie is the data plus an HMAC signature: `{exp, id,
+  login}` signed with `SESSION_SECRET`. The server can check it without storing anything, which
+  fits Render's free tier (memory and disk are wiped on restart). Trade-off: a cookie can't be
+  revoked one by one; it dies after a day, by blocking the user's id, or by changing the secret
+  (everyone signs in again).
+- **Decision: GitHub, not our own accounts.** No passwords to store, reset or leak, no email
+  addresses; GitHub already fights fake accounts. The 30-day account age (owner decision) stops
+  freshly made throwaway accounts; the block list handles anyone who misbehaves.
+- **Decision: an OAuth App with no scopes.** The server only needs to know who someone is, so it
+  asks for no permissions; GitHub's consent page shows exactly that. Rejected: a GitHub App (more
+  setup for the same result).
+- **Decision: PKCE and `state`, both.** `state` stops login CSRF (someone signing you in as them);
+  PKCE makes a leaked `code` useless without the verifier, which never leaves our server.
+- **Gotchas:** `SameSite=Lax`, not Strict: GitHub's redirect back is a cross-site navigation, and
+  Strict would drop the sign-in cookie on it. The callback's code and state sit in the URL, and
+  uvicorn's access log prints URLs, so `RedactAuthQuery` hides the query on `/api/auth/` lines (a
+  test caught this). `/api/live/check` checks the session before the model limit counts, so
+  anonymous callers can't spend a shared network's limit (review finding).
+- **Likely questions:**
+  - *"Why not a JWT library?"* One HMAC over a small JSON body with `hmac.compare_digest` is the
+    whole job; a JWT library adds algorithm choices to get wrong.
+  - *"What if someone copies a session cookie?"* It's HttpOnly (scripts can't read it) and only
+    sent over HTTPS; a copy works for at most a day and only with that person's own Anthropic key.
+  - *"What does GradPath learn about me?"* Your GitHub id, username and account creation date, once.
+    Only the id and username stay, inside your own cookie; nothing is logged.
+
+## Live check (`api/live.py`, T-018 step 9, T-026)
+- **What it is:** the "Use live mode" button's backend: "is this key good?", checked once, up front,
+  with Anthropic's free models list. Errors show in the panel at once instead of after a search.
+- **Decision (T-026): it issues nothing.** Until T-026 it returned a token standing in for the
+  passcode; the session cookie now proves the sign-in, so the check only checks the key.
 
 ## Frontend live session and shared server info (`lib/liveSession.ts`, `lib/serverInfo.tsx`, `lib/api.ts`, T-018 step 9)
 - **What it is:** the browser half of live mode, and the one place every screen learns the server's
-  mode. Screens never touch the key or the token; they call `useLiveSession()` (which says only
-  whether each is held) and `useServerInfo()`.
+  mode. Screens never touch the key; they call `useLiveSession()` (which says only whether a key
+  is held and who is signed in) and `useServerInfo()`.
 - **Decision: the key in module memory only.** Not localStorage or sessionStorage, not React state
   that outlives the panel, not the URL: a reload or a closed tab drops it, which is the promise the
-  panel's copy makes. The token is the only thing at rest, in sessionStorage (one tab, gone when the
-  tab closes), with an in-memory copy so a browser that blocks storage still works until reload.
+  panel's copy makes. The GitHub session is an HttpOnly cookie the frontend never reads; the
+  signed-in login comes from `/api/auth/me` (T-026; the T-018 token in sessionStorage is gone).
 - **Decision: credentials on model routes only.** `post`/`get` add the headers only when the call
   asks for them (`auth = true`); health, recordings and search never carry the key, so it goes
   nowhere it isn't needed. Tests check every route both ways.
-- **Decision: the api client reacts to 401s itself.** One place maps `passcode_required` to "drop
-  the token" and `key_refused` / `key_required` to "drop the key", and remembers the server's fixed
+- **Decision: the api client reacts to 401s itself.** One place maps `signin_required` to "show
+  the sign-in button again" and `key_refused` / `key_required` to "drop the key", and remembers the server's fixed
   text, so every screen's panel reopens with the right message without each screen parsing errors.
 - **Decision: one health request, shared.** A React context in the layout; an unknown `app_mode`
   reads as demo (fail closed): no screen offers a model call the server won't make.
 - **Gotcha:** `useSyncExternalStore` needs the same snapshot object while nothing changed, or React
-  re-renders forever; the snapshot is rebuilt only when a value changes (a token can also expire
-  between renders, which the next render notices).
+  re-renders forever; the snapshot is rebuilt only when a value changes.
 - **Likely question:** *"Can a script on the page read the key?"* Yes, any script running in the
   page could, which is why the site loads no third-party scripts and renders all server text as
   React children (no raw HTML). Memory-only storage protects against the key outliving the tab, not
@@ -1081,7 +1097,8 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 ## Demo and live screens (`components/LivePanel.tsx`, `RecordedExamples.tsx`, `SourceSearch.tsx`, `ModeBadge.tsx`, T-018 step 9)
 - **What it is:** what each mode looks like to a visitor. The header badge says which mode the
   server is in; each model screen has one mode-note line; demo replaces the forms with recorded
-  runs; live adds an inline panel where the visitor brings a passcode and their own key; `/search`
+  runs; live adds an inline panel where the visitor signs in with GitHub and brings their own key
+  (T-026; a passcode until then); `/search`
   works in every mode with no model.
 - **Decision: recordings use the screens' own result components** (owner decision 8). A visitor on
   "Analyse a job" sees a real job analysis, rendered by the same code as a live one. The only
@@ -1097,13 +1114,12 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Decision: screens stay quiet on a 401.** The api client already told the live session what to
   forget and why; the panel reopens and says it in the right field. A screen showing its own error
   panel too would say the same thing twice, in the wrong place.
-- **Gotchas:** after a reload only the key is asked (the token remembers the passcode) and nothing
-  is checked until the first real request, because the check endpoint needs the passcode; the token
-  is bound to the key, so a different key comes back as "passcode needed". The live session is
-  shared by every page, so a refusal is forgotten when the panel that explained it unmounts.
+- **Gotchas:** after a reload the GitHub sign-in survives (a cookie, for a day) but the key must be
+  typed again (memory only). The live session is shared by every page, so a refusal is forgotten
+  when the panel that explained it unmounts.
 - **Likely questions:**
   - *"How do you test that the key is never stored?"* The panel tests fill the key, succeed, then
-    assert it is in neither storage nor the page's HTML, and that only the token is stored.
+    assert it is in neither storage nor the page's HTML.
   - *"Why does demo still call the API?"* For the recordings and the search: no model runs, and
     demo starts with no keys at all (a release check).
 
@@ -1235,7 +1251,8 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Decision: a valid session token passes a locked network.** Limits are per IP, and a whole
   household or campus can share one. The passcode lock exists to stop guessing; a token proves an
   earlier correct passcode and can't be guessed, so it's checked before the lock. Passcodes, even
-  right ones, still wait out the lock.
+  right ones, still wait out the lock. (Superseded by T-026: the passcode, its token and its lock
+  are gone; see "Sign in with GitHub".)
 - **Gotcha:** LangChain's `QdrantVectorStore` checks the collection at startup by embedding a
   probe text, a real Voyage call on every restart outside the budget. Our searches always pass
   vectors, so the check is turned off (`validate_collection_config=False`).
