@@ -144,6 +144,15 @@ Step 5 (2026-11-28), checks on the deployed site (in progress):
   of the HIGH, only `zlib1g` and `libzstd1` have a fixed version, the rest none yet (most in
   tools the API never runs: util-linux, login, systemd-homed).
 - Retrieval eval on the deployed index: unchanged (EVALUATION.md, 2026-11-28).
+- **Trivy fix (owner chose option A plus a CI job, after asking what others do):** the runtime
+  stage installs Debian's security updates and removes the base image's `pip`; CI's `docker` job
+  runs Trivy 0.76.2 (pinned by digest) with two gates: fixable HIGH/CRITICAL, and any CRITICAL.
+  Locally: Trivy 0.76.2 also flagged `urllib3`/`msgpack` inside the base's `pip` (our `.venv`
+  has `urllib3` 2.8.0, fixed); after the change both gates exit 0; full scan 53 HIGH = 13
+  distinct, none with a fix, recorded as accepted in SECURITY.md. The image starts in demo mode
+  with no keys and answers `/api/health`, 169 MiB idle; size 560 -> 602 MB. Rejected: bumping the
+  base image pin (fixed zlib only and added the `pip` findings); `--ignore-unfixed` alone.
+  `pip-audit` and `npm audit` stay manual release checks.
 
 Step 4 (2026-11-28), shared-secret client address, before deploy:
 - Files: `api/ratelimit.py` (`from_site`, `client_ip`), `api/debug.py` (new), `api/main.py`

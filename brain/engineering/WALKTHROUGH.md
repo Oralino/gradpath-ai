@@ -1267,6 +1267,35 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
     were. Measured before choosing: dropping the dev-only groups cut the image far more than any
     base swap could, and kept the same Debian and Python build CI already tests.
 
+## Vulnerability scanning of the image (Trivy in CI, `backend/Dockerfile`, T-020 step 5)
+- **What it is:** Trivy (free, open source) lists known vulnerabilities (CVEs) in everything inside
+  the API image: Debian's system packages and every Python package. CI scans the image it just
+  built on every push.
+- **What the first scan found:** 0 CRITICAL; 55 HIGH, all in the Debian base packages, but really
+  15 distinct flaws (one util-linux flaw is reported once per util-linux package). Two had a
+  fixed version Debian had already published (zlib, zstd). A newer Trivy then also found HIGH
+  findings in `urllib3` and `msgpack` copies bundled inside the base image's own `pip`; our app's
+  `urllib3` was already fixed.
+- **Decision: install Debian's security updates when building, and drop `pip`.** One `RUN` in the
+  runtime stage: `apt-get upgrade`, remove the apt lists, `pip uninstall pip`. After it: 0
+  fixable HIGH/CRITICAL. Rejected: bumping the pinned base image (fixed zlib but not zstd, and
+  brought the pip findings along); doing nothing. What others do (owner asked): Docker's old
+  advice was to avoid `apt-get upgrade`; the best-known counter-argument (pythonspeed) is that
+  skipping security updates is the worse practice, and Docker now stresses rebuilding often. We
+  install the updates and rebuild on every push. Removing `pip` follows the general multi-stage
+  rule: ship only what runs.
+- **Decision: two gates, not `--ignore-unfixed` alone.** Fail on any HIGH or CRITICAL that has a
+  fix (we can always act on those), and fail on any CRITICAL at all, because sources warn that
+  `--ignore-unfixed` alone would let a future unfixed CRITICAL pass silently. An accepted one goes
+  in `.trivyignore` with a reason and an expiry date.
+- **Likely question:** *"Why are there still 53 HIGH findings?"* They are 13 distinct flaws that
+  Debian hasn't published a fix for yet, so nothing can be installed to remove them; none is
+  reachable by the API (mount tools, login, QUIC, SQLite FTS5). The next build after Debian's fix
+  picks it up, and CI stops a build that leaves a fixable one. A minimal base image without those
+  packages is a later option.
+- **Gotcha:** fixes arrive only when the image is rebuilt (a push). The image also grew 42 MB
+  (602 MB): updated packages sit in a new layer on top of the old ones.
+
 ## Protecting the owner's Voyage key on the deployed site (`retrieval/budget.py`, `retrieval/query_cache.py`, `retrieval/guarded.py`, T-020 step 2)
 - **What it is:** every question the deployed server turns into a vector is paid with the
   owner's Voyage key, whose free tokens never refresh. `GuardedEmbeddings` sits in front of the

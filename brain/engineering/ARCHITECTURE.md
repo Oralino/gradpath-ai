@@ -221,8 +221,11 @@ Deployed site:
   environment, `backend/src`, `demo_runs/` and `knowledge_base/index_info.json`, runs as a non-root
   user with `HF_HUB_OFFLINE=1`, and starts one uvicorn worker on `$PORT`. The root `.dockerignore`
   is an allowlist, so `.env`, `private/` and the local index never enter the build. Keys and
-  `QDRANT_URL` come from the host's environment at run time. CI's `docker` job builds the image,
-  checks its contents, and starts it in demo mode with no keys. Known limit: the offline setting
+  `QDRANT_URL` come from the host's environment at run time. The runtime stage installs Debian's
+  security updates at build time (`apt-get upgrade`) and removes the base image's `pip` (never
+  used at run time; its bundled libraries carried fixed HIGH findings), T-020 step 5. CI's `docker`
+  job builds the image, checks its contents, starts it in demo mode with no keys, and scans it
+  with Trivy (fails on any fixable HIGH/CRITICAL and on any CRITICAL). Known limit: the offline setting
   covers the Voyage tokenizer only; fastembed's BM25 and reranker models (eval-only today) are
   not in the image and would need the network if the API ever used them.
 
