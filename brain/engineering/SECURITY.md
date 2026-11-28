@@ -158,6 +158,16 @@ From guide 09, narrowed to this app. Run before each release; the project's rele
       the site works. Changing the secret: set the new value in Render and Vercel, then
       redeploy Vercel; until both match, the site answers 403 `site_only` (a short outage, never
       an opening).
+      **Runbook, secret mismatch.** Symptom: every action on the site shows "The site can't
+      reach its server right now". Render's logs (search `wrong site secret`) show the one-time
+      warning; no such line means Vercel sends no secret at all (missing or badly pasted, so
+      `proxy.ts` treats it as unset). Fix (owner): copy the value from Render (the source of
+      truth), paste it into Vercel's `PROXY_SHARED_SECRET` with no surrounding spaces, redeploy
+      Vercel, then reload the site and run a search. If the value may have leaked, Generate a
+      new one in Render first. Emergency switch: delete `PROXY_SHARED_SECRET` in Render only; the
+      site works at once, but until it's restored direct calls are not blocked and visitors
+      share one rate-limit bucket. (Not planned: zero-downtime rotation by accepting a previous
+      secret too; always-hard, not worth it for a solo site.)
 - [x] Live deploy, client address (T-020 step 4, checked 2026-11-28): `PROXY_SHARED_SECRET` set to the same 32+
       character random value in Render and Vercel (server settings only, never a `NEXT_PUBLIC_`
       name; not in `.next/static`); through the site the debug page's `rate_limit_key` is the
