@@ -218,14 +218,31 @@ def test_lmstudio_provider_builds_openai_client_with_placeholder_key(monkeypatch
     assert llm.openai_proxy is None
 
 
-@pytest.mark.parametrize("provider", ["ollama", "lmstudio"])
+def test_llamacpp_provider_builds_openai_client_without_thinking(monkeypatch):
+    from langchain_openai import ChatOpenAI
+
+    # Environment values must not redirect the client or send a real key to llama-server.
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://example.invalid/v1")
+    monkeypatch.setenv("OPENAI_API_KEY", "real-openai-key")
+    monkeypatch.setenv("OPENAI_PROXY", "http://proxy.invalid:8080")
+    llm = get_chat_model("smart", settings=local_settings("llamacpp", local_llm_timeout_s=90))
+    assert isinstance(llm, ChatOpenAI) and llm.model_name == "qwen2.5:7b"
+    assert llm.openai_api_base == "http://localhost:9931/v1"
+    assert llm.openai_api_key.get_secret_value() == "llama-cpp"
+    assert str(llm.root_client.base_url).startswith("http://localhost:9931/v1")
+    assert llm.request_timeout == 90
+    assert llm.openai_proxy is None
+    assert llm.extra_body == {"chat_template_kwargs": {"enable_thinking": False}}
+
+
+@pytest.mark.parametrize("provider", ["ollama", "lmstudio", "llamacpp"])
 def test_local_server_refuses_claude_model_names(provider):
     s = Settings(_env_file=None, llm_provider=provider)  # default Haiku / Sonnet names
     with pytest.raises(ValueError, match="local model names"):
         get_chat_model("fast", settings=s)
 
 
-@pytest.mark.parametrize("provider", ["ollama", "lmstudio"])
+@pytest.mark.parametrize("provider", ["ollama", "lmstudio", "llamacpp"])
 def test_local_server_refuses_a_request_key(provider):
     with pytest.raises(ValueError, match="anthropic_api"):
         get_chat_model(settings=local_settings(provider), api_key=SecretStr("visitor-key"))
@@ -237,8 +254,9 @@ def test_with_structure_uses_json_schema_for_ollama():
     assert bound.kwargs["format"] == Skill.model_json_schema()
 
 
-def test_with_structure_uses_json_schema_for_lmstudio():
-    llm = get_chat_model("fast", settings=local_settings("lmstudio"))
+@pytest.mark.parametrize("provider", ["lmstudio", "llamacpp"])
+def test_with_structure_uses_json_schema_for_openai_style_servers(provider):
+    llm = get_chat_model("fast", settings=local_settings(provider))
     bound = with_structure(llm, Skill).first
     # The OpenAI client's parse call turns the class into a `json_schema` response_format; not
     # tool calling, which small local models handle poorly.

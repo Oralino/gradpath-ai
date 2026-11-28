@@ -26,17 +26,20 @@ class Settings(BaseSettings):
         env_file=REPO_ROOT / ".env", env_file_encoding="utf-8", extra="ignore"
     )
 
-    llm_provider: Literal["claude_code", "anthropic_api", "ollama", "lmstudio", "fake"] = (
-        "claude_code"
-    )
+    llm_provider: Literal[
+        "claude_code", "anthropic_api", "ollama", "lmstudio", "llamacpp", "fake"
+    ] = "claude_code"
     anthropic_api_key: SecretStr | None = None
     # Owner decision 2026-11-17: Haiku for routing and extraction, Sonnet for answers and plans.
-    # Under ollama / lmstudio these name the local models (both may be the same model, T-029).
+    # Under ollama / lmstudio / llamacpp these name the local models (both may be the same model,
+    # T-029).
     model_fast: str = "claude-haiku-5-5"
     model_smart: str = "claude-sonnet-5-5"
-    # Local model servers on this PC (LLM_PROVIDER=ollama / lmstudio, local mode only, T-029).
+    # Local model servers on this PC (LLM_PROVIDER=ollama / lmstudio / llamacpp, local mode
+    # only, T-029).
     ollama_base_url: str = "http://localhost:11434"
     lmstudio_base_url: str = "http://localhost:1234/v1"
+    llamacpp_base_url: str = "http://localhost:9931/v1"  # llama-server's default port on this PC
     # Seconds one local-model call may take (local models on a CPU are slow).
     local_llm_timeout_s: float = Field(default=300, ge=5, le=1800)
     # Browser relay runs (T-029 step 2): how long one prompt may wait for the browser's reply,

@@ -15,7 +15,7 @@ from gradpath.tracing import is_tracing
 
 Tier = Literal["fast", "smart"]
 # Providers served by a model server on this PC (T-029); their clients live in `local_servers`.
-LOCAL_SERVERS = ("ollama", "lmstudio")
+LOCAL_SERVERS = ("ollama", "lmstudio", "llamacpp")
 
 
 def get_chat_model(
@@ -32,7 +32,7 @@ def get_chat_model(
     and never stored. A request key never falls back to the server key (even when empty) and is
     refused under providers that can't use it, so a visitor can never run on the owner's account.
     It is also refused while tracing is on, so a visitor's request is never traced.
-    Under `ollama` / `lmstudio` the tier's name is a local model's (a `claude-*` name is refused),
+    Under a local server provider the tier's name is a local model's (a `claude-*` name is refused),
     and the client module is imported only then, as the API image leaves its libraries out.
     `relay` (T-029 step 2) is a relay run's channel: the model is then the visitor's browser,
     whatever LLM_PROVIDER says, and a request key is refused with it.
