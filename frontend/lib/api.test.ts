@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { api, ApiError, MESSAGES, toApiError } from "@/lib/api";
-import { authHeaders, resetForTests, setKey, setToken } from "@/lib/liveSession";
+import { authHeaders, liveState, resetForTests, setKey, setSignIn } from "@/lib/liveSession";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -102,10 +102,10 @@ describe("importResume", () => {
 
 describe("error codes and Retry-After (T-018)", () => {
   test("401 is auth with the server's fixed text and code", async () => {
-    const detail = "Live mode needs the passcode from the site owner.";
-    const error = await toApiError(jsonResponse(401, { detail, code: "passcode_required" }));
+    const detail = "Sign in with GitHub to use live mode.";
+    const error = await toApiError(jsonResponse(401, { detail, code: "signin_required" }));
     expect(error.kind).toBe("auth");
-    expect(error.code).toBe("passcode_required");
+    expect(error.code).toBe("signin_required");
     expect(error.message).toBe(detail);
   });
 
@@ -138,7 +138,6 @@ describe("error codes and Retry-After (T-018)", () => {
 });
 
 describe("credentials go to model routes only (T-018)", () => {
-  const TOKEN = `1795000000.${"b".repeat(64)}`;
   const KEY = "sk-ant-test-1111";
   const LATER = new Date(Date.now() + 3_600_000).toISOString();
 
@@ -162,14 +161,14 @@ describe("credentials go to model routes only (T-018)", () => {
     ["prepare", () => api.prepare({} as never)],
     ["startRun", () => api.startRun({} as never)],
     ["getRun", () => api.getRun("abc")],
-  ])("%s sends the token and the key", async (_name, call) => {
+  ])("%s sends the key and nothing else of the visitor's", async (_name, call) => {
     const fn = stubOk();
     setKey(KEY);
-    setToken(TOKEN, LATER);
+    setSignIn(true, "octocat", LATER);
     await call();
     const headers = headersOf(fn.mock.calls[0][1]);
-    expect(headers["x-gradpath-token"]).toBe(TOKEN);
     expect(headers["x-anthropic-key"]).toBe(KEY);
+    expect(Object.keys(headers).filter((name) => name.startsWith("x-"))).toEqual(["x-anthropic-key"]);
   });
 
   test.each([
@@ -177,49 +176,72 @@ describe("credentials go to model routes only (T-018)", () => {
     ["recordings", () => api.recordings()],
     ["recording", () => api.recording("ask-1")],
     ["search", () => api.search("what is an index")],
-  ])("%s sends neither", async (_name, call) => {
+    ["me", () => api.me()],
+  ])("%s does not send the key", async (_name, call) => {
     const fn = stubOk();
     setKey(KEY);
-    setToken(TOKEN, LATER);
+    setSignIn(true, "octocat", LATER);
     await call();
     const headers = headersOf(fn.mock.calls[0][1]);
-    expect(headers["x-gradpath-token"]).toBeUndefined();
     expect(headers["x-anthropic-key"]).toBeUndefined();
     expect(JSON.stringify(fn.mock.calls[0])).not.toContain(KEY);
   });
 
-  test("liveCheck sends the trimmed passcode and key once, as headers, no body", async () => {
-    const fn = stubOk({ token: TOKEN, expires_at: LATER });
-    const result = await api.liveCheck("  pass  ", ` ${KEY} `);
-    expect(result.token).toBe(TOKEN);
+  test("liveCheck sends the trimmed key once, as a header, no body", async () => {
+    const fn = stubOk({ ok: true });
+    const result = await api.liveCheck(` ${KEY} `);
+    expect(result.ok).toBe(true);
     const [url, init] = fn.mock.calls[0];
     expect(url).toBe("/api/live/check");
     expect(init.method).toBe("POST");
     expect(init.body).toBeUndefined();
-    expect(headersOf(init)).toEqual({ "x-gradpath-passcode": "pass", "x-anthropic-key": KEY });
+    expect(headersOf(init)).toEqual({ "x-anthropic-key": KEY });
   });
 
-  test("a 401 key_refused on a model route forgets the key but keeps the token", async () => {
+  test("me is a plain GET of /api/auth/me", async () => {
+    const fn = stubOk({ signed_in: true, login: "octocat", expires_at: LATER });
+    expect(await api.me()).toEqual({ signed_in: true, login: "octocat", expires_at: LATER });
+    expect(fn.mock.calls[0][0]).toBe("/api/auth/me");
+    expect(fn.mock.calls[0][1].method).toBe("GET");
+  });
+
+  test("logout POSTs an empty JSON body and resolves on 204", async () => {
+    const fn = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(
+      async () => new Response(null, { status: 204 }),
+    );
+    vi.stubGlobal("fetch", fn);
+    setKey(KEY);
+    await expect(api.logout()).resolves.toBeUndefined();
+    const [url, init] = fn.mock.calls[0];
+    expect(url).toBe("/api/auth/logout");
+    expect(init.method).toBe("POST");
+    expect(init.body).toBe("{}");
+    expect(headersOf(init)["x-anthropic-key"]).toBeUndefined();
+  });
+
+  test("a 401 key_refused on a model route forgets the key but keeps the sign-in", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => jsonResponse(401, { detail: "Anthropic refused this API key.", code: "key_refused" })),
     );
     setKey(KEY);
-    setToken(TOKEN, LATER);
+    setSignIn(true, "octocat", LATER);
     const error = await api.chat({ question: "q" } as never).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).code).toBe("key_refused");
-    expect(authHeaders()).toEqual({ "X-GradPath-Token": TOKEN });
+    expect(authHeaders()).toEqual({});
+    expect(liveState().signedIn).toBe(true);
   });
 
-  test("a 401 passcode_required forgets the token but keeps the key", async () => {
+  test("a 401 signin_required signs out but keeps the key", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => jsonResponse(401, { detail: "Passcode needed.", code: "passcode_required" })),
+      vi.fn(async () => jsonResponse(401, { detail: "Sign in with GitHub.", code: "signin_required" })),
     );
     setKey(KEY);
-    setToken(TOKEN, LATER);
+    setSignIn(true, "octocat", LATER);
     await api.chat({ question: "q" } as never).catch(() => undefined);
     expect(authHeaders()).toEqual({ "X-Anthropic-Key": KEY });
+    expect(liveState().signedIn).toBe(false);
   });
 });

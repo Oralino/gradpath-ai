@@ -127,7 +127,7 @@ export function ResumeImport({
     );
   }
   const liveMode = info.status === "ready" && info.mode === "live";
-  const liveReady = session.hasKey && session.hasToken;
+  const liveReady = session.hasKey && session.signedIn;
 
   const busy = error?.kind === "busy";
   const count = charCount(text);

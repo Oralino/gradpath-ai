@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Atkinson_Hyperlegible_Next } from "next/font/google";
+import { SignInNotice } from "@/components/SignInNotice";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SourcesDate } from "@/components/SourcesDate";
 import { ServerInfoProvider } from "@/lib/serverInfo";
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ServerInfoProvider>
           <SiteHeader />
           <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-12 sm:px-6 lg:px-8">
+            <SignInNotice />
             {children}
           </main>
           <footer className="border-t border-rule">

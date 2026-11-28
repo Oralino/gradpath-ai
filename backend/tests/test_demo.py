@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from gradpath.api import deps
 from gradpath.api import main as main_module
+from gradpath.api.auth import SIGNIN_NEEDED
 from gradpath.api.main import create_app
 from gradpath.config import REPO_ROOT, Settings
 from gradpath.demo import DemoLibrary, load_library
@@ -229,7 +230,7 @@ OPEN_ROUTES = {
     ("get", "/api/demo"),
     ("get", "/api/demo/{recording_id}"),
     ("post", "/api/search"),  # no model call (T-018 step 4)
-    ("post", "/api/live/check"),  # checks the passcode and key itself (T-018 step 9)
+    ("post", "/api/live/check"),  # checks the sign-in and key itself (T-018 step 9, T-026)
 }
 
 
@@ -254,8 +255,8 @@ def test_model_routes_are_refused_outside_local_mode(monkeypatch, mode, method, 
         app.dependency_overrides[dep] = must_not_run
     # An invalid body too: the guard answers before validation, so nothing is echoed back.
     resp = getattr(TestClient(app), method)(path, **({"json": {}} if method == "post" else {}))
-    # Demo is closed; live without the passcode asks for it first (T-018 step 7).
-    expected = (403, deps.MODEL_ROUTES_OFF) if mode == "demo" else (401, deps.PASSCODE_NEEDED)
+    # Demo is closed; live without a GitHub sign-in asks for one first (T-026).
+    expected = (403, deps.MODEL_ROUTES_OFF) if mode == "demo" else (401, SIGNIN_NEEDED)
     assert (resp.status_code, plain(resp.json())) == (expected[0], {"detail": expected[1]})
 
 

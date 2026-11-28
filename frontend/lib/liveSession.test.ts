@@ -1,20 +1,19 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import {
-  TOKEN_STORAGE_KEY,
   authHeaders,
   clearAll,
   clearKey,
   clearRefusal,
-  clearToken,
+  clearSignIn,
   onAuthError,
   resetForTests,
   setKey,
-  setToken,
+  setSignIn,
+  setSignInUnavailable,
   useLiveSession,
 } from "@/lib/liveSession";
 
-const TOKEN = `1795000000.${"a".repeat(64)}`;
 const KEY = "sk-ant-test-0000";
 const LATER = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
@@ -25,31 +24,11 @@ afterEach(() => {
 });
 
 describe("storage", () => {
-  test("the key is never written to any browser storage", () => {
+  test("nothing is written to any browser storage", () => {
     setKey(KEY);
-    setToken(TOKEN, LATER);
-    const stored = JSON.stringify({ ...window.sessionStorage }) + JSON.stringify({ ...window.localStorage });
-    expect(stored).not.toContain(KEY);
-    expect(stored).toContain(TOKEN);
+    setSignIn(true, "octocat", LATER);
+    expect(window.sessionStorage.length).toBe(0);
     expect(window.localStorage.length).toBe(0);
-  });
-
-  test("a token of the wrong shape or with a bad date is not stored", () => {
-    setToken("not-a-token", LATER);
-    setToken(TOKEN, "never");
-    expect(window.sessionStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull();
-  });
-
-  test("an expired or tampered stored token is dropped", () => {
-    window.sessionStorage.setItem(
-      TOKEN_STORAGE_KEY,
-      JSON.stringify({ token: TOKEN, expiresAt: Date.now() - 1 }),
-    );
-    expect(authHeaders()).toEqual({});
-    expect(window.sessionStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull();
-
-    window.sessionStorage.setItem(TOKEN_STORAGE_KEY, "{not json");
-    expect(authHeaders()).toEqual({});
   });
 });
 
@@ -58,10 +37,11 @@ describe("authHeaders", () => {
     expect(authHeaders()).toEqual({});
   });
 
-  test("token and key when both are held; values trimmed", () => {
+  test("only the trimmed key, signed in or not", () => {
     setKey(`  ${KEY}  `);
-    setToken(TOKEN, LATER);
-    expect(authHeaders()).toEqual({ "X-GradPath-Token": TOKEN, "X-Anthropic-Key": KEY });
+    expect(authHeaders()).toEqual({ "X-Anthropic-Key": KEY });
+    setSignIn(true, "octocat", LATER);
+    expect(authHeaders()).toEqual({ "X-Anthropic-Key": KEY });
   });
 
   test("a blank key is not held", () => {
@@ -70,95 +50,117 @@ describe("authHeaders", () => {
   });
 });
 
+describe("sign-in state", () => {
+  test("mirrors /api/auth/me; a malformed login counts as signed out", () => {
+    const { result } = renderHook(() => useLiveSession());
+    expect(result.current.signIn).toBe("unknown");
+    act(() => setSignIn(true, "octo-cat", LATER));
+    expect(result.current).toMatchObject({ signIn: "signed_in", signedIn: true, login: "octo-cat" });
+    act(() => setSignIn(true, "<script>", LATER));
+    expect(result.current).toMatchObject({ signIn: "signed_out", signedIn: false, login: null });
+    act(() => setSignIn(false, null, null));
+    expect(result.current.signedIn).toBe(false);
+    act(() => setSignInUnavailable());
+    expect(result.current.signIn).toBe("unavailable");
+  });
+
+  test("a sign-in that expires counts as signed out on the next render", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-21T10:00:00Z"));
+    setSignIn(true, "octocat", "2026-11-21T10:00:05Z");
+    const { result, rerender } = renderHook(() => useLiveSession());
+    expect(result.current.signedIn).toBe(true);
+    vi.setSystemTime(new Date("2026-11-21T10:00:06Z"));
+    rerender();
+    expect(result.current.signedIn).toBe(false);
+    expect(result.current.login).toBeNull();
+  });
+});
+
 describe("clearing", () => {
-  test("clearKey keeps the token, clearToken keeps the key, clearAll drops both", () => {
-    setKey(KEY);
-    setToken(TOKEN, LATER);
-    clearKey();
-    expect(authHeaders()).toEqual({ "X-GradPath-Token": TOKEN });
-    setKey(KEY);
-    clearToken();
-    expect(authHeaders()).toEqual({ "X-Anthropic-Key": KEY });
-    setToken(TOKEN, LATER);
-    clearAll();
+  test("clearKey keeps the sign-in, clearSignIn keeps the key, clearAll drops both", () => {
+    const { result } = renderHook(() => useLiveSession());
+    act(() => {
+      setKey(KEY);
+      setSignIn(true, "octocat", LATER);
+      clearKey();
+    });
+    expect(result.current).toMatchObject({ hasKey: false, signedIn: true });
+    act(() => {
+      setKey(KEY);
+      clearSignIn();
+    });
+    expect(result.current).toMatchObject({ hasKey: true, signedIn: false });
+    act(() => {
+      setSignIn(true, "octocat", LATER);
+      clearAll();
+    });
+    expect(result.current).toMatchObject({ hasKey: false, signedIn: false });
     expect(authHeaders()).toEqual({});
-    expect(window.sessionStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull();
   });
 
   test.each([
-    ["passcode_required", { "X-Anthropic-Key": KEY }],
-    ["key_refused", { "X-GradPath-Token": TOKEN }],
-    ["key_required", { "X-GradPath-Token": TOKEN }],
-    ["something_new", {}],
-    [null, {}],
+    ["signin_required", { hasKey: true, signedIn: false }],
+    ["key_refused", { hasKey: false, signedIn: true }],
+    ["key_required", { hasKey: false, signedIn: true }],
+    ["something_new", { hasKey: false, signedIn: false }],
+    [null, { hasKey: false, signedIn: false }],
   ])("onAuthError(%s) forgets only what the server refused", (code, expected) => {
-    setKey(KEY);
-    setToken(TOKEN, LATER);
-    onAuthError(code);
-    expect(authHeaders()).toEqual(expected);
+    const { result } = renderHook(() => useLiveSession());
+    act(() => {
+      setKey(KEY);
+      setSignIn(true, "octocat", LATER);
+      onAuthError(code);
+    });
+    expect(result.current).toMatchObject(expected);
   });
 });
 
 describe("useLiveSession", () => {
-  test("reports whether each value is held and updates on change, never the values", () => {
+  test("reports whether the key is held and updates on change, never the key", () => {
     const { result } = renderHook(() => useLiveSession());
-    expect(result.current).toEqual({ hasKey: false, hasToken: false, refusal: null });
+    expect(result.current).toEqual({
+      hasKey: false,
+      signIn: "unknown",
+      signedIn: false,
+      login: null,
+      refusal: null,
+    });
     act(() => setKey(KEY));
-    expect(result.current).toEqual({ hasKey: true, hasToken: false, refusal: null });
-    act(() => setToken(TOKEN, LATER));
-    expect(result.current).toEqual({ hasKey: true, hasToken: true, refusal: null });
+    expect(result.current.hasKey).toBe(true);
     expect(JSON.stringify(result.current)).not.toContain(KEY);
     act(() => clearAll());
-    expect(result.current).toEqual({ hasKey: false, hasToken: false, refusal: null });
-  });
-
-  test("a token that expires counts as gone on the next render", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-11-21T10:00:00Z"));
-    setToken(TOKEN, "2026-11-21T10:00:05Z");
-    const { result, rerender } = renderHook(() => useLiveSession());
-    expect(result.current.hasToken).toBe(true);
-    vi.setSystemTime(new Date("2026-11-21T10:00:06Z"));
-    rerender();
-    expect(result.current.hasToken).toBe(false);
+    expect(result.current.hasKey).toBe(false);
   });
 });
 
-describe("refusal and blocked storage", () => {
-  test("a 401 is remembered with its fixed text until a new key or token arrives", () => {
+describe("refusal", () => {
+  test("a 401 is remembered with its fixed text until a new key arrives", () => {
     const { result } = renderHook(() => useLiveSession());
-    act(() => setToken(TOKEN, LATER));
+    act(() => setSignIn(true, "octocat", LATER));
     act(() => onAuthError("key_refused", "Anthropic refused this API key."));
     expect(result.current.refusal).toEqual({
       code: "key_refused",
       message: "Anthropic refused this API key.",
     });
-    expect(result.current.hasToken).toBe(true);
+    expect(result.current.signedIn).toBe(true);
     act(() => setKey(KEY));
     expect(result.current.refusal).toBeNull();
   });
 
-  test("with storage blocked the token still works for this page, in memory", () => {
-    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new DOMException("blocked", "SecurityError");
-    });
-    setKey(KEY);
-    setToken(TOKEN, LATER);
-    expect(authHeaders()).toEqual({ "X-GradPath-Token": TOKEN, "X-Anthropic-Key": KEY });
-    spy.mockRestore();
+  test("signing in again clears a signin_required refusal", () => {
+    const { result } = renderHook(() => useLiveSession());
+    act(() => onAuthError("signin_required", "Sign in with GitHub to use live mode."));
+    expect(result.current.refusal?.code).toBe("signin_required");
+    act(() => setSignIn(true, "octocat", LATER));
+    expect(result.current.refusal).toBeNull();
   });
 
   test("an unknown 401 is still explained, and clearRefusal forgets it", () => {
     const { result } = renderHook(() => useLiveSession());
-    act(() => onAuthError(null, "Live mode needs the passcode and your Anthropic API key."));
+    act(() => onAuthError(null, "Live mode needs GitHub sign-in and your Anthropic API key."));
     expect(result.current.refusal?.code).toBe("unknown");
     act(() => clearRefusal());
     expect(result.current.refusal).toBeNull();
-  });
-
-  test("clearToken forgets the in-memory copy too", () => {
-    setToken(TOKEN, LATER);
-    clearToken();
-    expect(authHeaders()).toEqual({});
   });
 });

@@ -7,12 +7,11 @@ import { planResult, cite } from "@/components/planFixtures";
 import { PlanView } from "@/components/PlanView";
 import { inMode, json, routeFetch } from "@/components/serverFixtures";
 import { SiteHeader } from "@/components/SiteHeader";
-import { resetForTests, setKey, setToken } from "@/lib/liveSession";
+import { resetForTests, setKey, setSignIn } from "@/lib/liveSession";
 import type { AskRecording, JobAnalysis, JobRecording, PlanRecording } from "@/lib/types";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/" }));
 
-const TOKEN = `1795000000.${"b".repeat(64)}`;
 const LATER = new Date(Date.now() + 3_600_000).toISOString();
 
 const decision = {
@@ -133,9 +132,15 @@ describe("mode badge and note", () => {
     expect(screen.getByText("Live: no key yet")).toBeTruthy();
   });
 
-  test("live with a key shows Live: your key", () => {
+  test("live with a key but signed out still shows Live: no key yet", () => {
     setKey("sk-ant-abc");
-    setToken(TOKEN, LATER);
+    render(inMode(<ModeBadge />, { mode: "live" }));
+    expect(screen.getByText("Live: no key yet")).toBeTruthy();
+  });
+
+  test("live, signed in, with a key shows Live: your key", () => {
+    setKey("sk-ant-abc");
+    setSignIn(true, "octocat", LATER);
     render(inMode(<ModeBadge />, { mode: "live" }));
     expect(screen.getByText("Live: your key")).toBeTruthy();
   });
@@ -160,11 +165,11 @@ describe("mode badge and note", () => {
     expect(screen.getByText(/with the fictional sample profile/)).toBeTruthy();
     cleanup();
     render(inMode(<JobAnalysisView />, { mode: "live" }));
-    expect(screen.getByText(/Live mode: use the full app/)).toBeTruthy();
+    expect(screen.getByText(/Live mode: sign in with GitHub and use the full app/)).toBeTruthy();
     cleanup();
     render(inMode(<Assistant />, { mode: "local" }));
     expect(screen.queryByText(/demo mode/)).toBeNull();
-    expect(screen.queryByText(/Live mode: use/)).toBeNull();
+    expect(screen.queryByText(/Live mode: sign in/)).toBeNull();
   });
 });
 
@@ -287,7 +292,7 @@ describe("recordings, Job and Plan", () => {
 describe("mode-rule errors in the result slot", () => {
   test("a model-route 429 is an info panel with a ticking wait; the key stays set", async () => {
     setKey("sk-ant-abc");
-    setToken(TOKEN, LATER);
+    setSignIn(true, "octocat", LATER);
     routeFetch({
       "/api/demo": () => json(200, []),
       "/api/jobs/analyze": () =>

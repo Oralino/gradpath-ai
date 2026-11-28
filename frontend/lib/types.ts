@@ -87,8 +87,15 @@ export interface SourceSearch {
 // ---------- /api/live/check (T-018) ----------
 
 export interface LiveCheck {
-  token: string; // stands in for the passcode; kept in sessionStorage by lib/liveSession.ts
-  expires_at: string; // ISO datetime (UTC)
+  ok: boolean; // true: the key works (POST /api/live/check)
+}
+
+// ---------- /api/auth/me (GitHub sign-in, T-026) ----------
+
+export interface Me {
+  signed_in: boolean;
+  login: string | null; // GitHub username while signed in
+  expires_at: string | null; // ISO datetime (UTC) the sign-in cookie expires
 }
 
 // ---------- /api/chat ----------

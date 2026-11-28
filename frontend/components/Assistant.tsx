@@ -73,7 +73,7 @@ export function Assistant() {
   const ready = info.status === "ready";
   const demo = ready && info.mode === "demo";
   const liveMode = ready && info.mode === "live";
-  const liveReady = session.hasKey && session.hasToken;
+  const liveReady = session.hasKey && session.signedIn;
   const slot = useRecordings("ask", { enabled: ready, autoShow: false });
   const recording = slot.one.status === "ready" ? slot.one.recording : null;
   const [message, setMessage] = useState("");

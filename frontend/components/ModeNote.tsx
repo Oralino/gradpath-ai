@@ -20,8 +20,8 @@ export function ModeNote({ screen }: { screen: "ask" | "job" | "plan" }) {
   if (info.mode === "live") {
     body = (
       <>
-        Live mode: use the full app with your own Anthropic API key and the passcode from the site owner. Without them
-        you can still browse the recorded examples and {search}.
+        Live mode: sign in with GitHub and use the full app with your own Anthropic API key. Without them you can
+        still browse the recorded examples and {search}.
       </>
     );
   } else if (screen === "ask") {

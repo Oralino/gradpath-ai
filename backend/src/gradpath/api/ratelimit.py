@@ -1,10 +1,12 @@
-"""Per-IP rate limits and the live-mode passcode's brute-force lock (T-018 step 7, always-hard).
+"""Per-IP and per-GitHub-user rate limits (T-018 step 7, T-026; always-hard).
 
-Each limited route names a bucket (search, model, workflow, poll); a bucket has per-IP sliding
-windows and may have a site-wide cap (`GLOBAL`). The owner's Voyage tokens are protected across
-IPs by the persistent embedding budget instead (`retrieval/budget.py`, T-020 step 2), which
-survives restarts. Limits are off in local mode (the owner's machine). Everything is in memory,
-per process (deploy with one worker), and bounded: at most MAX_TRACKED clients, oldest dropped.
+Each limited route names a bucket (search, model, workflow, poll, auth); a bucket has per-IP
+sliding windows, per-user windows for signed-in visitors (`PER_USER`), and may have a site-wide
+cap (`GLOBAL`). The live passcode and its brute-force lock were removed with T-026. The owner's
+Voyage tokens are protected across IPs by the persistent embedding budget instead
+(`retrieval/budget.py`, T-020 step 2), which survives restarts. Limits are off in local mode
+(the owner's machine). Everything is in memory, per process (deploy with one worker), and
+bounded: at most MAX_TRACKED clients, oldest dropped.
 Own code, no dependency: a few dozen lines with a fake clock for tests (CLAUDE.md: own code for
 limits). Over a limit the route answers 429 with a fixed message and `Retry-After`.
 """
@@ -25,10 +27,6 @@ LIMITED = (
     "Too many requests from your network (this can include other people on the same Wi-Fi). "
     "Try again later."
 )
-LOCKED = (
-    "Too many wrong passcodes from your network (this can include other people on the same "
-    "Wi-Fi). Try again in 15 minutes."
-)
 MAX_TRACKED = 10_000
 MINUTE, HOUR, DAY = 60.0, 3600.0, 86_400.0
 
@@ -48,11 +46,18 @@ PER_IP: dict[str, tuple[Window, ...]] = {
     "model": (Window(6, MINUTE), Window(60, DAY)),
     "workflow": (Window(3, HOUR), Window(10, DAY)),
     "poll": (Window(60, MINUTE),),
+    # Sign in with GitHub (T-026): each callback makes two GitHub calls.
+    "auth": (Window(10, MINUTE), Window(50, DAY)),
+}
+# The same limits again per signed-in GitHub user (T-026), on top of the per-IP ones: a shared
+# network can't hand one person more than their share, and one person can't use several networks
+# to get more. Set by `deps.require_session` (request.state.github_id).
+PER_USER: dict[str, tuple[Window, ...]] = {
+    bucket: PER_IP[bucket] for bucket in ("model", "workflow", "poll")
 }
 # Site-wide caps kept in memory. Search's daily cap moved to `retrieval/budget.py` (T-020 step 2):
 # stored in Qdrant, so a restart doesn't reset it, and it counts every server-paid embedding.
 GLOBAL: dict[str, tuple[Window, ...]] = {}
-PASSCODE_FAILURES = Window(5, 15 * MINUTE)
 
 
 class Limiter:
@@ -167,9 +172,19 @@ def _too_many(wait: float, detail: str = LIMITED) -> HTTPException:
     )
 
 
+def _user_key(bucket: str, request: Request) -> tuple[str, str] | None:
+    """The per-user counter for a signed-in visitor (`request.state.github_id`), if the bucket
+    has per-user limits."""
+    github_id = getattr(request.state, "github_id", None)
+    if bucket not in PER_USER or not isinstance(github_id, int):
+        return None
+    return (bucket, f"gh:{github_id}")
+
+
 def charge(bucket: str, request: Request) -> None:
-    """Count this request against `bucket` for the caller's IP (and the bucket's global cap), or
-    raise 429. Off in local mode. Used by `limit` and by `/api/assist` when it starts a run."""
+    """Count this request against `bucket` for the caller's IP, the signed-in GitHub user (if
+    any) and the bucket's global cap, or raise 429 having counted nothing new. Off in local
+    mode. Used by `limit` and by `/api/assist` when it starts a run."""
     settings = get_settings()
     if settings.app_mode == "local":
         return
@@ -177,9 +192,16 @@ def charge(bucket: str, request: Request) -> None:
         wait = LIMITER.wait_time((bucket, "*"), GLOBAL[bucket])
         if wait:
             raise _too_many(wait)
+    user = _user_key(bucket, request)
+    if user is not None:
+        wait = LIMITER.wait_time(user, PER_USER[bucket])
+        if wait:
+            raise _too_many(wait)
     wait = LIMITER.hit((bucket, client_ip(request, settings)), PER_IP[bucket])
     if wait:
         raise _too_many(wait)
+    if user is not None:
+        LIMITER.hit(user, PER_USER[bucket])
     if bucket in GLOBAL:
         LIMITER.hit((bucket, "*"), GLOBAL[bucket])
 
@@ -191,27 +213,19 @@ def ensure_room(bucket: str, request: Request) -> None:
     if settings.app_mode == "local":
         return
     wait = LIMITER.wait_time((bucket, client_ip(request, settings)), PER_IP[bucket])
+    user = _user_key(bucket, request)
+    if user is not None:
+        wait = max(wait, LIMITER.wait_time(user, PER_USER[bucket]))
     if wait:
         raise _too_many(wait)
 
 
 def limit(bucket: str) -> Callable[[Request], None]:
     """A route dependency for `charge(bucket)` (route-level, so it runs after the router's mode,
-    passcode and key guard)."""
+    sign-in and key guard, which sets the GitHub user for the per-user limits)."""
 
     def dependency(request: Request) -> None:
         charge(bucket, request)
 
     dependency.__name__ = f"limit_{bucket}"
     return dependency
-
-
-def check_passcode_lock(request: Request, settings: Settings) -> None:
-    """429 if this IP has failed the passcode too often lately (called before checking it)."""
-    wait = LIMITER.wait_time(("passcode", client_ip(request, settings)), (PASSCODE_FAILURES,))
-    if wait:
-        raise _too_many(wait, LOCKED)
-
-
-def record_passcode_failure(request: Request, settings: Settings) -> None:
-    LIMITER.hit(("passcode", client_ip(request, settings)), (PASSCODE_FAILURES,))

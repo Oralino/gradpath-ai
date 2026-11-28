@@ -11,6 +11,7 @@ import type {
   ChatRequest,
   Health,
   LiveCheck,
+  Me,
   Recording,
   RecordingSummary,
   SourceSearch,
@@ -26,7 +27,7 @@ export type ApiErrorKind =
   | "validation"
   | "busy"
   | "rate_limited"
-  | "auth" // 401: passcode or key missing, wrong or refused (see `code`)
+  | "auth" // 401: not signed in, or the key missing or refused (see `code`)
   | "forbidden" // 403: demo mode, or a cross-site request
   | "server"
   | "network";
@@ -35,7 +36,7 @@ export const MESSAGES: Record<ApiErrorKind, string> = {
   validation: "Some fields need fixing before this can be sent.",
   busy: "The server is busy with another request. Try again in a few minutes.",
   rate_limited: "The search service is at its free-tier limit. Try again in a minute.",
-  auth: "Live mode needs the passcode and your Anthropic API key.",
+  auth: "Live mode needs GitHub sign-in and your Anthropic API key.",
   forbidden: "This site runs in demo mode: browse the recorded examples instead.",
   server: "Something went wrong on the server. Nothing was saved. Try again.",
   network: "Can't reach the GradPath server. Check that the API is running, then try again.",
@@ -52,7 +53,7 @@ export class ApiError extends Error {
   readonly status: number | null;
   /** For validation errors: dotted field paths, e.g. "profile.skills.3". Never Pydantic text. */
   readonly fields: string[];
-  /** The backend's machine-readable code ("passcode_required", "key_refused", ...), or null. */
+  /** The backend's machine-readable code ("signin_required", "key_refused", ...), or null. */
   readonly code: string | null;
   /** Seconds from a 429's Retry-After header, or null. */
   readonly retryAfter: number | null;
@@ -126,8 +127,8 @@ export async function toApiError(response: Response): Promise<ApiError> {
 }
 
 // One request; network failures and non-OK statuses become ApiError, an abort stays an AbortError.
-// Called by post() and get(). An auth error tells the live session what to forget (an expired
-// token, a refused key), so the live panel reopens on its own.
+// Called by post() and get(). An auth error tells the live session what to forget (an ended
+// sign-in, a refused key), so the live panel reopens on its own. A 204 resolves to undefined.
 async function request<T>(path: string, init: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -141,10 +142,11 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
     if (error.kind === "auth") onAuthError(error.code, error.message);
     throw error;
   }
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
 
-// `auth`: send the live-mode token and key (model routes only; never to search, demo or health,
+// `auth`: send the live-mode key (model routes only; never to search, demo or health,
 // so the key goes nowhere it isn't needed).
 function post<T>(path: string, payload: unknown, signal?: AbortSignal, auth = false): Promise<T> {
   return request<T>(path, {
@@ -184,12 +186,17 @@ export const api = {
   // Source search (T-018): no model, no credentials.
   search: (query: string, signal?: AbortSignal) =>
     post<SourceSearch>("/api/search", { query }, signal),
-  // Live mode: the passcode and key are sent once here, explicitly; on success the caller stores
-  // the token (lib/liveSession.ts) and the key in memory. Never routed through authHeaders().
-  liveCheck: (passcode: string, key: string, signal?: AbortSignal) =>
+  // Live mode: the key is sent once here, explicitly, to test it; on success the caller keeps it
+  // in memory (lib/liveSession.ts). Never routed through authHeaders(). A 401 signin_required
+  // means the GitHub sign-in cookie is missing or expired.
+  liveCheck: (key: string, signal?: AbortSignal) =>
     request<LiveCheck>("/api/live/check", {
       method: "POST",
-      headers: { "X-GradPath-Passcode": passcode.trim(), "X-Anthropic-Key": key.trim() },
+      headers: { "X-Anthropic-Key": key.trim() },
       signal,
     }),
+  // GitHub sign-in (T-026): the session is an HttpOnly cookie, so the page asks the server who is
+  // signed in. 404 outside live mode. Signing in itself is a plain link to /api/auth/github/login.
+  me: (signal?: AbortSignal) => get<Me>("/api/auth/me", signal),
+  logout: (signal?: AbortSignal) => post<void>("/api/auth/logout", {}, signal),
 };

@@ -84,9 +84,24 @@ class Settings(BaseSettings):
     # allowed; demo = deployed, recorded runs only, model routes off; live = deployed, recordings
     # plus model routes with a visitor's key. Default demo: the safest, and it needs no keys.
     app_mode: Literal["local", "demo", "live"] = "demo"
-    # Live mode's shared passcode (T-018 step 7, owner decision): visitors send it in the
-    # X-GradPath-Passcode header; live refuses to start without one of 16+ characters.
-    live_passcode: SecretStr | None = None
+    # Sign in with GitHub guards live mode (T-026, owner decision 2026-11-27; replaced the shared
+    # passcode). A GitHub OAuth App with no scopes: the server learns the visitor's GitHub id,
+    # login and account age once, then keeps only a signed cookie. Live refuses to start without
+    # the four values below (`api/main.check_live_settings`).
+    github_client_id: str | None = None
+    github_client_secret: SecretStr | None = None
+    # Signs the session and sign-in cookies (HMAC-SHA256); 32+ characters. Changing it signs
+    # everyone out.
+    session_secret: SecretStr | None = None
+    # The public site's origin (the Vercel URL, no trailing slash): GitHub sends visitors back to
+    # PUBLIC_SITE_URL/api/auth/github/callback, and sign-in ends on its home page.
+    public_site_url: str | None = None
+    # Owner decisions 2026-11-27: GitHub accounts younger than this are refused (throwaway
+    # accounts); a sign-in lasts a day; individual users can be blocked (comma-separated logins
+    # or numeric ids, case-insensitive).
+    github_min_account_age_days: int = Field(default=30, ge=0, le=3650)
+    session_ttl_s: int = Field(default=86_400, ge=300, le=7 * 86_400)
+    github_blocked_users: str = ""
     # Proxies in front of the API that append to X-Forwarded-For (Render: set in Milestone 8).
     # 0 = use the connection address; never trust the client-written left end of the header.
     trusted_proxy_hops: int = Field(default=0, ge=0, le=5)
