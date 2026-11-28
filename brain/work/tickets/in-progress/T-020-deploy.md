@@ -62,6 +62,17 @@ Owner decisions, 2026-11-21 (plan approved as recommended):
     or in CI, and no Docker learning); a Dockerfile for the frontend (Vercel builds Next.js
     itself); Docker Compose (one service only; Qdrant is a cloud service).
 
+- **Client address (step 4, owner 2026-11-28):** the site's server vouches for each visitor's
+  address with a shared secret, instead of trusting a count of proxy hops alone. The owner asked
+  how other sites solve this; the standard answer (AWS's documented CloudFront pattern) is a
+  secret header only the proxy adds. `frontend/proxy.ts` (Next.js Proxy, server only) sends
+  `X-GradPath-Client-IP` and `X-GradPath-Proxy-Secret`; the API believes the address only when
+  the secret matches. Owner requirement: the secret never reaches the browser (no `NEXT_PUBLIC_`
+  name, never on a response, not in the build). Rejected: hops only (the public Render URL lets a
+  direct caller forge the trusted entry); Vercel IP allow-list (no fixed outgoing IPs on Hobby);
+  a private network (two companies); blocking direct calls to Render (later, if needed). The
+  temporary `/api/debug/forwarded` page (off unless `DEBUG_FORWARDED=true`) measures it.
+
 ## Step 0: free-tier terms (checked 2026-11-21, from the providers' pages)
 | Service | Free, no card | Limits that matter |
 |---|---|---|
@@ -90,6 +101,32 @@ in the background with short polls; the cold start needs a visible "Waiting for 
   fix: let the image check tolerate unreadable folders (T-020).
 
 ## Verification
+Step 4 (2026-11-28), shared-secret client address, before deploy:
+- Files: `api/ratelimit.py` (`from_site`, `client_ip`), `api/debug.py` (new), `api/main.py`
+  (start check: `PROXY_SHARED_SECRET` 32+ printable characters when set), `config.py`,
+  `.env.example`, `frontend/proxy.ts` (new); tests `test_proxy_secret.py` (new),
+  `test_rate_limits.py`, `frontend/proxy.test.ts` (new).
+- Backend 912 passed, 1 skipped; ruff clean. Frontend lint, typecheck, build, new tests 8/8.
+- Local end-to-end (`next build` + `next start` with a dummy secret and a stand-in API that
+  echoes headers): the dummy secret is nowhere in `.next/static` or `.next/server`; a browser's
+  forged `X-GradPath-Client-IP` and secret were dropped and replaced; the stand-in API got both
+  headers; the browser's response headers held no secret. Locally `next start` does not
+  overwrite `X-Forwarded-For` (the caller's own value was used), so the deployed check must show
+  that Vercel does.
+- qa-checker: ruff format, 316 frontend tests, secret and attribution scan, no `NEXT_PUBLIC_`
+  name, no debug leftovers or control characters: all pass.
+- code-reviewer: no way found for a browser or a direct caller to get a chosen address trusted,
+  no secret leak in the code. Taken: `proxy.ts` treats a badly shaped secret as unset (a stray
+  character would have made every /api request fail), warning once without the value; the
+  API refuses a weak `PROXY_SHARED_SECRET` in every mode, not only live; one warning (no
+  values) when the secret matches but the address is unusable. To check on the deployed site
+  (it can't be seen locally): no `x-middleware-*` header and no secret on responses through
+  Vercel; exactly one `X-Forwarded-For` entry arriving at `proxy.ts`. Not taken: putting the
+  debug page behind sign-in (it shows only the caller's own request and is off by default).
+  Known limit: a CDN put in front of Vercel later would make every visitor share one address
+  (fails closed: a shared limit, never a bypass).
+- After the fixes: backend 914 passed, 1 skipped; frontend proxy tests 10/10, lint, typecheck.
+
 Step 3 (2026-11-27), deploy on Render and Vercel (the owner made the accounts and pasted every
 value; the lead checked setting names and value shapes only, never values):
 - **Render** web service `gradpath-ai`: Docker runtime, `backend/Dockerfile`, build context the

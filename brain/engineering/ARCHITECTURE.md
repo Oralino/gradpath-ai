@@ -140,9 +140,15 @@ query string of `/api/auth/` requests (the callback's code and state).
 client, off in local mode: search 2/min and 60/day (plus 1,000/day in total), model routes
 6/min and 60/day, workflow runs 3/hour and 10/day (also charged when `/api/assist` starts one), run
 polling 60/min, sign-in 10/min and 50/day. Model, workflow and poll limits apply per IP and again
-per signed-in GitHub user (`gh:<id>`). Over a limit: 429 with `Retry-After`. The client is the connection address, or
-with `TRUSTED_PROXY_HOPS=n` the n-th `X-Forwarded-For` entry from the right, normalised (IPv6 by
-/64 network, ports dropped). Request bodies over 256 KB get 413 before FastAPI reads them
+per signed-in GitHub user (`gh:<id>`). Over a limit: 429 with `Retry-After`. The client is, in
+order: the address the site's own server vouches for (`X-GradPath-Client-IP`, believed only with a
+matching `X-GradPath-Proxy-Secret` = `PROXY_SHARED_SECRET`, T-020 step 4); else with
+`TRUSTED_PROXY_HOPS=n` the n-th `X-Forwarded-For` entry from the right; else the connection
+address. Normalised (IPv6 by /64 network, ports dropped). The site side is `frontend/proxy.ts`
+(Next.js Proxy, server only): it drops any copy of the two headers a browser sent and adds them
+from the rightmost `X-Forwarded-For` entry, which Vercel overwrites with the address it saw. The
+temporary `GET /api/debug/forwarded` (404 unless `DEBUG_FORWARDED=true`) shows a caller their own
+chain, for measuring the deployed setup. Request bodies over 256 KB get 413 before FastAPI reads them
 (`BodySizeLimit`). In memory and per process: deploy with one worker.
 
 **Cross-site requests (T-018 step 8):** no CORS middleware: the browser only calls its own origin

@@ -151,6 +151,12 @@ From guide 09, narrowed to this app. Run before each release; the project's rele
       are per process); never `--log-level trace`; no proxy or platform log format that records
       request headers (`X-Anthropic-Key`); `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_URL` unset (live
       refuses to start otherwise).
+- [ ] Live deploy, client address (T-020 step 4): `PROXY_SHARED_SECRET` set to the same 32+
+      character random value in Render and Vercel (server settings only, never a `NEXT_PUBLIC_`
+      name; not in `.next/static`); through the site the debug page's `rate_limit_key` is the
+      visitor's real public IP even with a forged `X-Forwarded-For`; straight at the Render URL a
+      forged `X-GradPath-Client-IP` is ignored; no response, log or page shows the secret;
+      `DEBUG_FORWARDED` off again afterwards (or the page removed).
 - [ ] Live deploy, proxy (T-018 step 7 review): check the real `X-Forwarded-For` chain on Render
       before setting `TRUSTED_PROXY_HOPS` (too low: every visitor shares one address, so the
       per-IP limits, sign-in's included, hit everyone at once; too high: a client-written entry

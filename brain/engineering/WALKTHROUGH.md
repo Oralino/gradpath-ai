@@ -994,6 +994,28 @@ fixing. What changed, and the story behind each (good "tell me about a bug" answ
 - **Decision: which address is the client.** Behind a proxy every request looks the same, but the
   left end of `X-Forwarded-For` is written by the client and can be forged. With
   `TRUSTED_PROXY_HOPS=n` we take the n-th entry from the right (the one our own proxy added).
+- **Decision (T-020 step 4): the site vouches for the visitor, signed with a shared secret.** On
+  the deployed site a request goes browser -> Vercel -> Render -> the API, and the Render URL is
+  public, so counting hops alone lets anyone who calls Render directly write the entry we would
+  trust, and get a fresh limit every time. We copied the standard answer (AWS documents it for
+  CloudFront: the proxy adds a secret header the origin requires): `frontend/proxy.ts` runs on
+  Vercel's server for every `/api` request, drops any copy of our two headers a browser sent,
+  and adds the visitor's address (the rightmost `X-Forwarded-For` entry, which Vercel overwrites
+  with the address it saw) and `PROXY_SHARED_SECRET`. The API believes that address only when the
+  secret matches (`hmac.compare_digest`, exactly one header); otherwise the hops rule and then the
+  connection address decide. Rejected: hops only (forgeable via the public Render URL); an IP
+  allow-list of Vercel's servers (no fixed outgoing addresses on the free plan); a private
+  network (Vercel and Render are separate companies); refusing every direct call to Render (a
+  separate decision; today a direct caller simply gets its own real address).
+- **Likely question:** *"Can a visitor steal the secret from the site?"* No. It is a server
+  setting with no `NEXT_PUBLIC_` prefix, used only in `proxy.ts`, which never ships to the
+  browser; it is sent only as a request header from Vercel to Render over HTTPS and never set on
+  a response. A build with a dummy secret had no trace of it in `.next/`. If it ever leaks, a new
+  value in both dashboards cuts the old one off at once.
+- **Gotcha:** on `next dev` / `next start` nothing rewrites `X-Forwarded-For`, so locally the
+  "visitor address" is whatever the caller wrote. That's harmless there (no secret is set locally,
+  so the API ignores it) but it means the design depends on Vercel's overwrite, which is why the
+  deployed chain is measured with a forged header.
 - **Decision (review): one IPv6 network is one client.** A home or server usually owns a whole /64,
   so counting each IPv6 address separately would hand an attacker billions of fresh limits; keys
   are the /64 network (IPv4-mapped addresses become IPv4), and only counting creates an entry.
