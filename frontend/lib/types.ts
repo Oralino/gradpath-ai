@@ -358,3 +358,43 @@ export interface RunStatus {
   result: CareerPrepResult | null; // set once status is "done"
   error: string | null; // fixed server text
 }
+
+// ---------- /api/relay/runs (T-029 step 2, api/relay.py) ----------
+// A run whose model calls the browser answers on the visitor's own model (lib/relayRun.ts).
+
+export type RelayKind = "ask" | "job" | "plan";
+export type RelayTier = "fast" | "smart";
+
+export interface RelayMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+/** One model call waiting for the browser. `json_schema` is set for structured steps. */
+export interface RelayPrompt {
+  id: string; // uuid4
+  tier: RelayTier;
+  messages: RelayMessage[];
+  json_schema: Record<string, unknown> | null;
+}
+
+export type RelayStart =
+  | { kind: "ask"; request: AssistRequest }
+  | { kind: "job"; request: AnalyzeRequest }
+  | { kind: "plan"; request: WorkflowInput };
+
+export interface RelayRunStatus {
+  kind: RelayKind;
+  status: "running" | "done" | "failed";
+  elapsed_s: number;
+  stages: RunStage[];
+  revisions: number;
+  prompts: RelayPrompt[]; // waiting prompts, running runs only
+  ask: AssistResponse | null;
+  job: JobAnalysis | null;
+  plan: CareerPrepResult | null;
+  error: string | null; // fixed server text
+}
+
+/** The browser's answer to one prompt: the model's text, or failed when the local model errored. */
+export type RelayReply = { prompt_id: string; text: string } | { prompt_id: string; failed: true };

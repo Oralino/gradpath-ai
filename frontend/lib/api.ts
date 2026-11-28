@@ -14,6 +14,9 @@ import type {
   Me,
   Recording,
   RecordingSummary,
+  RelayReply,
+  RelayRunStatus,
+  RelayStart,
   SourceSearch,
   JobAnalysis,
   ResumeImport,
@@ -45,7 +48,8 @@ export const MESSAGES: Record<ApiErrorKind, string> = {
 // Statuses whose `detail` is one of the backend's fixed messages (api/main.py, api/limits.py,
 // api/career.py, api/deps.py, api/ratelimit.py), so it is safe to show. Any other status gets our
 // own message. Every error body also carries a machine-readable `code` (T-018).
-const FIXED_DETAIL_STATUSES = new Set([401, 403, 404, 413, 429, 502, 503]);
+// 409: a relay run of this visitor is already running (api/relay.py OWNER_BUSY).
+const FIXED_DETAIL_STATUSES = new Set([401, 403, 404, 409, 413, 429, 502, 503]);
 const SITE_MISCONFIGURED = "The site can't reach its server right now. Try again in a few minutes.";
 const CODE_SHAPE = /^[a-z_]{1,40}$/;
 
@@ -204,6 +208,16 @@ export const api = {
     }),
   // GitHub sign-in (T-026): the session is an HttpOnly cookie, so the page asks the server who is
   // signed in. 404 outside live mode. Signing in itself is a plain link to /api/auth/github/login.
+  // Relay runs (T-029): the visitor's own model answers each prompt (lib/relayRun.ts). Live mode
+  // needs only the GitHub sign-in cookie, never a key, so no authHeaders() here.
+  relayStart: (body: RelayStart, signal?: AbortSignal) => post<RunStarted>("/api/relay/runs", body, signal),
+  relayGet: (runId: string, signal?: AbortSignal) =>
+    get<RelayRunStatus>(`/api/relay/runs/${encodeURIComponent(runId)}`, signal),
+  relayReply: (runId: string, reply: RelayReply, signal?: AbortSignal) =>
+    post<void>(`/api/relay/runs/${encodeURIComponent(runId)}/replies`, reply, signal),
+  // `keepalive` lets the stop outlive a closing tab (pagehide).
+  relayCancel: (runId: string, keepalive = false) =>
+    request<void>(`/api/relay/runs/${encodeURIComponent(runId)}`, { method: "DELETE", keepalive }),
   me: (signal?: AbortSignal) => get<Me>("/api/auth/me", signal),
   logout: (signal?: AbortSignal) => post<void>("/api/auth/logout", {}, signal),
 };

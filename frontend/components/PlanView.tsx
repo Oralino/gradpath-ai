@@ -8,7 +8,9 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CharCount } from "@/components/CharCount";
-import { LivePanel, LiveStrip } from "@/components/LivePanel";
+import { LocalModelButton, ProviderStrip, SetupRow } from "@/components/ProviderSetup";
+import { ProviderPicker } from "@/components/ProviderPicker";
+import { RelayProblem, RelayProgress, isRelayProblem, isRelayWorking } from "@/components/RelayRunView";
 import { ModeErrorPanel, isModeError } from "@/components/ModeErrorPanel";
 import { ModeNote } from "@/components/ModeNote";
 import { RecordedExamples, RecordingInputs, RecordingSlotState, RecordingStrip, STRIP_ID } from "@/components/RecordedExamples";
@@ -20,6 +22,9 @@ import { PlanResult } from "@/components/PlanResult";
 import { PLAN_STATUS } from "@/lib/plan";
 import { charCount } from "@/lib/charCount";
 import { useLiveSession } from "@/lib/liveSession";
+import { openDialog } from "@/lib/providerSession";
+import { useProviderRoute } from "@/lib/useProviderRoute";
+import { useRelayRun } from "@/lib/useRelayRun";
 import { loadProfile } from "@/lib/profileStore";
 import { SAMPLE_POSTING } from "@/lib/samplePosting";
 import { SAMPLE_PROFILE, SAMPLE_PROFILE_LABEL } from "@/lib/sampleProfile";
@@ -124,12 +129,16 @@ function hasStoredRun(): boolean {
 
 const EXPIRED_LIVE = "That run belongs to another key or has expired.";
 
+// With a model on the visitor's computer confirmed, "Build plan" starts a relay run (useRelayRun,
+// in memory only: a reload stops it) instead of a background run on the server's own model.
 export function PlanView() {
   const info = useServerInfo();
   const session = useLiveSession();
+  const setup = useProviderRoute();
+  const relay = useRelayRun();
   const serverReady = info.status === "ready";
   const demo = serverReady && info.mode === "demo";
-  const liveMode = serverReady && info.mode === "live";
+  const liveMode = setup.liveMode;
   const liveReady = session.hasKey && session.signedIn;
   // A run is resumed after a reload only where this tab may poll it: local, or live with a key.
   const persist = serverReady && (info.mode === "local" || (liveMode && liveReady));
@@ -178,6 +187,9 @@ export function PlanView() {
   useEffect(() => {
     if (run.phase === "done" && run.result) saveResult(run.result);
   }, [run.phase, run.result]);
+  useEffect(() => {
+    if (relay.phase === "done" && relay.plan) saveResult(relay.plan);
+  }, [relay.phase, relay.plan]);
 
   useEffect(() => {
     if (jobOpen) jobRef.current?.focus();
@@ -185,7 +197,8 @@ export function PlanView() {
 
   // A recording the visitor picked gets the focus through PlanResult's autoFocus (below).
 
-  const locked = isProgressPhase(run.phase);
+  const relayWorking = isRelayWorking(relay.phase);
+  const locked = isProgressPhase(run.phase) || relayWorking;
   const jobSet = job.trim().length > 0;
   const profile = profileChoice === "sample" ? SAMPLE_PROFILE : profileChoice === "saved" ? savedProfile : null;
   const ready = jobSet && profile !== null;
@@ -215,7 +228,13 @@ export function PlanView() {
     }
     setHandoffNotice(false);
     slot.clear();
-    void run.start({ job_description: job.trim(), profile, corrections: withCorrections });
+    const request = { job_description: job.trim(), profile, corrections: withCorrections };
+    if (setup.route === "relay") {
+      void relay.start({ kind: "plan", request });
+      return;
+    }
+    relay.reset();
+    void run.start(request);
   }
 
   function addCorrection() {
@@ -242,13 +261,19 @@ export function PlanView() {
   // The previous plan stays until a new run is accepted, so a busy or failed start keeps it.
   const shown = demo
     ? null
-    : run.phase === "done"
-      ? run.result
-      : run.phase === "idle" || run.phase === "starting" || run.phase === "error"
-        ? stored
-        : null;
+    : relay.phase === "done"
+      ? relay.plan
+      : relay.phase !== "idle"
+        ? relay.phase === "starting" || relay.phase === "error"
+          ? stored
+          : null
+        : run.phase === "done"
+          ? run.result
+          : run.phase === "idle" || run.phase === "starting" || run.phase === "error"
+            ? stored
+            : null;
 
-  // A start refused with a 401 shows nothing here: the reopened live panel says what to fix.
+  // A start refused with a 401 shows nothing here: the "Set up live mode" row and its dialog say what to fix.
   const problem = isProblemPhase(run.phase) && run.error?.kind !== "auth";
   const problemRun = liveMode && run.phase === "expired" ? { ...run, failure: EXPIRED_LIVE } : run;
   const recordingLive = recording && slot.userPicked ? `Recorded example: ${(PLAN_STATUS[recording.result.status] ?? PLAN_STATUS.partial).heading}` : "";
@@ -344,7 +369,7 @@ export function PlanView() {
           build(corrections);
         }}
       >
-        {liveMode && liveReady && <LiveStrip />}
+        <ProviderStrip />
         {handoffNotice && (
           <p className="flex items-start gap-2 text-small text-caution">
             <TriangleIcon />
@@ -457,16 +482,12 @@ export function PlanView() {
           </p>
         </div>
 
-        {locked ? (
+        {relayWorking ? (
+          <RelayProgress run={relay} />
+        ) : locked ? (
           <PlanProgress run={run} />
-        ) : liveMode && !liveReady ? (
-          <LivePanel
-            firstLine={
-              !session.hasKey && hasStoredRun()
-                ? "A plan run from before the reload may still be on the server. Enter the same key again to see it."
-                : null
-            }
-          />
+        ) : setup.needsSetup ? (
+          <SetupRow />
         ) : (
           <div className="flex flex-wrap items-center justify-end gap-3">
             {!ready && (
@@ -474,6 +495,7 @@ export function PlanView() {
                 {missing}
               </p>
             )}
+            {setup.localMode && setup.route !== "relay" && <LocalModelButton />}
             <button
               type="submit"
               className={primaryButton}
@@ -486,9 +508,19 @@ export function PlanView() {
         )}
       </form>
       )}
+      {(setup.liveMode || setup.localMode) && (
+        <ProviderPicker
+          mode={setup.liveMode ? "live" : "local"}
+          firstLine={
+            liveMode && !session.hasKey && hasStoredRun()
+              ? "A plan run from before the reload may still be on the server. Enter the same key again to see it."
+              : null
+          }
+        />
+      )}
 
       <div role="status" className="sr-only">
-        {recordingLive || (run.phase !== "idle" ? run.announcement : "")}
+        {recordingLive || (relay.phase !== "idle" ? relay.announcement : run.phase !== "idle" ? run.announcement : "")}
       </div>
 
       <RecordingSlotState slot={slot} />
@@ -501,6 +533,12 @@ export function PlanView() {
             {demo && <p className="text-small text-ink-muted">Re-running with corrections needs live mode.</p>}
           </div>
           <PlanResult result={recording.result} autoFocus={slot.userPicked} describedBy={STRIP_ID} />
+        </div>
+      )}
+
+      {!recording && isRelayProblem(relay) && (
+        <div className="max-w-3xl">
+          <RelayProblem run={relay} onRetry={() => build(corrections)} onChangeModel={() => openDialog()} />
         </div>
       )}
 
@@ -517,7 +555,7 @@ export function PlanView() {
       {!recording && shown && (
         <PlanResult
           result={shown}
-          autoFocus={run.phase === "done"}
+          autoFocus={run.phase === "done" || relay.phase === "done"}
           extra={{ id: "plan-corrections", label: "Corrections", content: correctionsSection }}
         />
       )}

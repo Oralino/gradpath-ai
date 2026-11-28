@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CharCount } from "@/components/CharCount";
 import { CitationChip, dedupeByUrl, pageNames } from "@/components/CitationChip";
-import { LivePanel, LiveStrip } from "@/components/LivePanel";
+import { LocalModelButton, ProviderStrip, SetupRow } from "@/components/ProviderSetup";
+import { ProviderPicker } from "@/components/ProviderPicker";
+import { RelayProblem, RelayProgress, isRelayProblem, isRelayWorking } from "@/components/RelayRunView";
 import { ModeErrorPanel, isModeError } from "@/components/ModeErrorPanel";
 import { ModeNote } from "@/components/ModeNote";
 import { RecordedExamples, RecordingInputs, RecordingSlotState, RecordingStrip, STRIP_ID } from "@/components/RecordedExamples";
@@ -25,7 +27,9 @@ import { StatusPanel } from "@/components/StatusPanel";
 import { api, ApiError, MESSAGES } from "@/lib/api";
 import { charCount } from "@/lib/charCount";
 import { formatElapsed } from "@/lib/formatElapsed";
-import { useLiveSession } from "@/lib/liveSession";
+import { openDialog } from "@/lib/providerSession";
+import { useProviderRoute } from "@/lib/useProviderRoute";
+import { useRelayRun } from "@/lib/useRelayRun";
 import { SAMPLE_POSTING } from "@/lib/samplePosting";
 import { useServerInfo } from "@/lib/serverInfo";
 import { useRecordings } from "@/lib/useRecordings";
@@ -70,14 +74,15 @@ function summaryLine(stats: Record<string, number>): string {
 // The Job analysis screen (DESIGN.md, Screens 2): paste form, loading and the analysis of one
 // POST /api/jobs/analyze. Client component for form state, the request and focus. Posting, model
 // and retrieved text render as React text or through ModelText only (DESIGN.md, Security rules).
+// With a model on the visitor's computer confirmed, the posting goes through the browser relay
+// (useRelayRun) instead of /api/jobs/analyze.
 export function JobAnalysisView() {
   const router = useRouter();
   const info = useServerInfo();
-  const session = useLiveSession();
+  const setup = useProviderRoute();
+  const relay = useRelayRun();
   const ready = info.status === "ready";
   const demo = ready && info.mode === "demo";
-  const liveMode = ready && info.mode === "live";
-  const liveReady = session.hasKey && session.signedIn;
   const slot = useRecordings("job", { enabled: ready, autoShow: demo });
   const recording = slot.one.status === "ready" ? slot.one.recording : null;
   const [posting, setPosting] = useState("");
@@ -101,9 +106,10 @@ export function JobAnalysisView() {
   }, [loading]);
 
   // Focus the result or error h2 when one arrives (DESIGN.md, Accessibility).
+  const relayAnalysis = relay.phase === "done" ? relay.job : null;
   useEffect(() => {
-    if (analysis || error) headingRef.current?.focus();
-  }, [analysis, error]);
+    if (analysis || error || relayAnalysis) headingRef.current?.focus();
+  }, [analysis, error, relayAnalysis]);
 
   // A recording the visitor picked gets the focus, like a live result.
   useEffect(() => {
@@ -135,20 +141,26 @@ export function JobAnalysisView() {
   // Sends one /api/jobs/analyze request with an AbortController. Called by the form and "Try
   // again" only: no automatic retry. Stale responses (after Stop waiting) are dropped.
   async function submit() {
-    if (loading) return;
+    if (loading || isRelayWorking(relay.phase)) return;
     const problem = validate();
     setFieldError(problem);
     if (problem) {
       setError(null);
       setAnalysis(null);
+      relay.reset(); // an older relay result must not sit beside the field error
       textareaRef.current?.focus();
       return;
     }
-    const controller = new AbortController();
-    controllerRef.current = controller;
     slot.clear();
     setAnalysis(null);
     setError(null);
+    if (setup.route === "relay") {
+      void relay.start({ kind: "job", request: { job_description: posting.trim() } });
+      return;
+    }
+    relay.reset();
+    const controller = new AbortController();
+    controllerRef.current = controller;
     setElapsed(0);
     setLive("Reading the posting and searching the knowledge base");
     setLoading(true);
@@ -160,7 +172,7 @@ export function JobAnalysisView() {
     } catch (caught) {
       if (controller.signal.aborted) return; // "Stop waiting": back to the form, no error
       if (caught instanceof ApiError && caught.kind === "auth") {
-        setLive(""); // the reopened live panel says what to fix
+        setLive(""); // the "Set up live mode" row and its dialog say what to fix
       } else if (caught instanceof ApiError) {
         setError(caught);
         setLive(caught.kind === "busy" ? BUSY_HEADING : "The request failed");
@@ -209,7 +221,7 @@ export function JobAnalysisView() {
           void submit();
         }}
       >
-        {liveMode && liveReady && <LiveStrip />}
+        <ProviderStrip />
         <div className="space-y-1">
           <label htmlFor="posting" className="text-label">
             Job posting
@@ -235,8 +247,8 @@ export function JobAnalysisView() {
           )}
           <CharCount id="posting-count" value={charCount(posting)} max={JOB_MAX} />
         </div>
-        {liveMode && !liveReady ? (
-          <LivePanel />
+        {setup.needsSetup ? (
+          <SetupRow />
         ) : (
         <div className="flex flex-wrap items-center justify-end gap-3">
           {loading && (
@@ -261,16 +273,18 @@ export function JobAnalysisView() {
           >
             Use sample posting
           </button>
-          <button type="submit" className={primaryButton} disabled={loading}>
+          {setup.localMode && setup.route !== "relay" && <LocalModelButton />}
+          <button type="submit" className={primaryButton} disabled={loading || isRelayWorking(relay.phase)}>
             Analyse posting
           </button>
         </div>
         )}
       </form>
       )}
+      {(setup.liveMode || setup.localMode) && <ProviderPicker mode={setup.liveMode ? "live" : "local"} />}
 
       <div role="status" className="sr-only">
-        {recordingLive || live}
+        {recordingLive || (relay.phase !== "idle" ? relay.announcement : live)}
       </div>
 
       <RecordingSlotState slot={slot} />
@@ -303,9 +317,14 @@ export function JobAnalysisView() {
         </StatusPanel>
       )}
 
-      {!recording && analysis && (
+      {!recording && isRelayWorking(relay.phase) && <RelayProgress run={relay} />}
+      {!recording && isRelayProblem(relay) && (
+        <RelayProblem run={relay} onRetry={() => void submit()} onChangeModel={() => openDialog()} />
+      )}
+
+      {!recording && (relayAnalysis ?? analysis) && (
         <>
-          <AnalysisResult analysis={analysis} headingRef={headingRef} />
+          <AnalysisResult analysis={(relayAnalysis ?? analysis) as JobAnalysis} headingRef={headingRef} />
           <div>
             <button type="button" className={secondaryButton} onClick={buildPlan}>
               Build a preparation plan from this posting
@@ -314,7 +333,7 @@ export function JobAnalysisView() {
         </>
       )}
 
-      {!demo && <RecordedExamples slot={slot} showPicker disabled={loading} />}
+      {!demo && <RecordedExamples slot={slot} showPicker disabled={loading || isRelayWorking(relay.phase)} />}
       {demo && <RecordedExamples slot={slot} showPicker={false} />}
       </ServerGate>
     </div>

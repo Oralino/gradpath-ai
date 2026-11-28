@@ -165,7 +165,7 @@ describe("mode badge and note", () => {
     expect(screen.getByText(/with the fictional sample profile/)).toBeTruthy();
     cleanup();
     render(inMode(<JobAnalysisView />, { mode: "live" }));
-    expect(screen.getByText(/Live mode: sign in with GitHub and use the full app/)).toBeTruthy();
+    expect(screen.getByText(/Live mode: sign in with GitHub, then use your own Anthropic API key or a model on your computer/)).toBeTruthy();
     cleanup();
     render(inMode(<Assistant />, { mode: "local" }));
     expect(screen.queryByText(/demo mode/)).toBeNull();
@@ -305,7 +305,7 @@ describe("mode-rule errors in the result slot", () => {
     expect(screen.getByText("Too many requests.")).toBeTruthy();
     expect(screen.getByText("0:38")).toBeTruthy();
     await waitFor(() => expect(screen.getByText("0:37")).toBeTruthy(), { timeout: 2500 });
-    expect(screen.queryByRole("group", { name: "Use live mode" })).toBeNull(); // the key stays set
+    expect(screen.queryByRole("button", { name: "Set up live mode" })).toBeNull(); // the key stays set
   });
 
   test("a 403 demo_mode is a neutral panel linking to the recordings", async () => {

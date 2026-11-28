@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CharCount } from "@/components/CharCount";
-import { LivePanel, LiveStrip } from "@/components/LivePanel";
+import { LocalModelButton, ProviderStrip, SetupRow } from "@/components/ProviderSetup";
+import { ProviderPicker } from "@/components/ProviderPicker";
+import { RelayProblem, RelayProgress, isRelayProblem, isRelayWorking } from "@/components/RelayRunView";
 import { ModeErrorPanel, isModeError } from "@/components/ModeErrorPanel";
 import { ModeNote } from "@/components/ModeNote";
 import { RecordedExamples, RecordingInputs, RecordingSlotState, RecordingStrip, STRIP_ID } from "@/components/RecordedExamples";
@@ -21,7 +23,9 @@ import { api, ApiError, MESSAGES } from "@/lib/api";
 import { charCount } from "@/lib/charCount";
 import { formatElapsed } from "@/lib/formatElapsed";
 import { BUSY_BODY, BUSY_HEADING, PLAN_STATUS, PROGRESS_HEADING } from "@/lib/plan";
-import { useLiveSession } from "@/lib/liveSession";
+import { openDialog } from "@/lib/providerSession";
+import { useProviderRoute } from "@/lib/useProviderRoute";
+import { useRelayRun } from "@/lib/useRelayRun";
 import { loadProfile } from "@/lib/profileStore";
 import { SAMPLE_PROFILE, SAMPLE_PROFILE_LABEL } from "@/lib/sampleProfile";
 import type { AssistRequest, AssistResponse, UserProfile } from "@/lib/types";
@@ -65,15 +69,16 @@ function resultHeading(response: AssistResponse): string {
 // The Ask screen (DESIGN.md, Screens 1): composer, loading, and every outcome of POST /api/assist.
 // Client component because it holds form state, the request and focus. All model, retrieved and
 // user text is rendered as React text children only (DESIGN.md, Security rules). A workflow route
-// answers "started" with a run id; usePlanRun then polls it (in memory only) for live stages.
+// answers "started" with a run id; usePlanRun then polls it (in memory only) for live stages. With a
+// model on the visitor's computer confirmed (components/ProviderPicker.tsx) the request goes through
+// the browser relay instead (useRelayRun), never to /api/assist.
 export function Assistant() {
   const run = usePlanRun();
+  const relay = useRelayRun();
   const info = useServerInfo();
-  const session = useLiveSession();
+  const setup = useProviderRoute();
   const ready = info.status === "ready";
   const demo = ready && info.mode === "demo";
-  const liveMode = ready && info.mode === "live";
-  const liveReady = session.hasKey && session.signedIn;
   const slot = useRecordings("ask", { enabled: ready, autoShow: false });
   const recording = slot.one.status === "ready" ? slot.one.recording : null;
   const [message, setMessage] = useState("");
@@ -113,9 +118,10 @@ export function Assistant() {
   }, [loading]);
 
   // Focus the result or error h2 when one arrives (DESIGN.md, Accessibility).
+  const relayResponse = relay.phase === "done" ? relay.ask : null;
   useEffect(() => {
-    if (response || error) headingRef.current?.focus();
-  }, [response, error]);
+    if (response || error || relayResponse) headingRef.current?.focus();
+  }, [response, error, relayResponse]);
 
   // A recording the visitor picked gets the focus, like a live result.
   useEffect(() => {
@@ -168,16 +174,18 @@ export function Assistant() {
     return errors;
   }
 
-  // Sends one /api/assist request with an AbortController. Called by the form, "Try again" and
-  // nothing else. No automatic retry: a retry is always the visitor's click.
+  // Sends one /api/assist request with an AbortController, or starts a relay run on the visitor's
+  // own model. Called by the form, "Try again" and nothing else. No automatic retry: a retry is
+  // always the visitor's click.
   async function submit() {
-    if (loading) return;
+    if (loading || isRelayWorking(relay.phase)) return;
     const errors = validate();
     setFieldErrors(errors);
     setServerFields(null);
     if (errors.message || errors.job) {
       if (errors.job) setJobOpen(true);
       setError(null);
+      relay.reset(); // an older relay result must not sit beside the field errors
       setSummaryNonce((n) => n + 1);
       return;
     }
@@ -186,12 +194,17 @@ export function Assistant() {
     if (profileChoice === "sample") body.profile = SAMPLE_PROFILE;
     if (profileChoice === "saved" && savedProfile) body.profile = savedProfile;
 
-    const controller = new AbortController();
-    controllerRef.current = controller;
     slot.clear();
     run.reset();
     setResponse(null);
     setError(null);
+    if (setup.route === "relay") {
+      void relay.start({ kind: "ask", request: body });
+      return;
+    }
+    relay.reset();
+    const controller = new AbortController();
+    controllerRef.current = controller;
     setElapsed(0);
     setLive("Searching the knowledge base and writing an answer");
     setLoading(true);
@@ -205,7 +218,7 @@ export function Assistant() {
       if (controller.signal.aborted) return; // "Stop waiting": back to the form, no error
       if (caught instanceof ApiError) {
         if (caught.kind === "auth") {
-          setLive(""); // the reopened live panel says what to fix
+          setLive(""); // the "Set up live mode" row and its dialog say what to fix
         } else if (caught.kind === "validation") {
           setServerFields(caught.fields);
           setSummaryNonce((n) => n + 1);
@@ -254,8 +267,9 @@ export function Assistant() {
   ];
   for (const label of serverLabels) summary.push(`${label}: the server did not accept this. Check it and try again.`);
 
-  const showEmpty = !response && !error && !loading;
-  const runBusy = run.phase === "starting" || run.phase === "running";
+  const showEmpty = !response && !error && !loading && relay.phase === "idle";
+  const runBusy = run.phase === "starting" || run.phase === "running" || isRelayWorking(relay.phase);
+  const shownResponse = relayResponse ?? response;
   const messageDescribedBy = ["message-count", fieldErrors.message ? "message-error" : ""]
     .filter(Boolean)
     .join(" ");
@@ -280,7 +294,7 @@ export function Assistant() {
           void submit();
         }}
       >
-        {liveMode && liveReady && <LiveStrip />}
+        <ProviderStrip />
         {summary.length > 0 && (
           <div ref={summaryRef} tabIndex={-1} role="alert" className="rounded-md border-l-4 border-stopped bg-stopped-bg p-4">
             <p className="flex items-center gap-2 text-label text-stopped">
@@ -421,8 +435,8 @@ export function Assistant() {
           </p>
         </div>
 
-        {liveMode && !liveReady ? (
-          <LivePanel />
+        {setup.needsSetup ? (
+          <SetupRow />
         ) : (
         <div className="flex flex-wrap items-center justify-end gap-3">
           {loading && (
@@ -435,6 +449,7 @@ export function Assistant() {
               </button>
             </>
           )}
+          {setup.localMode && setup.route !== "relay" && <LocalModelButton />}
           <button type="submit" className={primaryButton} disabled={loading || runBusy}>
             Ask
           </button>
@@ -442,9 +457,10 @@ export function Assistant() {
         )}
       </form>
       )}
+      {(setup.liveMode || setup.localMode) && <ProviderPicker mode={setup.liveMode ? "live" : "local"} />}
 
       <div role="status" className="sr-only">
-        {recordingLive || (run.phase !== "idle" ? run.announcement : live)}
+        {recordingLive || (relay.phase !== "idle" ? relay.announcement : run.phase !== "idle" ? run.announcement : live)}
       </div>
 
       <RecordingSlotState slot={slot} />
@@ -471,11 +487,16 @@ export function Assistant() {
 
       {!recording && error && <ErrorPanel error={error} headingRef={headingRef} onRetry={() => void submit()} />}
 
-      {!recording && response && (
+      {!recording && isRelayWorking(relay.phase) && <RelayProgress run={relay} />}
+      {!recording && isRelayProblem(relay) && (
+        <RelayProblem run={relay} onRetry={() => void submit()} onChangeModel={() => openDialog()} />
+      )}
+
+      {!recording && shownResponse && (
         <section className="space-y-3">
-          <RouteLine decision={response.decision} citations={response.answer?.citations ?? []} />
+          <RouteLine decision={shownResponse.decision} citations={shownResponse.answer?.citations ?? []} />
           <Result
-            response={response}
+            response={shownResponse}
             headingRef={headingRef}
             onNarrow={() => messageRef.current?.focus()}
             onPasteJob={openJobEditor}

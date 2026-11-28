@@ -9,11 +9,15 @@ import { secondaryButton } from "@/components/buttonStyles";
 import { api, ApiError } from "@/lib/api";
 import { charCount } from "@/lib/charCount";
 import { useLiveSession } from "@/lib/liveSession";
+import { useProviderSession } from "@/lib/providerSession";
 import { useServerInfo } from "@/lib/serverInfo";
 import type { ResumeImport as ResumeImportResult } from "@/lib/types";
 
 const RESUME_MIN = 100;
 const RESUME_MAX = 15000;
+// Decision 16 (T-029): a resume import stays on Claude, whatever model Ask, Job and Plan use.
+const NEEDS_CLAUDE =
+  "Filling from a resume needs Claude (your API key). Your local model is used on Ask, Analyse a job and Plan.";
 
 function formatElapsed(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -31,6 +35,7 @@ export function ResumeImport({
 }) {
   const info = useServerInfo();
   const session = useLiveSession();
+  const provider = useProviderSession();
   const [text, setText] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -128,6 +133,7 @@ export function ResumeImport({
   }
   const liveMode = info.status === "ready" && info.mode === "live";
   const liveReady = session.hasKey && session.signedIn;
+  const needsClaudeLine = provider.active !== null && provider.active.choice !== "claude" ? NEEDS_CLAUDE : null;
 
   const busy = error?.kind === "busy";
   const count = charCount(text);
@@ -138,10 +144,11 @@ export function ResumeImport({
       <summary className="cursor-pointer text-label text-link">Fill from a resume</summary>
       {liveMode && !liveReady ? (
         <div className="mt-3">
-          <LivePanel examplesHref="/" />
+          <LivePanel examplesHref="/" firstLine={needsClaudeLine} />
         </div>
       ) : (
       <div className="mt-3 space-y-3">
+        {liveMode && needsClaudeLine && <p className="text-small">{needsClaudeLine}</p>}
         {liveMode && <LiveStrip />}
         <p id="resume-help" className="text-small text-ink-muted">
           Contact details are dropped. The resume text is sent to the model once and not stored.

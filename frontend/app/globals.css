@@ -108,3 +108,12 @@ body {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
+
+/* The model provider picker is a modal <dialog> (DESIGN.md, "Live mode dialog"): lock the page's
+   scroll while one is open, and keep the scrollbar's gutter so the page does not shift sideways. */
+html {
+  scrollbar-gutter: stable;
+}
+html:has(dialog[open]) {
+  overflow: hidden;
+}

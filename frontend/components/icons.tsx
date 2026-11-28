@@ -123,3 +123,22 @@ export function KeyIcon({ size = 14 }: IconProps) {
     </Svg>
   );
 }
+
+// The monitor glyph: "a model on this computer" (DESIGN.md, Model provider picker). One meaning only.
+export function MonitorIcon({ size = 14 }: IconProps) {
+  return (
+    <Svg size={size}>
+      <rect x="2" y="2.8" width="12" height="8" rx="1" />
+      <path d="M6 13.4h4M8 10.8v2.6" />
+    </Svg>
+  );
+}
+
+// The close glyph (an x) for the dialog's close button. Used by components/ProviderPicker.tsx.
+export function CloseIcon({ size = 16 }: IconProps) {
+  return (
+    <Svg size={size}>
+      <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" />
+    </Svg>
+  );
+}

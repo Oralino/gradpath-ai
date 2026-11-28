@@ -6,6 +6,7 @@ import { ProfileForm } from "@/components/ProfileForm";
 import { SignInNotice } from "@/components/SignInNotice";
 import { inMode, json, routeFetch } from "@/components/serverFixtures";
 import { authHeaders, liveState, resetForTests, setKey, setSignIn } from "@/lib/liveSession";
+import { resetProviderForTests } from "@/lib/providerSession";
 import { RUN_STORAGE_KEY } from "@/lib/usePlanRun";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -15,7 +16,10 @@ const LATER = new Date(Date.now() + 3_600_000).toISOString();
 const SIGNIN_ENDED = "Your GitHub sign-in has ended. Sign in again to use live mode.";
 const signIn = () => setSignIn(true, "octocat", LATER);
 
-beforeEach(() => resetForTests());
+beforeEach(() => {
+  resetForTests();
+  resetProviderForTests();
+});
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -23,12 +27,20 @@ afterEach(() => {
   window.localStorage.clear();
   window.history.replaceState(null, "", "/");
   resetForTests();
+  resetProviderForTests();
 });
 
 function live(extra: Record<string, (init: RequestInit) => Response | Promise<Response>> = {}) {
   return routeFetch({ "/api/demo": () => json(200, []), ...extra });
 }
-const renderJob = () => render(inMode(<JobAnalysisView />, { mode: "live" }));
+// The setup lives in a dialog opened by the "Set up live mode" row (T-029); renderJob opens it.
+const openSetup = () => fireEvent.click(screen.getByRole("button", { name: "Set up live mode" }));
+const renderJob = () => {
+  const view = render(inMode(<JobAnalysisView />, { mode: "live" }));
+  if (screen.queryByRole("button", { name: "Set up live mode" })) openSetup();
+  return view;
+};
+const dialog = () => screen.getByRole("dialog", { name: "Use live mode" });
 const keyField = () => screen.getByLabelText("Anthropic API key") as HTMLInputElement;
 const useButton = () => screen.getByRole("button", { name: "Use live mode" }) as HTMLButtonElement;
 const useLiveMode = () => fireEvent.click(useButton());
@@ -52,6 +64,7 @@ describe("signed out", () => {
   test("sign-in not available (me 404): a line instead of the link", () => {
     live({ "/api/auth/me": () => json(404, { detail: "Not found." }) });
     render(inMode(<><SignInNotice /><JobAnalysisView /></>, { mode: "live" }));
+    openSetup();
     return waitFor(() => {
       expect(screen.getByText("GitHub sign-in isn't available on this server right now.")).toBeTruthy();
       expect(screen.queryByRole("link", { name: "Sign in with GitHub" })).toBeNull();
@@ -62,10 +75,10 @@ describe("signed out", () => {
 describe("signed in", () => {
   beforeEach(() => signIn());
 
-  test("the panel is a group (not a form) showing the login, Sign out, and a hidden key field", () => {
+  test("the setup is a dialog (not a form) showing the login, Sign out, and a hidden key field", () => {
     live();
     const { container } = renderJob();
-    expect(screen.getByRole("group", { name: "Use live mode" })).toBeTruthy();
+    expect(dialog()).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Analyse posting" })).toBeNull();
     expect(container.querySelector("form form")).toBeNull();
     expect(screen.getByText("Signed in as @octocat")).toBeTruthy();
@@ -75,7 +88,7 @@ describe("signed in", () => {
     expect(keyField().disabled).toBe(false);
     expect(keyField().autocomplete).toBe("off");
     expect(keyField().getAttribute("spellcheck")).toBe("false");
-    expect(screen.getByRole("link", { name: "No key? Browse the examples" }).getAttribute("href")).toBe("#recorded-examples");
+    expect(screen.getByRole("link", { name: "Browse the examples instead" }).getAttribute("href")).toBe("#recorded-examples");
   });
 
   test("Show and Hide switch the field type and the accessible name", () => {
@@ -111,13 +124,16 @@ describe("signed in", () => {
     expect(init.headers).toEqual({ "X-Anthropic-Key": KEY });
     release(json(200, { ok: true }));
     const strip = await screen.findByText(/Live mode on, signed in as @octocat\./);
+    expect(screen.queryByRole("dialog")).toBeNull(); // closed before the strip took focus
     await waitFor(() => expect(document.activeElement).toBe(strip.closest("div[tabindex]")));
     expect(screen.getByText("Live mode on")).toBeTruthy(); // the live region
     expect(screen.queryByLabelText("Anthropic API key")).toBeNull();
     expect(screen.getByRole("button", { name: "Analyse posting" })).toBeTruthy();
     expect(document.body.innerHTML).not.toContain(KEY);
     expect(window.sessionStorage.length).toBe(0);
-    expect(window.localStorage.length).toBe(0);
+    // Only the remembered choice (decision 19), never the key.
+    expect(window.localStorage.getItem("gradpath-provider")).not.toContain(KEY);
+    expect(window.localStorage.length).toBe(1);
     expect(authHeaders()).toEqual({ "X-Anthropic-Key": KEY });
   });
 
@@ -169,7 +185,7 @@ describe("signed in", () => {
     fill(KEY);
     useLiveMode();
     const line = await screen.findByText("Too many checks. Slow down.");
-    expect(screen.getByRole("group", { name: "Use live mode" }).contains(line)).toBe(true);
+    expect(dialog().contains(line)).toBe(true);
     await screen.findByText(/You can try again in/);
     expect(useButton().disabled).toBe(true);
     expect(keyField().disabled).toBe(false);
@@ -186,6 +202,24 @@ describe("signed in", () => {
     expect(call?.[1]?.body).toBe("{}");
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Use live mode" })));
     expect(screen.getByText("Signed out")).toBeTruthy();
+  });
+
+  test("Cancel, the x and Escape close the dialog and give focus back to the Set up button; a key check in flight is dropped", () => {
+    live({ "/api/live/check": () => new Promise<Response>(() => {}) as never });
+    renderJob();
+    fill(KEY);
+    useLiveMode();
+    expect(screen.getByRole("button", { name: "Checking..." })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Set up live mode" }));
+    expect(liveState().hasKey).toBe(false);
+    openSetup();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    openSetup();
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   test("Sign out when the server fails: still signed out here, with a note", async () => {
@@ -210,34 +244,36 @@ describe("a refusal from a model request", () => {
     renderJob();
     fireEvent.change(screen.getByLabelText("Job posting"), { target: { value: "x".repeat(60) } });
     fireEvent.click(screen.getByRole("button", { name: "Analyse posting" }));
+    // The row returns on its own; the dialog opens only when the visitor asks (T-029).
+    fireEvent.click(await screen.findByRole("button", { name: "Set up live mode" }));
   }
 
-  test("signin_required: the panel reopens signed out with the line, typed text kept, no error panel", async () => {
+  test("signin_required: setup reopens signed out with the line, typed text kept, no error panel", async () => {
     await send("signin_required");
     expect(await screen.findByText(SIGNIN_ENDED)).toBeTruthy();
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("link", { name: "Sign in with GitHub" })));
+    expect(screen.getByRole("link", { name: "Sign in with GitHub" })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "The request failed" })).toBeNull();
     expect((screen.getByLabelText("Job posting") as HTMLTextAreaElement).value).toBe("x".repeat(60));
   });
 
-  test("key_refused: the panel reopens with the key error, still signed in", async () => {
+  test("key_refused: setup shows the key error, still signed in", async () => {
     await send("key_refused");
     expect(await screen.findByText("Anthropic refused this API key. Check that it is active and has credit.")).toBeTruthy();
-    await waitFor(() => expect(document.activeElement).toBe(keyField()));
+    expect(keyField().getAttribute("aria-invalid")).toBe("true");
     expect(screen.getByText("Signed in as @octocat")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "The request failed" })).toBeNull();
   });
 
-  test("key_required: the panel reopens with the server text on the key field", async () => {
+  test("key_required: setup shows the server text on the key field", async () => {
     await send("key_required");
     expect(await screen.findByText("Server says no.")).toBeTruthy();
     expect(keyField().getAttribute("aria-invalid")).toBe("true");
   });
 
-  test("an unknown 401 code still reopens the panel with the server text, not a silent stop", async () => {
+  test("an unknown 401 code still brings setup back with the server text, not a silent stop", async () => {
     await send("something_new");
     expect(await screen.findByText("Server says no.")).toBeTruthy();
-    expect(screen.getByRole("group", { name: "Use live mode" })).toBeTruthy();
+    expect(dialog()).toBeTruthy();
   });
 
   test("the refusal does not follow the visitor to the next page", async () => {
@@ -245,7 +281,8 @@ describe("a refusal from a model request", () => {
     await screen.findByText("Anthropic refused this API key. Check that it is active and has credit.");
     cleanup(); // leave the page: the panel unmounts
     render(inMode(<PlanView />, { mode: "live" }));
-    expect(screen.getByRole("group", { name: "Use live mode" })).toBeTruthy();
+    openSetup();
+    expect(dialog()).toBeTruthy();
     expect(screen.queryByText("Anthropic refused this API key. Check that it is active and has credit.")).toBeNull();
     expect(document.activeElement).not.toBe(keyField());
   });
@@ -257,13 +294,14 @@ describe("the strip", () => {
     setKey(KEY);
   });
 
-  test("Clear key: the key goes, the sign-in stays, the panel returns with focus on its heading", async () => {
+  test("Clear key: the key goes, the sign-in stays, the setup row returns with focus on its button", async () => {
     live();
     renderJob();
     fireEvent.click(screen.getByRole("button", { name: "Clear key" }));
-    const heading = screen.getByRole("heading", { name: "Use live mode" });
-    await waitFor(() => expect(document.activeElement).toBe(heading));
+    const button = screen.getByRole("button", { name: "Set up live mode" });
+    await waitFor(() => expect(document.activeElement).toBe(button));
     expect(screen.getByText("Key cleared")).toBeTruthy();
+    openSetup();
     expect(screen.getByText("Signed in as @octocat")).toBeTruthy();
     expect(authHeaders()).toEqual({});
   });
@@ -272,9 +310,10 @@ describe("the strip", () => {
     const fn = live({ "/api/auth/logout": () => new Response(null, { status: 204 }) });
     renderJob();
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
-    expect(await screen.findByRole("link", { name: "Sign in with GitHub" })).toBeTruthy();
-    expect(fn.mock.calls.some(([url]) => url === "/api/auth/logout")).toBe(true);
     await waitFor(() => expect(screen.getByText("Signed out")).toBeTruthy());
+    expect(fn.mock.calls.some(([url]) => url === "/api/auth/logout")).toBe(true);
+    openSetup();
+    expect(screen.getByRole("link", { name: "Sign in with GitHub" })).toBeTruthy();
     expect(authHeaders()).toEqual({});
   });
 });
@@ -283,6 +322,7 @@ describe("SignInNotice", () => {
   test("loads /api/auth/me in live mode and mirrors the login", async () => {
     live({ "/api/auth/me": () => json(200, { signed_in: true, login: "octocat", expires_at: LATER }) });
     render(inMode(<><SignInNotice /><JobAnalysisView /></>, { mode: "live" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Set up live mode" }));
     expect(await screen.findByText("Signed in as @octocat")).toBeTruthy();
   });
 
@@ -352,6 +392,7 @@ describe("Plan and Profile", () => {
     window.sessionStorage.setItem(RUN_STORAGE_KEY, "11111111-2222-3333-4444-555555555555");
     const fn = live();
     render(inMode(<PlanView />, { mode: "live" }));
+    openSetup();
     expect(screen.getByText("A plan run from before the reload may still be on the server. Enter the same key again to see it.")).toBeTruthy();
     expect(fn.mock.calls.some(([url]) => String(url).startsWith("/api/career/runs"))).toBe(false); // not polled without a key
   });
@@ -359,6 +400,7 @@ describe("Plan and Profile", () => {
   test("Plan: no stored run, no note", () => {
     live();
     render(inMode(<PlanView />, { mode: "live" }));
+    openSetup();
     expect(screen.queryByText(/A plan run from before the reload/)).toBeNull();
   });
 
