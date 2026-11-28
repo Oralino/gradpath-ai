@@ -155,7 +155,7 @@ chain, for measuring the deployed setup.
 `next.config.ts` `headers()`; every API reply gets the same three from `SecurityHeaders`
 (outermost ASGI middleware), because `headers()`, and response headers set in `proxy.ts`, don't
 reach replies from the external `/api` rewrite (measured with `next start`). HSTS comes from
-Vercel. No Content-Security-Policy yet.
+Vercel. No Content-Security-Policy yet (T-030, after the provider layer T-029).
 
 **Site only (T-020 step 4, owner decision "origin cloaking"):** once `PROXY_SHARED_SECRET` is set,
 `SiteOnly` (ASGI middleware right inside `SecurityHeaders`, `api/main.py`) answers 403 `site_only` to every request

@@ -2,6 +2,11 @@
 Finished work and releases, newest first; closed tickets are linked here. Open work is in `TASKS.md`.
 
 ## 2026-11-28
+- [T-020 Milestone 8, deploy](tickets/done/T-020-deploy.md): GradPath live at
+  `gradpath-ai-phi.vercel.app` on free tiers (Vercel, Render running the API's Docker image,
+  Qdrant Cloud); Voyage budget and cache, Sign in with GitHub, the site vouching for visitor
+  addresses, direct calls to Render refused, Trivy in CI, security headers, release checks, public
+  README. Merged in [#19](https://github.com/Oralino/gradpath-ai/pull/19). CSP deferred to T-030.
 - [T-028 Waking-up screen](tickets/done/T-028-wake-up-screen.md): while the API wakes from
   Render's free-tier sleep (measured 43 s), a full-page "Waking up AI braincells..." screen with
   an animated nerve-cell drawing and a timer; retries for 3 minutes, then "The braincells didn't

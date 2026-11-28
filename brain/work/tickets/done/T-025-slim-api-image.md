@@ -1,6 +1,6 @@
 # T-025: slim the API Docker image
 Make the deployed API image install only what the server runs. Part of Milestone 8 (the image
-from [T-020](../in-progress/T-020-deploy.md) step 2b); the image is described in
+from [T-020](T-020-deploy.md) step 2b); the image is described in
 `../../../engineering/ARCHITECTURE.md` ("Container").
 
 - **Type:** change

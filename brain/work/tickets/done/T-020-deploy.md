@@ -4,8 +4,8 @@ deploy in `../../../engineering/ARCHITECTURE.md`; threats and the live-deploy ch
 `../../../engineering/SECURITY.md`.
 
 - **Type:** feature
-- **Status:** in progress
-- **Opened:** 2026-11-21 · **Closed:**
+- **Status:** done
+- **Opened:** 2026-11-21 · **Closed:** 2026-11-28
 - **GitHub Issue:** none
 
 ## Summary
@@ -101,9 +101,18 @@ Consequences: Voyage abuse is a small risk (about 20 tokens a search); Render re
 in-memory budget useless, hence the Qdrant-stored budget; the 120 s limit is fine because plans run
 in the background with short polls; the cold start needs a visible "Waiting for the server..." state.
 
+- **Content-Security-Policy (step 5/6, owner 2026-11-28): after T-029.** Moved to its own
+  ticket, [T-030](../open/T-030-content-security-policy.md): the provider layer changes which
+  connections, model downloads and WebAssembly the site needs. The milestone merges without one.
+- **Step 6 (owner 2026-11-28):** public README rewritten for the deployed site (link, what
+  visitors can do, Sign in with GitHub, waking screen, a deploy diagram without the Render
+  address); fact-checked against the code by code-reviewer (no wrong claims; `/docs` note
+  corrected). MILESTONES records steps 3b-6.
+
 ## Changes
 - Branch: `feat/t-020-deploy`
-- PR:
+- PR: [#19](https://github.com/Oralino/gradpath-ai/pull/19)
+- All commits: `git log --grep=T-020` (also T-025, T-026, T-028 on this branch).
 - Files touched (step 2): `retrieval/budget.py`, `retrieval/query_cache.py`,
   `retrieval/guarded.py` (new), `retrieval/service.py`, `config.py`, `api/main.py`,
   `api/search.py`, `api/deps.py`, `api/ratelimit.py`, `backend/Dockerfile`

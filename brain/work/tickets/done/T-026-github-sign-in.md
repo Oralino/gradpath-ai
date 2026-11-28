@@ -1,5 +1,5 @@
 # T-026: Sign in with GitHub replaces the live passcode
-Live mode's gate. Part of Milestone 8 ([T-020](../in-progress/T-020-deploy.md)); the flow is described in
+Live mode's gate. Part of Milestone 8 ([T-020](T-020-deploy.md)); the flow is described in
 `../../../engineering/ARCHITECTURE.md` (live mode), threats in `../../../engineering/SECURITY.md`.
 
 - **Type:** change

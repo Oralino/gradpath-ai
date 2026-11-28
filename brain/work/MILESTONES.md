@@ -17,7 +17,7 @@ in `tickets/`. Concepts and interview answers are in `../engineering/WALKTHROUGH
 | 5 | Hybrid retrieval + reranking | ✅ | Improve search for exact terms | Measured and rejected: semantic 0.961 Recall@5 beat hybrid (0.921) and both rerankers; stays semantic-only |
 | 6 | Frontend | ✅ | Make it usable | Next.js app designed from `DESIGN.md` |
 | 7 | Demo and live modes | ✅ | A public site that costs nothing | Demo mode with 8 recorded runs and no keys; live mode on a visitor's key (never stored); source search; answer eval 12/14, 6/6 refusals, 99% of claims grounded |
-| 8 | Deploy | 🔨 | A live link | Live at `gradpath-ai-phi.vercel.app` on Vercel + Render + Qdrant Cloud (free tiers); Sign in with GitHub for live mode; Trivy-scanned Docker image |
+| 8 | Deploy | ✅ | A live link | Live at `gradpath-ai-phi.vercel.app` on Vercel + Render + Qdrant Cloud (free tiers); Sign in with GitHub for live mode; Trivy-scanned Docker image |
 
 ## Tech stack at a glance
 
@@ -296,8 +296,8 @@ limits a public deploy needs. Scope, order and decisions (owner, 2026-11-20) are
   starts it had run; it now waits for it (6 clean runs in a row). Never pipe a check inside the
   commit chain.
 
-## Milestone 8: Deploy 🔨
-*Ticket: `tickets/in-progress/T-020-deploy.md`*
+## Milestone 8: Deploy ✅
+*Ticket: `tickets/done/T-020-deploy.md` · merged in [#19](https://github.com/Oralino/gradpath-ai/pull/19)*
 
 **Goal:** a public link employers can open, on free tiers with no payment method: Next.js on
 Vercel, FastAPI on Render (as a Docker image), the index on Qdrant Cloud. The site runs in live mode: without the

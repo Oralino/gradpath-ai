@@ -5,15 +5,11 @@ Non-trivial work gets a ticket in `tickets/open/` (moved to `tickets/in-progress
 Milestones follow the spec's order, adjusted to the owner's decisions (`../product/REQUIREMENTS.md`).
 
 ## Current
-- [ ] [T-020](tickets/in-progress/T-020-deploy.md): Milestone 8, deploy (plan approved 2026-11-21: decisions
-      in the ticket). Done: steps 0, 1 (index on Qdrant Cloud), 2, 2b (Docker image) and 3 (live
-      on Render and Vercel) and 4 (visitor address vouched for by the site with a shared secret;
-      direct calls to Render refused) and 5 (deployed-site checks, Trivy in CI, security
-      headers, separate keys, the waking screen T-028). Open from step 5: a
-      Content-Security-Policy decision. Next: step 6 (README), then the milestone PR.
 - [ ] [T-029](tickets/open/T-029-llm-provider-layer.md): Milestone 9, an LLM provider layer
       (Claude, Ollama, LM Studio, transformers.js) with a browser relay for local models on the
       deployed site; the workflow stays unchanged. After the Milestone 8 PR (owner, 2026-11-28).
+- [ ] [T-030](tickets/open/T-030-content-security-policy.md): Content-Security-Policy for the
+      site, designed after T-029 (owner, 2026-11-28).
 - [ ] [T-027](tickets/open/T-027-app-info-logs.md): the API's own INFO log lines (sign-in
       outcomes and others) never reach the logs; only warnings do. Found closing T-026.
 - [ ] DESIGN.md: record the GitHub sign-in row of the live panel (replaces the passcode field and
@@ -37,6 +33,8 @@ Security gaps from `../engineering/SECURITY.md` (proposed, waiting for the owner
 - [ ] Add `uvx pip-audit` to the release checks (dependency vulnerabilities). Ran for Milestone 6:
       clean (T-011); `npm audit` for the frontend also found 0 vulnerabilities (2026-11-20). Adopting
       both in `CLAUDE.md` is the owner's call.
+- [ ] **(owner)** After the Milestone 8 PR merges: switch Render's branch and Vercel's production
+      branch back to `main`.
 - [ ] **(owner)** Two-factor authentication on GitHub, Anthropic, Voyage and LangSmith.
 
 ## Corpus (before Milestone 5)

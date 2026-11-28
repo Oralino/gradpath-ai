@@ -1,5 +1,5 @@
 # T-028: an animated "waking up" screen for the API's cold start
-Frontend feature found in Milestone 8 step 5 ([T-020](../in-progress/T-020-deploy.md)). The look is specified in
+Frontend feature found in Milestone 8 step 5 ([T-020](T-020-deploy.md)). The look is specified in
 `../../../design/DESIGN.md`; the health check is described in `../../../engineering/ARCHITECTURE.md`.
 
 - **Type:** feature
